@@ -283,8 +283,8 @@ public class LoanDisplayService {
             LoanDetailsResponse lmsLoanDetails = lmsLoanDetailsService.getLoanSummaryFromOneLms(bpLoanId);
             responseDTOFromOneLms.updateFromLoanSummaryOneLms(loan, lmsLoanDetails, matchedLoan);
 
-            matchedLoan.setDueAmount((double) lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount());
-            matchedLoan.setDuePenalty((double) lmsLoanDetails.getLoanSummary().getOverdueOtherCharges());
+            matchedLoan.setDueAmount((double) lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmountAsInt());
+            matchedLoan.setDuePenalty((double) lmsLoanDetails.getLoanSummary().getOverdueOtherChargesAsInt());
             lendingPaymentScheduleDao.save(matchedLoan);
 
 
@@ -294,14 +294,14 @@ public class LoanDisplayService {
                 loan.setTodayEdi(loan.getDueAmount() / lmsLoanDetails.getLoanSummary().getOverdueInstalmentCount());
                 if (!ObjectUtils.isEmpty(loan.getDueAmount()) && !ObjectUtils.isEmpty(loan.getTodayEdi())) {
                     if (loan.getDueAmount() > loan.getTodayEdi()) {
-                        loan.setPendingEdi((double) lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount());
+                        loan.setPendingEdi((double) lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmountAsInt());
                     } else {
                         loan.setPendingEdi(0D);
                     }
                 }
                 Double excessCollectionBalance = (double) lmsLoanDetails.getLoanSummary().getExcessPayable();
 
-                loan.setTotalDue(lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount() + lmsLoanDetails.getLoanSummary().getOverdueOtherCharges());
+                loan.setTotalDue(lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmountAsInt() + lmsLoanDetails.getLoanSummary().getOverdueOtherChargesAsInt());
                 loan.setTotalExcessBalance(excessCollectionBalance);
                 loan.setNetPayable(Math.max(loan.getTotalDue() - loan.getTotalExcessBalance(), 0));
 
@@ -314,14 +314,14 @@ public class LoanDisplayService {
 
 //            LendingPrepaymentSlave lendingPrepayment = lendingPrePaymentSlaveDao.findByMerchantIdAndLoanId(merchantId, loan.getLoanId());
 
-            loan.setPaidAmount((double) lmsLoanDetails.getLoanSummary().getTotalPaidAmount());
-            loan.setPendingAmount((double) lmsLoanDetails.getLoanSummary().getPendingInstalmentAmount());
-            loan.setPaidPrinciple((double) lmsLoanDetails.getLoanSummary().getPaidPrincipalAmount());
+            loan.setPaidAmount((double) lmsLoanDetails.getLoanSummary().getTotalPaidAmountAsInt());
+            loan.setPendingAmount((double) lmsLoanDetails.getLoanSummary().getPendingInstalmentAmountAsInt());
+            loan.setPaidPrinciple((double) lmsLoanDetails.getLoanSummary().getPaidPrincipalAmountAsInt());
 
             // EDI 7 Days model always as rediscussed with product
             loan.setEdiDays(7);
 
-            loan.setDuePenalty(lmsLoanDetails.getLoanSummary().getOverdueOtherCharges());
+            loan.setDuePenalty(lmsLoanDetails.getLoanSummary().getOverdueOtherChargesAsInt());
 
             // TODO : Need to discuss from NACH Service :
             loan.setNachBounceAmount(0);

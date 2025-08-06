@@ -72,13 +72,13 @@ public class ForeclosureService {
         LoanDetailsResponse loanDetailsResponse = lmsloanDetailsService.getLoanSummaryFromOneLms(activeLoan.getLoanApplication().getExternalLoanId());
 
         Integer loanAmount = activeLoan.getLoanAmount().intValue();
-        Integer overdueAmount = loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount();
-        Integer penaltyFee = loanDetailsResponse.getLoanSummary().getOverdueOtherCharges();
+        Integer overdueAmount = loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmountAsInt();
+        Integer penaltyFee = loanDetailsResponse.getLoanSummary().getOverdueOtherChargesAsInt();
         Integer overdueDays = loanDetailsResponse.getLoanSummary().getOverdueInstalmentCount();
 
         Double netForeclosureAtLender = 0d;
         double finalForeclosureAtLender = 0d;
-         data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, overdueDays, true, activeLoan.getEdiRemainingCount(), (double) loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount());
+         data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, overdueDays, true, activeLoan.getEdiRemainingCount(), (double) loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmountAsInt());
         data.setExcessBalance((double) loanDetailsResponse.getLoanSummary().getExcessPayable());
         int lmsForeclosureAmount = getForeclosureAmount(activeLoan);
         netForeclosureAtLender = getLenderForeclosureAmount(activeLoan);
@@ -98,7 +98,7 @@ public class ForeclosureService {
 
         logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, finalForeclosureAmount, activeLoan.getId());
 
-        Double paidPrinciple = (double) loanDetailsResponse.getLoanSummary().getPaidPrincipalAmount();
+        Double paidPrinciple = (double) loanDetailsResponse.getLoanSummary().getPaidPrincipalAmountAsInt();
         Double dueInterest = loanDetailsResponse.getLoanSummary().getOverdueInterest().doubleValue();
 
         // Check if today is the loan's end date; if true, hide the foreclosure option
@@ -175,7 +175,7 @@ public class ForeclosureService {
                 Double minAmount = foreClosureConfig.getMinAmount();
                 if(minAmount == null) minAmount = 0.0;
                 logger.info("loan is {} and min amount is {} and foreclosure config rate  is {}  ",activeLoan,minAmount, foreClosureConfig.getRate());
-                foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( (loanDetailsResponse.getLoanSummary().getLoanAmount() - loanDetailsResponse.getLoanSummary().getPendingPrincipal() - loanDetailsResponse.getLoanSummary().getOverduePrincipal()) * foreClosureConfig.getRate())/100.0) , minAmount));
+                foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( (loanDetailsResponse.getLoanSummary().getLoanAmount() - loanDetailsResponse.getLoanSummary().getPendingPrincipalAsInt() - loanDetailsResponse.getLoanSummary().getOverduePrincipalAsInt()) * foreClosureConfig.getRate())/100.0) , minAmount));
                 foreClosureDetailDTO.setGst(Math.ceil((foreClosureDetailDTO.getForeclosureCharges() * foreClosureConfig.getGst())/100.0));
                 logger.info("going to return fore closure charges {} ",foreClosureDetailDTO);
                 return foreClosureDetailDTO;
@@ -242,7 +242,7 @@ public class ForeclosureService {
                 .clientId(lald.getCccId())
                 .loanAccountNumber(lald.getLan())
                 .transactionDate(new Date())
-                .outstandingPrinciple(BigDecimal.valueOf(loanDetailsResponse.getLoanSummary().getPendingPrincipal()))
+                .outstandingPrinciple(BigDecimal.valueOf(loanDetailsResponse.getLoanSummary().getPendingPrincipalAsInt()))
                 .outstandingInterest(BigDecimal.valueOf(loanDetailsResponse.getLoanSummary().getPendingInterest().doubleValue()))
                 .build();
     }
