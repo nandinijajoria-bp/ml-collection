@@ -2885,7 +2885,9 @@ public class LendingApplicationServiceV2 {
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
                 RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = getLenderRepaymentSchedule(applicationId, lendingApplication.getLender(), false);
-                disbursalAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getNetDisbursalAmount()));
+                if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                    disbursalAmount = Double.valueOf(String.format("%.2f", repaymentScheduleResponseDTO.getNetDisbursalAmount()));
+                }
                 repaymentAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getTotalRepaymentExpected()));
             }
             Double monthlyIncome = lendingRiskVariables.getMonthlyIncome();
