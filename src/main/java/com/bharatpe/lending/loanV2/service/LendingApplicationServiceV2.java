@@ -1516,7 +1516,7 @@ public class LendingApplicationServiceV2 {
                 applicationDTO.add(applicationDTO2);
             }
 
-            if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
+            if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                 LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()).orElse(null);
                 String status = "PENDING";
                 if (!ObjectUtils.isEmpty(vkycDetails) && VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
@@ -2500,7 +2500,7 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
 
-                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
 
                 // update tat start time on resubmit
                 LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
@@ -2961,7 +2961,7 @@ public class LendingApplicationServiceV2 {
                     .selectedLanguage(language)
                     .build();
 
-            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
                 if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
                     log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
@@ -4142,9 +4142,8 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        if(Lender.PIRAMAL.name().equalsIgnoreCase(kfsDto.getLender())) {
+        if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(kfsDto.getLender())) {
             LendingApplication parentLendingApplication = lendingApplicationDao.findByExternalLoanId(kfsDto.getParentLoanBplId());
-
             if (kfsDto.isTopUpLoan()) {
                 data.put("parent_loan_amount", parentLendingApplication.getLoanAmount());
                 data.put("parent_lan_no", parentLendingApplication.getNbfcId());

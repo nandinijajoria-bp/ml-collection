@@ -19,6 +19,7 @@ import com.bharatpe.lending.dto.vkyc.request.VkycStatusRequestDto;
 import com.bharatpe.lending.dto.vkyc.response.VKycInitiateResponseDto;
 import com.bharatpe.lending.dto.vkyc.response.VkycEligibilityResponseDto;
 import com.bharatpe.lending.dto.vkyc.response.VkycStatusResponseDto;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -314,8 +315,8 @@ public class VKycService {
         }
     }
 
-    public LendingViewStates getLenderVkycPageOrDefault(LendingViewStates defaultViewStage, Long merchantId, String lender) {
-        if (isVkycEnabled(merchantId, lender)) {
+    public LendingViewStates getLenderVkycPageOrDefault(LendingViewStates defaultViewStage, Long merchantId, String lender, Boolean topup) {
+        if (isVkycEnabled(merchantId, lender, topup)) {
             LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(merchantId, lender).orElse(null);
             if (ObjectUtils.isEmpty(vkycDetails) || !VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
                 log.info("next page vkyc for merchantId {} and lender {}", merchantId, lender);
@@ -325,10 +326,10 @@ public class VKycService {
         return defaultViewStage;
     }
 
-    public Boolean isVkycEnabled(Long merchantId, String lender) {
+    public Boolean isVkycEnabled(Long merchantId, String lender, Boolean topup) {
         boolean isEnabled = false;
         if (!ObjectUtils.isEmpty(merchantId) && !ObjectUtils.isEmpty(lender)) {
-            isEnabled = vkycConfig.getEnabledLenders().contains(lender) && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
+            isEnabled = !topup && vkycConfig.getEnabledLenders().contains(lender) && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
         }
         log.info("vkyc enabled {} for merchantId {} and lender {}", isEnabled, merchantId, lender);
         return isEnabled;
@@ -390,14 +391,15 @@ public class VKycService {
 
     public Boolean skipVkycForInEligibleUsers(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         String lender = lenderAssociationDetailsRequestDto.getLendingApplication().getLender();
-        if (!vkycConfig.getEnabledLenders().contains(lender) || easyLoanUtil.percentScaleUp(lenderAssociationDetailsRequestDto.getMerchantId(), vkycConfig.getRolloutPercentage())) {
+        boolean topup = LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType());
+        if (!topup && (!vkycConfig.getEnabledLenders().contains(lender) || easyLoanUtil.percentScaleUp(lenderAssociationDetailsRequestDto.getMerchantId(), vkycConfig.getRolloutPercentage()))) {
             return true; // skip vkyc logic to run only in case if vkyc is not enabled for the lender or merchant
         }
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.SKIP_VKYC.name());
         commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
         LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getApplicationId(), lender)
                 .orElseGet(()-> createPendingVkycDetailsRecord(lenderAssociationDetailsRequestDto.getLendingApplication()));
-        if(vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
+        if (!topup && vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
             vkycDetails.setDkycEligible(true);
             lendingApplicationVkycDetailsDao.save(vkycDetails);
             ApiResponse<?> apiResponse = initiateDkyc(lenderAssociationDetailsRequestDto.getLendingApplication(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), vkycDetails);
