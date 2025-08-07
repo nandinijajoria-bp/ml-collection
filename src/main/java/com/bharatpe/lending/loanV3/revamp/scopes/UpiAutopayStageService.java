@@ -147,7 +147,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
             if (LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType())) {
                 lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
             } else {
-                lendingStateDTO.setLendingViewStates(vKycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
+                lendingStateDTO.setLendingViewStates(vKycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender(), false));
             }
         }
     }
@@ -159,7 +159,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
             lendingStateDTO.setLendingViewStates(
                     LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType()) ?
                             LendingViewStates.AGREEMENT_PAGE :
-                            vKycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender())
+                            vKycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender(), false)
             );
         }
     }

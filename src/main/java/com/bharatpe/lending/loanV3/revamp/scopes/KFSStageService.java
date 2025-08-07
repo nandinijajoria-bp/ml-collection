@@ -136,7 +136,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
         log.info("Mandate switch rollout is enabled, handling next stage for application id {}", scopeDataArgs.getApplicationId());
         if(Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication())) {
             log.info("Topup loan application exists for application id {}, setting next Lending State", scopeDataArgs.getApplicationId());
-            lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
+            lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender(), true));
             log.info("Next Lending State for Topup Loan Application: {}", lendingStateDTO.getLendingViewStates());
             return;
         }
@@ -164,7 +164,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                     (Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication()) &&
                             Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication().getEnachDone()) &&
                             lendingStateDTO.getData().getTopupLoanApplication().getEnachDone())) {
-                lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
+                lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender(), Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication())));
             }
         }
     }
@@ -360,7 +360,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
         if (lendingStateDTO.getData().isEnachEligible()) {
             lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
         } else {
-            lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
+            lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender(), false));
         }
     }
 
@@ -370,7 +370,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
         } else if (lendingStateDTO.getData().isEnachEligible()) {
             lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
         } else {
-            lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
+            lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender(), false));
         }
     }
 }
