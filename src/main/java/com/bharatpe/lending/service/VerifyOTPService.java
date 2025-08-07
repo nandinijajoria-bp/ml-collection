@@ -709,8 +709,8 @@ public class VerifyOTPService {
 
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
             markParentLoanInActiveTopup(lendingApplication);
-            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
-            logger.info("saving next page as : {}", vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
+            logger.info("saving next page as : {}", vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
         }
         else{
             if(loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -849,7 +849,7 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
-            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(),Lender.PIRAMAL.name()).contains(activeLoan.getNbfc())) {
+            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(),Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeClosureAmountForLender(activeLoan);
                 if(previousAmount <= 0){
                     throw new RuntimeException(String.format("Error getting %s foreclosure details", activeLoan.getNbfc()));

@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationVkycDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.enums.VkycStatus;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.dto.LenderVKycStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -58,7 +59,7 @@ public class LenderVKycStageService implements IStageDataService<LenderVKycState
             lenderVKycStateDTO.setLender(openApplication.getLender());
             lenderVKycStateDTO.setApplicationId(openApplication.getId());
             lenderVKycStateDTO.setVkycCompleted(false);
-            if (!vKycService.isVkycEnabled(openApplication.getMerchantId(), openApplication.getLender())) {
+            if (!vKycService.isVkycEnabled(openApplication.getMerchantId(), openApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType()))) {
                 log.info("vKyc is not enabled for merchantId: {} and lender: {}, returning APPLICATION STATUS scope", openApplication.getMerchantId(), openApplication.getLender());
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
                 return new LendingStateDTO<>(lenderVKycStateDTO, LendingViewStates.APPLICATION_STATUS_PAGE, LendingViewStates.LENDER_VKYC_PAGE);
