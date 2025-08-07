@@ -225,7 +225,7 @@ public class LoanDetailsServiceV2 {
 
     public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList(ReferenceRelation.MOTHER.name(), ReferenceRelation.FATHER.name(), ReferenceRelation.WIFE.name(), ReferenceRelation.HUSBAND.name(), ReferenceRelation.PARENT.name(), ReferenceRelation.BROTHER_SISTER.name(), ReferenceRelation.HUSBAND_WIFE.name(), ReferenceRelation.FRIEND_OTHER.name()));
 
-    public static final Integer MAX_UNIQUE_RELATION = 2;
+    public static final Integer MAX_UNIQUE_RELATION = 3;
 
     @Autowired
     MerchantService merchantService;
@@ -1872,7 +1872,7 @@ public class LoanDetailsServiceV2 {
             if (Objects.isNull(requestedReferenceList)) {
                 return new ApiResponse<>(false, "references field can not be empty!");
             }
-            Pair<Boolean,String> res = hasValidRestrictedRelations(requestedReferenceList);
+            Pair<Boolean,String> res = hasValidUniqueRelations(requestedReferenceList);
             if (!res.getFirst()) {
                 return new ApiResponse<>(false, res.getSecond());
             }
@@ -2993,7 +2993,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private Pair<Boolean,String> hasValidRestrictedRelations(List<MerchantReference> references) {
+    private Pair<Boolean,String> hasValidUniqueRelations(List<MerchantReference> references) {
         Map<ReferenceRelation, Integer> relationCount = new HashMap<>();
 
         ReferenceRelation relation = null;
@@ -3012,6 +3012,15 @@ public class LoanDetailsServiceV2 {
                 log.info("Relation {} is associated with threshold references!", relation);
                 return Pair.of(false,relation + " can not be more than " + MAX_UNIQUE_RELATION + ". Please provide different reference details.");
             }
+        }
+        boolean hasUniqueNumbers = references.stream()
+                .map(MerchantReference::getPhoneNumber)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count() == references.size();
+        if (!hasUniqueNumbers) {
+            log.info("References have duplicate phone numbers!");
+            return Pair.of(false,"Please provide unique phone numbers for each reference.");
         }
         return Pair.of(true,"");
     }

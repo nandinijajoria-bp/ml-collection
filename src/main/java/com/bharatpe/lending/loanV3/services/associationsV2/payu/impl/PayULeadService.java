@@ -2,27 +2,24 @@ package com.bharatpe.lending.loanV3.services.associationsV2.payu.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingGstDetail;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.query.dao.LendingApplicationLenderDetailsDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationLenderDetailsSlave;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
-import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsDto;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUCreateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUUpdateLeadRequestDTO;
@@ -33,6 +30,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -82,6 +80,15 @@ public class PayULeadService {
 
     @Value("${payu.channel.code:edi_bhp_01}")
     String payuChannelCode;
+
+    @Value("${payu.topup.channel.code:edi_bhp_tp_01}")
+    String payuTopupChannelCode;
+
+    @Autowired
+    LoanUtil loanUtil;
+
+    @Autowired
+    LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -137,19 +144,26 @@ public class PayULeadService {
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         try {
             String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
+            PayUCreateLeadRequestDTO createLeadRequestDTO = PayUCreateLeadRequestDTO.builder()
+                    .pan(cKycResponseDto.getPanNumber())
+                    .mobile(mobile)
+                    .channelCode(payuChannelCode)
+                    .externalRefId(lendingApplication.getExternalLoanId())
+                    .entityType("Proprietorship")
+                    .compliance(getComplianceForCreateLead())
+                    .isMobileVerified(true)
+                    .build();
+            if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                LendingApplication parentApplication = loanUtil.fetchParentApplication(lendingApplication.getId());
+                LendingApplicationLenderDetailsSlave parentLenderDetails = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(parentApplication.getId(), "ACTIVE", parentApplication.getLender());
+                createLeadRequestDTO.setChannelCode(payuTopupChannelCode);
+                createLeadRequestDTO.setPreviousApplicationId(parentLenderDetails.getLeadId());
+            }
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
                     .lender(lendingApplication.getLender())
-                    .payload(PayUCreateLeadRequestDTO.builder()
-                            .pan(cKycResponseDto.getPanNumber())
-                            .mobile(mobile)
-                            .channelCode(payuChannelCode)
-                            .externalRefId(lendingApplication.getExternalLoanId())
-                            .entityType("Proprietorship")
-                            .compliance(getComplianceForCreateLead())
-                            .isMobileVerified(true)
-                            .build())
+                    .payload(createLeadRequestDTO)
                     .build();
         } catch (Exception e) {
             log.error("exception occurred while creating request payload for createLead of PayU for applicationId: {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -249,10 +263,11 @@ public class PayULeadService {
                 .pan(cKycResponseDto.getPanNumber())
                 .dob(LocalDate.parse(cKycResponseDto.getDob(), inputFormatter).format(outputFormatter))
                 .gender(getGender(kycUtils.getGender(cKycResponseDto.getGender()))) // TODO check if gender value is from correct db and is required
-                .address(getAddress(lenderAssociationDetailsRequestDto, "applicant_address"))
                 .isMainApplicant(true)
                 .build();
-
+        if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+            applicantDetails.setAddress(getAddress(lenderAssociationDetailsRequestDto, "applicant_address"));
+        }
         applicantDataList.add(applicantDetails);
         return applicantDataList;
 

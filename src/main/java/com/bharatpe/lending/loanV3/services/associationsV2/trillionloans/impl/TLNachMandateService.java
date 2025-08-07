@@ -2,14 +2,14 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
+import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
+import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.service.merchant.constants.Constants;
-import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -31,6 +31,7 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -54,6 +55,9 @@ public class TLNachMandateService {
     MerchantService merchantService;
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     @Transactional
     public Boolean invokeNachMandate(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
@@ -91,9 +95,15 @@ public class TLNachMandateService {
         try {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             TLNachMandateRequestDto mandateDetails = null;
-            Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
-            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
-            if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
+            if(loanUtil.isMandateSwitchEnabled(lendingApplication) && lendingApplicationDetails.isAutoPayUpiEligible() && !lendingApplicationDetails.isNachEligible()){
+                log.info("nach mandate is not eligible for TrillionLoans merchantId {} and application {}, fetching Upi Autopay Details", lendingApplication.getMerchantId(), lendingApplication.getId());
+                mandateDetails = fetchUpiAutopayMandateDetails(lendingApplication, lenderAssociationDetailsRequest, expiryDate);
+            }
+            else {
+                log.info("Fetching NACH mandate details for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
+                MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
+                if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                     mandateDetails = TLNachMandateRequestDto.builder()
                             .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
                             .status("DESTINATION_ACCEPTED")
@@ -116,6 +126,8 @@ public class TLNachMandateService {
                             .mode(merchantNachDetailsResponseDTO.getNachMode())
                             .build();
                 }
+            }
+            log.info("Fetched mandate details for TrillionLoans merchantId {} and applicationId {}: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), mandateDetails);
             if (payloadValidation.isInvalidNachMandatePayload(mandateDetails)) {
                 log.info("error in getting mandate details payload for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return null;
@@ -130,6 +142,46 @@ public class TLNachMandateService {
             log.info("Exception in creating nach mandate payload of TrillionLoans for applicationId {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private TLNachMandateRequestDto fetchUpiAutopayMandateDetails(LendingApplication lendingApplication, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, Date expiryDate) {
+        log.info("Fetching UPI autopay mandate details for applicationId: {}", lendingApplication.getId());
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender(), "ACTIVE");
+        if(Objects.isNull(autoPayUPI)) {
+            log.info("No active UPI autopay mandate found for applicationId: {}", lendingApplication.getId());
+            return null;
+        }
+        log.info("Found UPI autopay mandate for applicationId: {} with mandateId: {}", lendingApplication.getId(), autoPayUPI.getMandateId());
+        Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
+
+        if (ObjectUtils.isEmpty(merchantBankDetail)) {
+            return null;
+        }
+        log.info("Fetched merchant bank details for applicationId: {}", lendingApplication.getId());
+        TLNachMandateRequestDto mandateDetails = TLNachMandateRequestDto.builder()
+                .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
+                .status("DESTINATION_ACCEPTED")
+                .umrn(autoPayUPI.getMandateId())
+                .bankAccountHolderName(merchantBankDetail.getBeneficiaryName())
+                .bankName(merchantBankDetail.getBankName())
+                .bankAccountNumber(merchantBankDetail.getAccountNumber())
+                .ifsc(merchantBankDetail.getIfsc())
+                .bankAccountType(getAccountType(merchantBankDetail.getAccountType()))
+                .mandateRegistrationRequestedDate(DateTimeUtil.getDateInFormat(new Date(), "dd-MM-yyyy"))
+                .periodStartDate(DateTimeUtil.getDateInFormat(new Date(), "dd-MM-yyyy"))
+                .periodEndDate(DateTimeUtil.getDateInFormat(expiryDate, "dd-MM-yyyy"))
+                .periodUntilCancelled(Boolean.TRUE)
+                .debitTypeEnum("FIXED_AMOUNT")
+                .debitFrequencyEnum("DAILY")
+                .amount(autoPayUPI.getAmount())
+                .externalRefernceNumber(autoPayUPI.getMandateId())
+                .mode("UPI")
+                .build();
+        log.info("Fetched UPI autopay mandate details for applicationId: {}", lendingApplication.getId());
+        return mandateDetails;
     }
 
     private String getAccountType(String accountType) {
