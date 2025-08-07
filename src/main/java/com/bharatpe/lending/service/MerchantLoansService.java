@@ -282,6 +282,7 @@ public class MerchantLoansService {
     @Autowired
     private LendingApplicationServiceV2 lendingApplicationServiceV2;
 
+    @Lazy
     @Autowired
     private MerchantLoanServiceHelper merchantLoanServiceHelper;
 
