@@ -47,6 +47,9 @@ public class PayUCreateLeadRequestDTO {
     @JsonProperty("compliance")
     private ComplianceDTO compliance;
 
+    @JsonProperty("previous_application_id")
+    private String previousApplicationId;
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
