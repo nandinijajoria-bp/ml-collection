@@ -4,6 +4,7 @@ import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.enums.EmiLoanStatus;
 import com.bharatpe.lending.loanV2.dto.EmiEligibility;
+import com.bharatpe.lending.loanV3.revamp.config.EmiLoanRangeConfigBasisRiskSegment;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -17,7 +18,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -79,6 +83,18 @@ public class PlanSelectionStageService implements IStageDataService<EligibilityS
                 emiEligibility.setEmiEligibleIn(emiUtils.getEmiEligibleIn(emiDashboardData.getLastRejectedDate()));
             }
         }
+        if(ObjectUtils.isEmpty(lendingRiskVariables) || StringUtils.isEmpty(lendingRiskVariables.getRiskSegment())) {
+            log.error("Lending risk variables or risk segment is empty!");
+            return emiEligibility;
+        }
+        List<Integer> loanRange = EmiLoanRangeConfigBasisRiskSegment.LOAN_RANGES.get(lendingRiskVariables.getRiskSegment());
+        if(ObjectUtils.isEmpty(loanRange) || loanRange.size() < 2) {
+            log.info("Invalid loan range for risk segment: {}", lendingRiskVariables.getRiskSegment());
+            return emiEligibility;
+        }
+        emiEligibility.setMinLoanAmountAllowed(loanRange.get(0));
+        emiEligibility.setEmiLoanAmount(Double.valueOf(loanRange.get(1)));
+        emiEligibility.setRiskSegment(lendingRiskVariables.getRiskSegment());
         return emiEligibility;
     }
 }

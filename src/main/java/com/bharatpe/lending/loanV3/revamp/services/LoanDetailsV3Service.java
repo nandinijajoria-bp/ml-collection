@@ -301,6 +301,8 @@ public class LoanDetailsV3Service {
             loanDetailsV3Response.setRejectReason(emiEligibility.getRejectReason());
             loanDetailsV3Response.setEmiEligibleIn(emiEligibility.getEmiEligibleIn());
             loanDetailsV3Response.setMerchantId(data.getMerchantId());
+            loanDetailsV3Response.setEmiMinLoanAmountAllowed(emiEligibility.getMinLoanAmountAllowed());
+            loanDetailsV3Response.setEmiRiskSegment(emiEligibility.getRiskSegment());
         }
         if(data.getEligibility()!=null){
             loanDetailsV3Response.setLoanAmount(data.getEligibility().getLoanAmount());
