@@ -266,7 +266,7 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value = "/eligible_offers/v1", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<ApiResponse<EligibleOffersResponseDTO>> getEligibleOfferDetails(@RequestAttribute BasicDetailsDto merchant,
+	public ResponseEntity<ApiResponse<EligibleOffersResponseDTO>> getEligibleOfferDetailsV1(@RequestAttribute BasicDetailsDto merchant,
 																					@RequestParam(name = "query_amount", required = true) Double queryAmount,
 																					@RequestParam(name = "edi_model", required = false) Integer ediModel) throws BureauCallMaskedApiException {
 		ediModel = (ediModel == null) ? lendingEdiModel : ediModel;

@@ -1940,6 +1940,52 @@ public class LoanUtil {
 		return sevenDayEligibleLoanOffer;
 	}
 
+	public LendingEligibleLoan calculateLoanOfferBreakup(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version
+	) {
+
+		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
+		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		List<LendingEligibleLoan> eligibleLoanList = new ArrayList<>();
+
+		BigDecimal processingFee;
+		BigDecimal amountBD = new BigDecimal(amount);
+		BigDecimal processingFeeRateBD = BigDecimal.valueOf(tenureDetail.getProcessingFee());
+		if(tenureDetail.getProcessingFee() != null){
+			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
+		}
+		else{
+			throw new NullPointerException("processing fee cannot be null in tenure details");
+		}
+
+		LendingEligibleLoan sevenDayEligibleLoanOffer = LendingEligibleLoan.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(sevenDayRepayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.initialRoi(tenureDetail.getInitialRoi())
+				.edi(sevenDayEdiAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.offerType(offerType)
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getTenure() * 30)
+				.processingFee(processingFee.intValue())
+				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.processingFeeRate(tenureDetail.getProcessingFee())
+				.build();
+		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		logger.info("Eligible Loan Offer: {}", sevenDayEligibleLoanOffer);
+		return sevenDayEligibleLoanOffer;
+	}
+
 	public LendingEligibleLoan calculateLoanBreakupV2(
 			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
 			Double version
@@ -2917,6 +2963,30 @@ public class LoanUtil {
 	}
 
 	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
+		try{
+			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
+			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
+			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
+				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
+				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+					lendingAuditTrial.setApplicationId(applicationId);
+					lendingAuditTrial.setMerchantId(merchantId);
+					lendingAuditTrial.setType(LendingViewStates.LENDER_AGGREGATION.name());
+					lendingAuditTrial.setLoanId("BPL"+applicationId);
+					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
+					lendingAuditTrialDao.save(lendingAuditTrial);
+				}
+				return true;
+			}
+		} catch (Exception ex) {
+			logger.error("Exception occurred while deciding aggregation flow :{}", ex.getMessage());
+		}
+		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
+		return false;
+	}
+
+	public boolean isApplicableForAggregationFlowV2(Long merchantId, Long applicationId){
 		try{
 			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
 			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);

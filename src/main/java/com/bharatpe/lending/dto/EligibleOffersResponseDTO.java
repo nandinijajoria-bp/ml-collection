@@ -18,54 +18,66 @@ import java.util.List;
 public class EligibleOffersResponseDTO {
     private List<OfferDetails> offers;
     private List<LenderData> rejectedLenders;
-}
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-class OfferDetails {
-    private Double loanAmount;
-    private List<TenureWithLender> tenures;
-}
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OfferDetails {
+        private Double loanAmount;
+        private List<TenureWithLender> tenures;
+    }
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-class TenureWithLender {
-    private String category;
-    private String tenure;
-    private Integer tenureInMonths;
-    private Integer ediCount;
-    private List<LenderData> lender;
-}
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TenureWithLender {
+        private String category;
+        private String tenure;
+        private Integer tenureInMonths;
+        private Integer ediCount;
+        private List<LenderData> lender;
+    }
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-class LenderData {
-    private Long eligibleLoanId;
-    private String lenderName;
-    private Double processingFee;
-    private Double apr;
-    private Double irr;
-    private Integer repaymentAmount;
-    private Double interestRate;
-    private Boolean isRejected;
-    private String approvalRate;
-    private Integer nachBounceAmount;
-    private List<PenaltyConfig> penaltyConfigs;
-    private List<ForeClosureEntityDTO> foreClosureDetails;
-}
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class LenderData  {
+        private Long eligibleLoanId;
+        private String lenderName;
+        private Double processingFee;
+        private Double apr;
+        private Double irr;
+        private Integer repaymentAmount;
+        private Double interestRate;
+        private Boolean isRejected;
+        private String approvalRate;
+        private Integer nachBounceAmount;
+        private List<PenaltyConfig> penaltyConfigs;
+        private List<ForeClosureEntityDTO> foreClosureDetails;
+    }
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-class PenaltyConfig {
-    private Long minAmount;
-    private Long maxAmount;
-    private Double penalty;
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PenaltyConfig {
+        private Long minAmount;
+        private Long maxAmount;
+        private Double penalty;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ForeClosureEntityDTO {
+        private Double rate;
+        private Double minAmount;
+        private long tenure;
+        private long durationTo;
+        private long durationFrom;
+    }
 }
