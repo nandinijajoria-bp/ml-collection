@@ -49,7 +49,6 @@ public class CustomerPersonalDetailsBuilder {
 
 	public CustomerPersonalDetails buildCustomerPersonalDetails(LendingApplication lendingApplication, BasicDetailsDto basicDetails) {
 		log.info("Fetching Customer Personal Details for merchant : {}", lendingApplication.getMerchantId());
-
 		if (ObjectUtils.isEmpty(basicDetails)) {
 			log.error("Merchant Details not found for merchantId: {}", lendingApplication.getMerchantId());
 			return null;
@@ -59,6 +58,9 @@ public class CustomerPersonalDetailsBuilder {
 
 	private CustomerPersonalDetails populatePersonalDetails(LendingApplication lendingApplication, BasicDetailsDto basicDetails) {
 		CustomerPersonalDetails customerPersonalDetails = populateAadhaarAndPanDetails(lendingApplication);
+		if (ObjectUtils.isEmpty(customerPersonalDetails)) {
+			log.error("CPD not found for merchantId: {}", lendingApplication.getMerchantId());
+		}
 		if (!ObjectUtils.isEmpty(customerPersonalDetails)) {
 			customerPersonalDetails.setCustomerId(basicDetails.getId());
 			customerPersonalDetails.setEmail(basicDetails.getEmail());

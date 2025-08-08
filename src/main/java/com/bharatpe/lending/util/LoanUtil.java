@@ -128,6 +128,7 @@ public class LoanUtil {
 	LendingCovidCitiesDao lendingCovidCitiesDao;
 
 	@Autowired
+	@Lazy
 	LoanDetailsServiceV2 loanDetailsServiceV2;
 
 	@Autowired

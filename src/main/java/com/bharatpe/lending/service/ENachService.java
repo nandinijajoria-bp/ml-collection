@@ -160,6 +160,7 @@ public class ENachService {
     private ENachRegister eNachRegister;
 
     @Autowired
+    @Lazy
     VKycService vkycService;
 
 
@@ -326,7 +327,7 @@ public class ENachService {
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
             }
             if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
-                if (rolloutUtil.lendingPlatformNbfcFlowApplicable(lendingApplication.getMerchantId())) {
+                    if (rolloutUtil.lendingPlatformNbfcFlowApplicable(lendingApplication.getMerchantId())) {
                     eNachRegister.pushDetailsToLender(lendingApplication);
                 } else if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
                     logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());

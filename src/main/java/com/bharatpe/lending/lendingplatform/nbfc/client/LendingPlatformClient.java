@@ -2,6 +2,7 @@ package com.bharatpe.lending.lendingplatform.nbfc.client;
 
 import com.bharatpe.lending.lendingplatform.authentication.service.LendingPlatformTokenHandler;
 import com.bharatpe.lending.lendingplatform.config.LendingPlatformConfiguration;
+import com.bharatpe.lending.lendingplatform.nbfc.dto.callback.VKYCCallback;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.request.*;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +16,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import static com.bharatpe.lending.common.enums.LenderAssociationStages.VKYC_STATUS_CHECK;
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.ErrorStatusCode.*;
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.LendingPlatformOperation.*;
 
@@ -124,6 +126,16 @@ public class LendingPlatformClient {
                 loanDocumentUploadRequest.getData().getApplicationDetails().getApplicationId(),
                 LoanDocumentUploadResponse.class);
     }
+
+    public LenderApiResponse<VKYCResponse> initateVkyc(LenderBaseRequest<VKYCRequest> vkycRequestLenderBaseRequest) {
+        return sendPostRequest(
+                lendingPlatformConfiguration.getVkycUrl(),
+                vkycRequestLenderBaseRequest,
+                VKYC,
+                vkycRequestLenderBaseRequest.getData().getApplicationDetails().getApplicationId(),
+                VKYCResponse.class);
+    }
+
     public LenderApiResponse<LoanDocumentDownloadResponse> initateLoanDocDownload(LenderBaseRequest<LoanDocumentDownloadRequest> downloadRequestLenderBaseRequest) {
         return sendPostRequest(
                 lendingPlatformConfiguration.getDownloadLoanDocumentUrl(),
@@ -142,6 +154,14 @@ public class LendingPlatformClient {
                 LoanDisbursalResponse.class);
     }
 
+    public LenderApiResponse<VKYCCallback> checkVKYCStatusCheck(LenderBaseRequest<VKYCStatusCheckRequest> vkycStatusCheckRequest) {
+        return sendPostRequest(
+                lendingPlatformConfiguration.getVkycStatusCheckUrl(),
+                vkycStatusCheckRequest,
+                VKYC_STATUS_CHECK.name(),
+                vkycStatusCheckRequest.getApplicationId(),
+                VKYCCallback.class);
+    }
 
     /**
      * Generic method to send a POST request with error handling.

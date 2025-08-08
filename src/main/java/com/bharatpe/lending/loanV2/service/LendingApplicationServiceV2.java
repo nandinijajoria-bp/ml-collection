@@ -63,6 +63,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
@@ -131,10 +132,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
+import static com.bharatpe.lending.common.enums.VkycStatus.VKYC_SKIPPED;
 import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_CATEGORY;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_SUB_CATEGORY;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.CREDITSAISON;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
 
@@ -1522,7 +1525,10 @@ public class LendingApplicationServiceV2 {
                 if (!ObjectUtils.isEmpty(vkycDetails) && VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
                     status = VkycStatus.getSuccessVkycStatusList().contains(vkycDetails.getStatus()) ? "APPROVED" : "REJECTED";
                 }
-                if (!ObjectUtils.isEmpty(vkycDetails)) {
+
+                if (shouldSkipVkycVerificationForCS(lendingApplication, vkycDetails)) {
+                    log.info("VKYC skipped for application: will not show the VKYC Verification {} | vkycDetails: {} | lender: {}", lendingApplication.getId(), vkycDetails, lendingApplication.getLender());
+                } else if (!ObjectUtils.isEmpty(vkycDetails)) {
                     ApplicationDTO vKycDTO = new ApplicationDTO();
                     vKycDTO.setText("VKYC Verification");
                     vKycDTO.setDisabled(enachMandatory);
@@ -5401,5 +5407,15 @@ public class LendingApplicationServiceV2 {
         } catch (Exception e) {
             log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+    }
+
+    private boolean shouldSkipVkycVerificationForCS(LendingApplication lendingApplication, LendingApplicationVkycDetails vkycDetails) {
+        if (ObjectUtils.isEmpty(lendingApplication) || ObjectUtils.isEmpty(vkycDetails)) {
+            log.info("Lending application or vkyc details are empty, skipping vkyc verification for CS");
+            return false;
+        }
+
+        return CREDITSAISON.name().equalsIgnoreCase(lendingApplication.getLender())
+                && VKYC_SKIPPED.equals(vkycDetails.getStatus());
     }
 }
