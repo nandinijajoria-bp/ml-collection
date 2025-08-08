@@ -19,6 +19,7 @@ public class FosMerchantEligibilityDto {
     String loanType;
     String reason;
     int nachTask;
+    int autoPayTask;
     UpgradeLoanOfferEligibility upgradeLoanOfferEligibility;
 
     @Data
