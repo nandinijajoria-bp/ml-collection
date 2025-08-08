@@ -282,6 +282,7 @@ public class MerchantLoansService {
     @Autowired
     private LendingApplicationServiceV2 lendingApplicationServiceV2;
 
+    @Lazy
     @Autowired
     private MerchantLoanServiceHelper merchantLoanServiceHelper;
 
@@ -1585,8 +1586,7 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
-            if (PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), payuTopUpRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())
-                    && !easyLoanUtil.applicationCountBasedRollout(PAYU.name(), LoanType.TOPUP.name(), payuTopupRolloutDate, payuTopupRolloutAppsCount)) {
+            if (PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), payuTopUpRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 addRejectionReason(eligiblity, "PAYU Topup not enabled for this merchant");
                 log.info("Payu Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 return eligiblity;

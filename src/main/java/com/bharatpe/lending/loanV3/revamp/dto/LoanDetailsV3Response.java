@@ -98,6 +98,8 @@ public class LoanDetailsV3Response {
     private String screenType;
     private Double loanAmount;
     private Double emiLoanAmount;
+    private Integer emiMinLoanAmountAllowed;
+    private String emiRiskSegment;
     private Boolean emiRejected;
     private String rejectReason;
     private Integer emiEligibleIn;
