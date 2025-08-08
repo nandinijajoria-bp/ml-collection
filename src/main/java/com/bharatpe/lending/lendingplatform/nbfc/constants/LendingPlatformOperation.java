@@ -13,5 +13,6 @@ public final class LendingPlatformOperation {
     public static final String LOAN_DOCUMENT_UPLOAD = "Loan Document Upload";
     public static final String LOAN_DOCUMENT_DOWNLOAD = "Loan Document Download";
     public static final String LOAN_DISBURSAL = "Loan Disbursal";
+    public static final String VKYC = "VKYC";
     private LendingPlatformOperation() {}
 }

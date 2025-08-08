@@ -28,6 +28,8 @@ import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -57,12 +59,18 @@ public class MerchantLoanServiceHelper {
     private final ExcessNachService excessNachService;
     private final LendingPullPaymentDaoSlave lendingPullPaymentDaoSlave;
     private final AutoPayUPISlaveDao autoPayUPISlaveDao;
-    private final APIGatewayService apiGatewayService;
     private final EasyLoanUtil easyLoanUtil;
     private final LoanDpdDaoSlave loanDpdDaoSlave;
     private final SettlementDetailsDao settlemetDetailsDao;
-    private final LoanUtil loanUtil;
     private final LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
+
+    @Autowired
+    @Lazy
+    private APIGatewayService apiGatewayService;
+
+    @Autowired
+    @Lazy
+    private LoanUtil loanUtil;
 
     public void prepareAllLoanDetails(Long merchantId, LendingMerchantLoansResponseDTO responseDTO, List<Long> loanIds) {
         if(Objects.isNull(merchantId) || CollectionUtils.isEmpty(loanIds)

@@ -13,5 +13,6 @@ public enum WorkflowStage {
     PENNY_DROP,
     DIGI_SIGN,
     SANCTION,
-    DISBURSAL
+    DISBURSAL,
+    VKYC,
 }

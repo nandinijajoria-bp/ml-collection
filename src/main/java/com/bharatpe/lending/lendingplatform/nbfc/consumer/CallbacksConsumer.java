@@ -20,6 +20,8 @@ public class CallbacksConsumer {
     private final EKycCallbackProcessingService eKycCallbackProcessingService;
     private final CKycCallbackProcessingService cKycCallbackProcessingService;
     private final PennyDropCallbackProcessingService pennyDropCallbackProcessingService;
+    private final VKYCCallbackProcessingService vKycCallbackProcessingService;
+    private static final String REQUEST_ID = "requestId";
 
     @KafkaListener(
             topics = "${kafka.topic.lending.connector.bre.callback:lc-bre-callback}",
@@ -27,7 +29,7 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeBRECallback(String message) {
-        MDC.put("requestId", UUID.randomUUID().toString());
+        MDC.put(REQUEST_ID, UUID.randomUUID().toString());
         log.info("Received BRE callback from Kafka: {}", message);
         breCallbackProcessingService.processBRECallback(message);
         MDC.clear();
@@ -39,9 +41,21 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeDisbursalCallback(String message) {
-        MDC.put("requestId", UUID.randomUUID().toString());
+        MDC.put(REQUEST_ID, UUID.randomUUID().toString());
         log.info("Received Disbursal callback from Kafka: {}", message);
         disbursalCallbackProcessingService.processDisbursalCallback(message);
+        MDC.clear();
+    }
+
+    @KafkaListener(
+            topics = "${kafka.topic.lending.connector.vkyc.callback:lc-vkyc-callback}",
+            groupId = "lending-service",
+            autoStartup = "${kafka.listener.autoStartup:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
+    public void consumeVKYCCallback(String message) {
+        MDC.put(REQUEST_ID, UUID.randomUUID().toString());
+        log.info("Received VKYC callback from Kafka: {}", message);
+        vKycCallbackProcessingService.processVKYCCallback(message);
         MDC.clear();
     }
 
@@ -51,7 +65,7 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeKYCCallback(String message) {
-        MDC.put("requestId", UUID.randomUUID().toString());
+        MDC.put(REQUEST_ID, UUID.randomUUID().toString());
         log.info("Received KYC callback from Kafka: {}", message);
         kycCallbackProcessingService.processKYCCallback(message);
         MDC.clear();
@@ -63,7 +77,7 @@ public class CallbacksConsumer {
 //            autoStartup = "${kafka.listener.autoStartup:false}",
 //            containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeEKycCallback(String message) {
-        MDC.put("requestId", UUID.randomUUID().toString());
+        MDC.put(REQUEST_ID, UUID.randomUUID().toString());
         log.info("Received EKYC callback from Kafka: {}", message);
         eKycCallbackProcessingService.processEKYCCallback(message);
         MDC.clear();
@@ -75,7 +89,7 @@ public class CallbacksConsumer {
 //            autoStartup = "${kafka.listener.autoStartup:false}",
 //            containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeCKycCallback(String message) {
-        MDC.put("requestId", UUID.randomUUID().toString());
+        MDC.put(REQUEST_ID, UUID.randomUUID().toString());
         log.info("Received CKYC callback from Kafka: {}", message);
         cKycCallbackProcessingService.processCKYCCallback(message);
         MDC.clear();
@@ -87,7 +101,7 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumePennyDropCallback(String message) {
-        MDC.put("requestId", UUID.randomUUID().toString());
+        MDC.put(REQUEST_ID, UUID.randomUUID().toString());
         log.info("Received PennyDrop callback from Kafka: {}", message);
         pennyDropCallbackProcessingService.processPennyDropCallback(message);
         MDC.clear();

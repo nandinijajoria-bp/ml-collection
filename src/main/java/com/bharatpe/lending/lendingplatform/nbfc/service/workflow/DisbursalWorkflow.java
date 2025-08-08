@@ -91,6 +91,7 @@ public class DisbursalWorkflow implements Workflow {
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lald.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_FAILED.name());
             lendingApplicationLenderDetailsService.save(lald);
+            log.error("Loan disbursal failed for application id {}: response={}, leadSubStatus={}, loan_status={}", applicationID, response, lald.getLeadSubStatus(), lald.getDrawDownStatus());
             return false;
         }
 
@@ -109,7 +110,7 @@ public class DisbursalWorkflow implements Workflow {
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
         lendingApplicationDetails.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationDetailsService.save(lendingApplicationDetails);
-
+        log.info("Updated LendingApplicationDetails for applicationId: {}, stage: {}", applicationId, lendingApplicationDetails.getStage());
     }
 
     private void updateLendingApplication(LendingApplication lendingApplication) {
@@ -118,6 +119,9 @@ public class DisbursalWorkflow implements Workflow {
         lendingApplication.setDisbursalPartner(LendingEnum.DISURSALPARTNERS.BHARATPE.name());
         lendingApplication.setLoanDisbursalStatus(LendingEnum.DISBURSALSTATUS.PENDING.name());
         lendingApplicationServiceV4.save(lendingApplication);
+        log.info("Updated LendingApplication with id: {}, sendToNbfc: {}, nbfcSendDate: {}, disbursalPartner: {}, loanDisbursalStatus: {}",
+                lendingApplication.getId(), lendingApplication.getSendToNbfc(), lendingApplication.getNbfcSendDate(),
+                lendingApplication.getDisbursalPartner(), lendingApplication.getLoanDisbursalStatus());
     }
 
     private void updateLald(LendingApplicationLenderDetails lald, WorkflowRegistry workflowRegistry) {
@@ -125,6 +129,8 @@ public class DisbursalWorkflow implements Workflow {
         lald.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_IN_PROGRESS.name());
         lald.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationLenderDetailsService.save(lald);
+        log.info("Updated LendingApplicationLenderDetails for applicationId: {}, stage: {}, leadSubStatus: {}, drawDownStatus: {}",
+                lald.getApplicationId(), lald.getStage(), lald.getLeadSubStatus(), lald.getDrawDownStatus());
     }
 
     private boolean isLoanDisbursalResponseDataSuccess(LenderApiResponse<LoanDisbursalResponse> response) {

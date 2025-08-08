@@ -38,6 +38,8 @@ public class LendingPlatformConfiguration {
     private String pennyDrop = "/lender/v1/penny_drop";
     private String eligibilityUrl = "/underwriting/v1/eligibility";
     private String bureauConsentUrl = "/underwriting/v1/bureau_consent";
+    private String vkycUrl = "/lender/v1/vkyc";
+    private String vkycStatusCheckUrl = "/lender/v1/vkyc/status_check";
 
 
     public String getTokenGenerationPath() {
@@ -78,6 +80,14 @@ public class LendingPlatformConfiguration {
 
     public String getDownloadLoanDocumentUrl() {
         return baseUrl + downloadLoanDocumentUrl;
+    }
+
+    public String getVkycUrl() {
+        return baseUrl + vkycUrl;
+    }
+
+    public String getVkycStatusCheckUrl() {
+        return baseUrl + vkycStatusCheckUrl;
     }
 
     public String getSignLoanDocumentUrl() {

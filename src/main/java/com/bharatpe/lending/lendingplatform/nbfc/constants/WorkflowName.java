@@ -14,5 +14,5 @@ public class WorkflowName {
     public static final String UPDATE_LEAD_WORKFLOW = "UpdatedLeadWorkflow";
     public static final String DISBURSAL_WORKFLOW = "DisbursalWorkflow";
     public static final String PENNY_DROP_WORKFLOW = "PennyDropWorkflow";
-
+    public static final String VKYC_WORKFLOW = "VkycWorkflow";
 }

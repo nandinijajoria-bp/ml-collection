@@ -5,8 +5,6 @@ import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage;
 import lombok.extern.slf4j.Slf4j;
 
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.PENNY_DROP;
-
 @Slf4j
 public class WorkflowManager {
 
@@ -57,11 +55,13 @@ public class WorkflowManager {
 			case EKYC:
 				return WorkflowStage.BRE;
 			case BRE:
-				return PENNY_DROP;
+				return WorkflowStage.PENNY_DROP;
 			case PENNY_DROP:
 				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
 			case LOAN_DOCUMENT_DOWNLOAD:
-				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
+				return WorkflowStage.LOAN_DOCUMENT_UPLOAD; // LoanDocument lead_Status is
+			case LOAN_DOCUMENT:
+				return WorkflowStage.VKYC;
 			default:
 				log.error("No next workflow stage found for invalid lead status for cs: {}", leadStatus);
 				return null;
@@ -128,6 +128,8 @@ public class WorkflowManager {
 				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
 			case LOAN_DOCUMENT:
 				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			case VKYC:
+				return WorkflowStage.VKYC;
 			default:
 				log.warn("No workflow stage found for invalid lead status: {}", leadStatus);
 				return null;

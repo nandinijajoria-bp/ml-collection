@@ -14,5 +14,6 @@ public enum LeadStatus {
     UPDATE_LEAD,
     NACH,
     LOAN_DISBURSAL,
-    PENNY_DROP
+    PENNY_DROP,
+    VKYC
 }
