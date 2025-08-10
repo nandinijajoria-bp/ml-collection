@@ -8,8 +8,6 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LenderMetricsHistory;
-import com.bharatpe.lending.entity.OfferRankingConfig;
-import com.bharatpe.lending.enums.RankingType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.TopupEligibilityResponseData;
