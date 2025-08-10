@@ -7,6 +7,9 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LenderMetricsHistory;
+import com.bharatpe.lending.entity.OfferRankingConfig;
+import com.bharatpe.lending.enums.RankingType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.TopupEligibilityResponseData;
@@ -14,6 +17,7 @@ import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProx
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.BQPublisherUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import lombok.Data;
 import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +30,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -74,6 +79,10 @@ public class LoanDetailsController {
 
 	@Autowired
 	private LoanUtil loanUtil;
+
+	@Autowired
+	private LenderRankingEngine lenderRankingEngine;
+
 
 	@Autowired
 	@Qualifier("documentDetailProxy")
@@ -273,6 +282,24 @@ public class LoanDetailsController {
 		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(token, merchantId);
 		logger.info("merchantLoans response : {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
+	}
+
+	@PostMapping("/test")
+	public List<String> testRanking(@RequestBody RankingRequest request) {
+		return lenderRankingEngine.rankLenders(
+				request.getLenders(),
+				request.getRankingRules(),
+				request.getRankingType(),
+				request.getLimit()
+		);
+	}
+
+	@Data
+	public static class RankingRequest {
+		private List<LenderMetricsHistory> lenders;
+		private List<OfferRankingConfig> rankingRules;
+		private RankingType rankingType;
+		private int limit;
 	}
 
 	/**
