@@ -1,10 +1,19 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
+import com.bharatpe.lending.common.dao.PricingExperimentDao;
+import com.bharatpe.lending.common.entity.LendingLenderPricing;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.entity.OfferRankingConfig;
+import com.bharatpe.lending.common.entity.PricingExperiment;
 import com.bharatpe.lending.common.enums.RankingType;
 import com.bharatpe.lending.common.enums.SortOrder;
 import com.bharatpe.lending.entity.LenderMetricsHistory;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -14,16 +23,33 @@ import java.util.stream.Collectors;
 @Service
 public class LenderRankingEngine {
 
+    @Autowired
+    private LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    private PricingExperimentDao pricingExperimentDao;
+
+    @Value("${pricing.experiment.enable:false}")
+    boolean pricingExpEnabled;
+
+    @Autowired
+    private LendingLenderPricingDao lendingLenderPricingDao;
+
     public List<String> rankLenders(List<LenderMetricsHistory> allLenders,
                                     List<OfferRankingConfig> rankingRules,
                                     RankingType rankingType,
-                                    int limit) {
+                                    int limit, Long merchantId, Integer tenureInMonths) {
+        if (Objects.isNull(merchantId)) {
+            log.info("merchantId not found");
+            return null;
+        }
         log.info("lenders : {}, rankingRules : {}, rankingType : {}, limit : {}",
                 allLenders, rankingRules, rankingType, limit);
         if (allLenders == null || rankingRules == null || rankingType == null || limit < 1) {
             throw new IllegalArgumentException("Invalid input parameters");
         }
 
+        populateInterestRates(allLenders,merchantId, tenureInMonths);
         try {
             List<OfferRankingConfig> sortedRules = getSortedRules(rankingRules, rankingType);
             log.info("sorted rules : {}", sortedRules);
@@ -77,4 +103,48 @@ public class LenderRankingEngine {
     private static Comparator<Double> getOrderComparator(SortOrder sortOrder) {
         return sortOrder == SortOrder.ASC ? Comparator.naturalOrder() : Comparator.reverseOrder();
     }
+
+    public void populateInterestRates(
+            List<LenderMetricsHistory> lenders,
+            long merchantId, Integer tenureInMonths
+    ) {
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao
+                .findByMerchantId(merchantId);
+        log.info("LendingRiskVariables for merchantId {}: {}", merchantId, lendingRiskVariables);
+
+        PricingExperiment pricingExperiment = null;
+        if (pricingExpEnabled) {
+            pricingExperiment = pricingExperimentDao
+                    .findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(
+                            lendingRiskVariables.getRiskSegment(),
+                            lendingRiskVariables.getRiskGroup(),
+                            tenureInMonths,
+                            (int) (merchantId % 10),
+                            lendingRiskVariables.getPincodeColor().name(),
+                            "ACTIVE"
+                    );
+        }
+
+        for (LenderMetricsHistory lender : lenders) {
+            log.info("Processing lender: {}", lender.getLender());
+
+            LendingLenderPricing lenderPricing = lendingLenderPricingDao
+                    .findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(
+                            lendingRiskVariables.getRiskSegment(),
+                            lendingRiskVariables.getRiskGroup(),
+                            tenureInMonths,
+                            lender.getLender(),
+                            lendingRiskVariables.getPincodeColor().name(),
+                            "ACTIVE"
+                    );
+
+            double rate = pricingExperiment != null
+                    ? pricingExperiment.getInterestRate()
+                    : lenderPricing != null ? lenderPricing.getInterestRate() : -1.0;
+            log.info("Interest rate for lender {}: {}", lender.getLender(), rate);
+
+            lender.setInterestRate(rate);
+        }
+    }
+
 }

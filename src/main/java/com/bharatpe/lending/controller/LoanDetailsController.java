@@ -290,7 +290,7 @@ public class LoanDetailsController {
 				request.getLenders(),
 				request.getRankingRules(),
 				request.getRankingType(),
-				request.getLimit()
+				request.getLimit(), 20042005l, 12
 		);
 	}
 

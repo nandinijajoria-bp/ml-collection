@@ -40,10 +40,16 @@ public class LenderMetricsHistory {
     @Column(name = "is_lender_switched_off")
     private Boolean isLenderSwitchedOff;
 
+    @Transient
+    private Double interestRate;
+
     public Double getFieldValueAsDouble(String fieldName) {
         try {
             Field field = this.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
+            if ("interestRate".equalsIgnoreCase(fieldName)) {
+                return interestRate != null ? interestRate : -1.0;
+            }
             Object value = field.get(this);
             if (value instanceof Number) {
                 return ((Number) value).doubleValue();
