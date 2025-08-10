@@ -170,18 +170,6 @@
             <artifactId>doc-utils</artifactId>
             <version>1.0.0-lending</version>
         </dependency>
-        <dependency>
-            <groupId>com.bharatpe.lending.common</groupId>
-            <artifactId>lending-common</artifactId>
-            <version>3.0.1-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.bharatpe.lending.common</groupId>
-            <artifactId>lending-common</artifactId>
-            <version>3.0.1-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
     </dependencies>
 
     <build>

@@ -2,6 +2,8 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.common.entity.OfferRankingConfig;
+import com.bharatpe.lending.common.enums.RankingType;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
