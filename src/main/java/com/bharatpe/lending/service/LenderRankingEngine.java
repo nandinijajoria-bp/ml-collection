@@ -1,13 +1,12 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.common.entity.OfferRankingConfig;
+import com.bharatpe.lending.common.enums.RankingType;
+import com.bharatpe.lending.common.enums.SortOrder;
 import com.bharatpe.lending.entity.LenderMetricsHistory;
-import com.bharatpe.lending.entity.OfferRankingConfig;
-import com.bharatpe.lending.enums.RankingType;
-import com.bharatpe.lending.enums.SortOrder;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.reflect.Field;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,31 +18,32 @@ public class LenderRankingEngine {
                                     List<OfferRankingConfig> rankingRules,
                                     RankingType rankingType,
                                     int limit) {
+        log.info("lenders : {}, rankingRules : {}, rankingType : {}, limit : {}",
+                allLenders, rankingRules, rankingType, limit);
         if (allLenders == null || rankingRules == null || rankingType == null || limit < 1) {
             throw new IllegalArgumentException("Invalid input parameters");
         }
 
         try {
-            List<LenderMetricsHistory> activeLenders = filterActiveLenders(allLenders);
             List<OfferRankingConfig> sortedRules = getSortedRules(rankingRules, rankingType);
+            log.info("sorted rules : {}", sortedRules);
             Comparator<LenderMetricsHistory> comparator = buildComparatorChain(sortedRules);
-
-            return activeLenders.stream()
+            List<String> lenders = allLenders.stream()
+                    .filter(l -> sortedRules.stream()
+                            .allMatch(rule -> l.getFieldValueAsDouble(rule.getFieldName()) != -1.0)) // remove invalid lenders
                     .sorted(comparator)
                     .limit(limit)
                     .map(LenderMetricsHistory::getLender)
                     .collect(Collectors.toList());
+
+            log.info("approved lenders : {}", lenders);
+
+            return lenders;
+
         } catch (Exception e) {
             log.error("Error ranking lenders: {}", e.getMessage());
             throw new RuntimeException("Failed to rank lenders", e);
         }
-    }
-
-    //todo : remove this method, we'll have a proper database query for active lenders
-    private List<LenderMetricsHistory> filterActiveLenders(List<LenderMetricsHistory> allLenders) {
-        return allLenders.stream()
-                .filter(l -> Boolean.FALSE.equals(l.getIsLenderSwitchedOff()))
-                .collect(Collectors.toList());
     }
 
     private List<OfferRankingConfig> getSortedRules(List<OfferRankingConfig> rankingRules, RankingType rankingType) {
