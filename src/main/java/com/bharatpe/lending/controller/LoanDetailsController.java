@@ -269,19 +269,31 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(loanEligibleService.processDerogSince(merchantId, applicationId, LendingConstants.APPLICATION_DEROG_RECHECK_MIN_DAYS), HttpStatus.OK);
 	}
 
+//	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+//	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(
+//			@RequestAttribute(required = false) BasicDetailsDto merchant,
+//			@RequestHeader(value = "token", required = false) String token,
+//			@RequestParam(required = false) Long merchantId
+//	) {
+//		if (!ObjectUtils.isEmpty(merchant)){
+//			merchantId = merchant.getId();
+//		}
+//		logger.info("merchantLoans request merchant_id: {}", merchantId);
+//		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(token, merchantId);
+//		logger.info("merchantLoans response : {}", resp);
+//		return new ResponseEntity<>(resp, HttpStatus.OK);
+//	}
+
 	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(
-			@RequestAttribute(required = false) BasicDetailsDto merchant,
-			@RequestHeader(value = "token", required = false) String token,
-			@RequestParam(required = false) Long merchantId
+	public List<String> merchantLoans(
+			@RequestBody RankingRequest request
 	) {
-		if (!ObjectUtils.isEmpty(merchant)){
-			merchantId = merchant.getId();
-		}
-		logger.info("merchantLoans request merchant_id: {}", merchantId);
-		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(token, merchantId);
-		logger.info("merchantLoans response : {}", resp);
-		return new ResponseEntity<>(resp, HttpStatus.OK);
+		return lenderRankingEngine.rankLenders(
+				request.getLenders(),
+				request.getRankingRules(),
+				request.getRankingType(),
+				request.getLimit()
+		);
 	}
 
 	@PostMapping("/test")
