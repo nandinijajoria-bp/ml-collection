@@ -3997,7 +3997,9 @@ public class LendingApplicationServiceV2 {
             ) throw new Exception("Unable to create repayment schedule for PayU" + applicationId);
             data.put("interest_charged_to_borrower", repaymentScheduleResponseDTO.getTotalInterestPayable());
             data.put("repayment_amount", repaymentScheduleResponseDTO.getTotalRepaymentExpected());
-            data.put("loan_amount_disbursed", repaymentScheduleResponseDTO.getNetDisbursalAmount());
+            if (!kfsDto.isTopUpLoan()) {
+                data.put("loan_amount_disbursed", repaymentScheduleResponseDTO.getNetDisbursalAmount());
+            }
         } else {
             repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
         }
