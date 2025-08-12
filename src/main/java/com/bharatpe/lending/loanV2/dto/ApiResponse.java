@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV2.dto;
 
+import com.bharatpe.lending.dto.EligibleOffersResponseDTO;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -17,6 +18,7 @@ public class ApiResponse<T> {
     public String message;
     public T data;
     private String errorCode;
+    private String statusCode;
 
 
     public ApiResponse(boolean success, String message) {
@@ -50,5 +52,13 @@ public class ApiResponse<T> {
         this.success = success;
         this.data = data;
         this.message = message;
+    }
+
+    public ApiResponse(boolean success, String message, T  data, String number, String statusCode) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+        this.errorCode = number;
+        this.statusCode = statusCode;
     }
 }

@@ -949,7 +949,7 @@ public class LoanDetailsServiceV2 {
         return eligibleLoans;
     }
 
-    public List<LendingEligibleLoan> recomputeEligibleOfferLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
+    public List<EligibleLoanDTO> recomputeEligibleOfferLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
         if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
             log.info("Global Limit not found");
             return null;
@@ -965,8 +965,8 @@ public class LoanDetailsServiceV2 {
             return null;
         }
 
-        LendingEligibleLoan eligibleLoan = null;
-        List<LendingEligibleLoan> eligibleLoans = new ArrayList<>();
+        EligibleLoanDTO eligibleLoan = null;
+        List<EligibleLoanDTO> eligibleLoans = new ArrayList<>();
         try {
             List<GlobalLimitResponse.OfferDetail> offerDetails = new ArrayList<>(globalLimitResponse.getData().getOfferDetails());
             offerDetails.sort(Comparator.comparingInt(GlobalLimitResponse.OfferDetail::getTenure));

@@ -12,6 +12,7 @@ import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.TopupEligibilityResponseData;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProxyHelper;
 import com.bharatpe.lending.service.*;
+import com.bharatpe.lending.util.AsyncLoggerUtil;
 import com.bharatpe.lending.util.BQPublisherUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.apache.commons.collections.MapUtils;
@@ -265,17 +266,56 @@ public class LoanDetailsController {
 				});
 	}
 
-	@RequestMapping(value = "/eligible_offers/v1", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<ApiResponse<EligibleOffersResponseDTO>> getEligibleOfferDetailsV1(@RequestAttribute BasicDetailsDto merchant,
-																					@RequestParam(name = "query_amount", required = true) Double queryAmount,
-																					@RequestParam(name = "edi_model", required = false) Integer ediModel) throws BureauCallMaskedApiException {
-		ediModel = (ediModel == null) ? lendingEdiModel : ediModel;
-		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}, ediModel : {}", merchant.getId(), queryAmount, ediModel);
-		EligibleOffersResponseDTO resp = loanEligibleService.getEligibilityDetailsV2(merchant.getId(), queryAmount,ediModel);
-		logger.info("EligibleLendingOffers response: {}", resp);
-		return new ResponseEntity<>(resp, HttpStatus.OK);
-	}
+	@RequestMapping(value = "/eligible_offers/v1", method = RequestMethod.GET,
+			consumes = MediaType.APPLICATION_JSON_VALUE,
+			produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<ApiResponse<EligibleOffersResponseDTO>> getEligibleOfferDetailsV1(
+			@RequestAttribute BasicDetailsDto merchant,
+			@RequestParam(name = "query_amount", required = true) Double queryAmount,
+			@RequestParam(name = "edi_model", required = false) Integer ediModel) {
 
+		final String METHOD = "getEligibleOfferDetailsV1";
+		AsyncLoggerUtil.logInfo(logger, "ENTRY {} - merchantId: {}, amount: {}, ediModel: {}",
+				METHOD, merchant.getId(), queryAmount, ediModel);
+
+		try {
+			// Validate input parameters
+			if (queryAmount == null || queryAmount <= 0) {
+				AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid query amount: {}", METHOD, queryAmount);
+				return ResponseEntity.badRequest().body(
+						new ApiResponse<>(false, "Invalid query amount", null, "400", "INVALID_PARAMETERS"));
+			}
+
+			// Set default EDI model if not provided
+			ediModel = (ediModel == null) ? lendingEdiModel : ediModel;
+
+			// Process eligibility
+			ApiResponse<EligibleOffersResponseDTO> response = loanEligibleService.getEligibilityDetailsV2(
+					merchant.getId(), queryAmount, ediModel, merchant);
+
+			// Handle response based on success flag
+			if (response != null && response.isSuccess()) {
+				AsyncLoggerUtil.logInfo(logger, "EXIT {} - Successfully fetched offers for merchantId: {}",
+						METHOD, merchant.getId());
+				return ResponseEntity.ok(response);
+			} else {
+				String errorCode = response != null ? response.getErrorCode() : "500";
+				String httpStatus = errorCode != null ? errorCode : "500";
+
+				AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible offers found for merchantId: {}",
+						METHOD, merchant.getId());
+
+				return ResponseEntity.status(Integer.parseInt(httpStatus))
+						.body(response != null ? response :
+								new ApiResponse<>(false, "Failed to retrieve offers", null, "500", "PROCESSING_ERROR"));
+			}
+		} catch (Exception e) {
+			AsyncLoggerUtil.logError(logger, "EXIT {} - Unexpected error for merchantId: {}: {}",
+					METHOD, merchant.getId(), e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(new ApiResponse<>(false, "An unexpected error occurred", null, "500", "SYSTEM_ERROR"));
+		}
+	}
 
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute BasicDetailsDto merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {

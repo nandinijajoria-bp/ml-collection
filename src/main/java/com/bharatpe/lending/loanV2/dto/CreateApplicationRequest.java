@@ -1,5 +1,7 @@
 package com.bharatpe.lending.loanV2.dto;
 
+import com.bharatpe.lending.dto.EligibleLoanDTO;
+import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.ToString;
@@ -19,4 +21,5 @@ public class CreateApplicationRequest {
     private String businessName;
     private Boolean currentAddressSameAsPermanentAddress;
     private String ip;
+    private EligibleLoanUpdateRequestDTO eligibleLoanUpdateRequestDTO;
 }

@@ -15,8 +15,14 @@ import com.bharatpe.lending.common.entity.EligibleLoanAudit;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.RiskSegment;
+import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
+import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
+import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
+import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
@@ -43,10 +49,10 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
+import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
-import com.bharatpe.lending.loanV3.config.SmfgConfig;
-import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
+import com.bharatpe.lending.loanV3.config.*;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.impl.LenderAssignService;
@@ -56,12 +62,14 @@ import com.bharatpe.lending.util.creditresponse.ExperianResponseUtil;
 import com.bharatpe.lending.util.creditresponse.ResponseUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -85,18 +93,20 @@ import reactor.core.scheduler.Schedulers;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
+import static com.bharatpe.lending.constant.LendingConstants.*;
+import static com.bharatpe.lending.constant.LendingConstants.NEGATIVE_BUSINESS_CATEGORY_REJECTION;
 import static com.bharatpe.lending.enums.Lender.*;
 
 @Service
 public class LoanEligibleService {
-
-    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com");
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -104,6 +114,15 @@ public class LoanEligibleService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+    
+    @Autowired
+    LmsFieldValuesDao lmsFieldValuesDao;
+    
+    @Autowired
+    LenderBusinessCategoryDao lenderBusinessCategoryDao;
+    
+    @Autowired
+    FunnelService funnelService;
 
     @Autowired
     RestTemplate restTemplate;
@@ -137,6 +156,9 @@ public class LoanEligibleService {
 
     @Autowired
     AesEncryptionUtil aesEncryptionUtil;
+    
+    @Autowired
+    private PayUConfig payUConfig;
 
     @Autowired
     LendingHmacCalculator lendingHmacCalculator;
@@ -176,6 +198,9 @@ public class LoanEligibleService {
 
     @Autowired
     MerchantSummaryHandler merchantSummaryHandler;
+    
+    @Autowired
+    BureauHandler bureauHandler;
 
     @Autowired
     LendingEdiScheduleService lendingEdiScheduleService;
@@ -197,6 +222,9 @@ public class LoanEligibleService {
 
     @Value("${piramal.rollout.percent:1}")
     Integer piramalRolloutPercentage;
+
+    @Value("${aadhaar.seeding.status.check.lenders:}")
+    String aadhaarSeedingStatusCheckLenders;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
@@ -221,9 +249,6 @@ public class LoanEligibleService {
     LendingRiskVariablesDao lendingRiskVariablesDao;
 
     @Autowired
-    LenderAssignService lenderAssignService;
-
-    @Autowired
     LenderEligiblePincodesDao lenderEligiblePincodesDao;
 
     @Autowired
@@ -231,6 +256,40 @@ public class LoanEligibleService {
 
     @Value("${max.pf.eligible.lenders:}")
     String maxPfEligibleLender;
+    
+    @Autowired
+    LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
+
+    @Autowired
+    PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
+
+    @Autowired
+    ForeClosureConfigDao foreClosureDao;
+
+    @Value("${usfb.rollout.percent:1}")
+    Integer usfbRolloutPercentage;
+
+    @Value("${trillionLoans.rollout.percent:1}")
+    Integer trillionLoansRolloutPercentage;
+
+    @Value("${muthoot.rollout.percent:1}")
+    Integer muthootRolloutPercentage;
+
+    @Value("${capri.rollout.percent:1}")
+    Integer capriRolloutPercent;
+
+    @Value("${payu.rollout.percent:1}")
+    Integer payuRolloutPercent;
+
+    @Autowired
+    UgroConfig ugroConfig;
+
+    @Autowired
+    OxyzoConfig oxyzoConfig;
+
+    @Autowired
+    CreditSaisonConfig creditSaisonConfig; ;
+
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
@@ -299,37 +358,41 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    private final ExecutorService logExecutor = Executors.newSingleThreadExecutor();
+    public ApiResponse<EligibleOffersResponseDTO> getEligibilityDetailsV2(Long merchantId, Double queryAmount, Integer ediModel, BasicDetailsDto merchantDetails) {
+        final String METHOD = "getEligibilityDetailsV2";
+        AsyncLoggerUtil.logInfo(logger, "ENTRY {} - merchantId: {}, amount: {}, ediModel: {}", METHOD, merchantId, queryAmount, ediModel);
 
-    private void asyncLogInfo(String message, Object... args) {
-        logExecutor.submit(() -> logger.info(message, args));
-    }
+        try {
+            // Validate input parameters
+            if (merchantId == null || queryAmount == null) {
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid request parameters", METHOD);
+                return new ApiResponse<>(false, "Invalid request parameters", null, "400", "INVALID_PARAMS");
+            }
 
-    public ApiResponse<EligibleOffersResponseDTO> getEligibilityDetailsV2(Long merchantId, Double queryAmount, Integer ediModel) throws BureauCallMaskedApiException {
+            // Generate cache key and check cache
+            String cacheKey = generateEligibilityCacheKey(merchantId, queryAmount, ediModel);
+            EligibleOffersResponseDTO cachedResponse = null;
 
-        if (merchantId == null || queryAmount == null) {
-            return new ApiResponse<>(false, "Invalid request parameters", null);
-        }
+            try {
+                cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
+            } catch (Exception e) {
+                AsyncLoggerUtil.logError(logger, "Cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
+                // Continue execution despite cache error
+            }
 
-        String cacheKey = generateEligibilityCacheKey(merchantId, queryAmount, ediModel);
+            if (cachedResponse != null) {
+                AsyncLoggerUtil.logInfo(logger, "EXIT {} - Cache hit for merchantId: {}", METHOD, merchantId);
+                return new ApiResponse<>(true, "Eligibility details fetched successfully", cachedResponse, "200", "SUCCESS");
+            }
 
-        EligibleOffersResponseDTO cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
-        if (cachedResponse != null) {
-            asyncLogInfo("Cache hit for eligibility details: merchantId={}, amount={}", merchantId, queryAmount);
-            return new ApiResponse<>(true, "Eligibility details fetched from cache", String.valueOf(cachedResponse));
-        }
-        else {
-
-            asyncLogInfo("Cache miss for eligibility details: merchantId={}, amount={}", merchantId, queryAmount);
-
+            AsyncLoggerUtil.logInfo(logger, "Cache miss for merchantId: {}, processing eligibility", merchantId);
             EligibleOffersResponseDTO responseDTO = new EligibleOffersResponseDTO();
 
-
+            // Get global limit
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
-
-            // Quick reject if invalid response or loan amount
             if (globalLimitResponse == null || globalLimitResponse.getData() == null) {
-                return new ApiResponse<>(false, "Unable to fetch eligibility data", String.valueOf(responseDTO));
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Unable to fetch global limit data", METHOD);
+                return new ApiResponse<>(false, "Unable to fetch eligibility data", null, "500", "GLOBAL_LIMIT_ERROR");
             }
 
             // Validate loan amount and offer details
@@ -339,266 +402,447 @@ public class LoanEligibleService {
             boolean hasOfferDetails = !ObjectUtils.isEmpty(data.getOfferDetails());
 
             if ((queryAmount < 10000 && !isSmallTicket) || !hasOfferDetails) {
-                return new ApiResponse<>(false, "Invalid Loan Amount", String.valueOf(responseDTO));
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid loan amount or no offer details", METHOD);
+                return new ApiResponse<>(false, "Invalid loan amount", null, "400", "INVALID_LOAN_AMOUNT");
             }
 
+            // Adjust amount based on global limit
             Double effectiveQueryAmount = queryAmount;
-            Double globalLimit = data.getGlobalLimit();
-
-            if (globalLimit != null && queryAmount > globalLimit) {
-                logger.info("Adjusting query amount: {} to global limit: {}", queryAmount, globalLimit);
-                effectiveQueryAmount = globalLimit;
+            if (data.getGlobalLimit() != null && queryAmount > data.getGlobalLimit()) {
+                AsyncLoggerUtil.logInfo(logger, "Adjusting query amount from {} to global limit {}",
+                        queryAmount, data.getGlobalLimit());
+                effectiveQueryAmount = data.getGlobalLimit();
             }
 
-            // Recompute eligible loan with the effective amount
-            List<LendingEligibleLoan> eligibleLoans = loanDetailsServiceV2.recomputeEligibleOfferLoan(globalLimitResponse, effectiveQueryAmount, merchantId);
+            // Get eligible loans
+            List<EligibleLoanDTO> eligibleLoans;
+            try {
+                eligibleLoans = loanDetailsServiceV2.recomputeEligibleOfferLoan(
+                        globalLimitResponse, effectiveQueryAmount, merchantId);
 
-            // Fetch risk variables once
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-
-            // Process eligible loans efficiently
-            List<EligibleOffersResponseDTO.TenureWithLender> tenures = new ArrayList<>(eligibleLoans.size());
-            for (LendingEligibleLoan loan : eligibleLoans) {
-                // Only compute pricing values if needed
-                MaxPricingValuesDTO pricingValues = null;
-                    pricingValues = loanUtil.getMaxPricingValues(lendingRiskVariables, loan.getTenureInMonths());
-
-                // Apply EDI model filter
-                int ediCount = loan.getEdiCount();
-                boolean isEligibleForEdiModel = (ediModel == 6 && ediCount % 30 != 0) ||
-                        (ediModel == 7 && ediCount % 30 == 0);
-
-                if (isEligibleForEdiModel) {
-                    tenures.add(convertLoanToTenureWithLender(loan, pricingValues));
+                if (CollectionUtils.isEmpty(eligibleLoans)) {
+                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible loans found", METHOD);
+                    return new ApiResponse<>(false, "No eligible loans found", null, "404", "NO_ELIGIBLE_LOANS");
                 }
+            } catch (Exception e) {
+                AsyncLoggerUtil.logError(logger, "Error computing eligible loans: {}", e.getMessage(), e);
+                return new ApiResponse<>(false, "Failed to compute eligible loans", null, "500", "ELIGIBILITY_COMPUTATION_ERROR");
             }
 
-            List<EligibleOffersResponseDTO.LenderData> lenderData = new ArrayList<>();
+            // Get risk variables
+            LendingRiskVariables lendingRiskVariables;
+            try {
+                lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+            } catch (Exception e) {
+                AsyncLoggerUtil.logError(logger, "Error fetching risk variables: {}", e.getMessage(), e);
+                return new ApiResponse<>(false, "Failed to retrieve risk profile", null, "500", "RISK_DATA_ERROR");
+            }
 
-            lenderData = getEligibleLenderList(merchantId,eligibleLoans);
+            // Get eligible lender list
+            List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders;
+            try {
+                tenureWithLenders = getEligibleLenderList(merchantId, eligibleLoans, merchantDetails, lendingRiskVariables);
 
+                if (CollectionUtils.isEmpty(tenureWithLenders)) {
+                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible lenders found", METHOD);
+                    return new ApiResponse<>(false, "No eligible offers found", null, "404", "NO_ELIGIBLE_LENDERS");
+                }
+            } catch (Exception e) {
+                AsyncLoggerUtil.logError(logger, "Error assigning lenders: {}", e.getMessage(), e);
+                return new ApiResponse<>(false, "Failed to assign lenders", null, "500", "LENDER_ASSIGNMENT_ERROR");
+            }
 
-            // Prepare response based on processed results
-            if (!tenures.isEmpty()) {
-                // Create a single offer with all tenures
-                EligibleOffersResponseDTO.OfferDetails offer = new EligibleOffersResponseDTO.OfferDetails(effectiveQueryAmount, tenures);
-                responseDTO.setOffers(Collections.singletonList(offer));
-                logger.info("Available tenures for given amount");
+            // Create offer with tenures
+            EligibleOffersResponseDTO.OfferDetails offer = new EligibleOffersResponseDTO.OfferDetails(
+                    effectiveQueryAmount, tenureWithLenders);
+            responseDTO.setOffers(Collections.singletonList(offer));
 
-                // Cache successful response for 10 minutes
+            // Cache successful response
+            try {
                 cacheEligibilityResponse(cacheKey, responseDTO, merchantId);
-            } else {
-                responseDTO.setSuccess(false);
-                responseDTO.setMessage("No eligible offers found");
+            } catch (Exception e) {
+                AsyncLoggerUtil.logError(logger, "Failed to cache response: {}", e.getMessage());
+                // Continue despite cache error
             }
+
+            AsyncLoggerUtil.logInfo(logger, "EXIT {} - Successfully processed eligibility for merchantId: {}, found {} tenures",
+                    METHOD, merchantId, tenureWithLenders.size());
+            return new ApiResponse<>(true, "Eligibility details fetched successfully", responseDTO, "200", "SUCCESS");
+        } catch (Exception e) {
+            AsyncLoggerUtil.logError(logger, "Unexpected error in {}: {}", METHOD, e.getMessage(), e);
+            return new ApiResponse<>(false, "An unexpected error occurred", null, "500", "SYSTEM_ERROR");
         }
-
-        logger.info("Eligibility details V2 processed for merchant: {}, found {} offers",
-                merchantId, tenures.size());
-
-        return new ApiResponse<>(responseDTO.isSuccess(), responseDTO.getMessage(), responseDTO);
     }
 
-    public List<EligibleOffersResponseDTO.LenderData> getEligibleLenderList(Long merchantId, List<LendingEligibleLoan> eligibleLoans) {
-
-        List<EligibleOffersResponseDTO.LenderData> lenderData = new ArrayList<>();
-
-       lenderAssignmentHandlerV2(merchantId,  eligibleLoans);
-
-
-        LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findTopByApplicationIdAndType(lendingApplication.getId(), "ELIGIBLE_LENDER");
-
-        if (!ObjectUtils.isEmpty(lendingAuditTrial) && !ObjectUtils.isEmpty(lendingAuditTrial.getOldStatus())){
-            List<String> eligibleLenders = new ArrayList<>(Arrays.asList(lendingAuditTrial.getOldStatus().split(",")));
-            return getLenderData(eligibleLenders, lendingApplication);
-        }
-        return null;
-    }
-
-    public String lenderAssignmentHandlerV2(Long  merchantId, List<LendingEligibleLoan> eligibleLoans) {
-        logger.info("Running V2 lender assignment handler");
-        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-        RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
-
-        logger.info("riskVariables in lender assignment v2 {}", riskVariables);
-        PricingExperiment pricingExperiment = null;
-        if(pricingExpEnabled) {
-            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(),
-                    lendingRiskVariables.getRiskGroup(), eligibleLoans.getTenureInMonths(), (int) (merchantId%10), lendingRiskVariables.getPincodeColor().name(), DateTime.now().toDate());
-        }
-        if(!ObjectUtils.isEmpty(pricingExperiment)) {
-            logger.info("experiment available for {}: {}", merchantId, pricingExperiment);
-            riskVariables.setPricingExperimentMap(Collections.singletonMap(merchantId, pricingExperiment));
-        }else {
-            //Change 1 : Fetched lender pricing list
-            List<LendingLenderPricing> lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndPincodeColor(
-                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                    eligibleLoans.getTenureInMonths(), lendingRiskVariables.getPincodeColor().name(), DateTime.now().toDate());
-            if (!CollectionUtils.isEmpty(lenderPricingList)) {
-                riskVariables.setLenderPricingMap(lenderPricingList.stream().collect(Collectors.toMap(
-                        LendingLenderPricing::getLender,
-                        Function.identity(),
-                        (existing, duplicate) -> existing  // Keep the first occurrence (latest due to id DESC)
-                )));
-            }
-        }
+    public List<EligibleOffersResponseDTO.TenureWithLender> getEligibleLenderList(Long merchantId, List<EligibleLoanDTO> eligibleLoans, BasicDetailsDto merchantDetails, LendingRiskVariables lendingRiskVariables) {
+        final String METHOD = "getEligibleLenderList";
+        AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Processing {} eligible loans for merchantId: {}", METHOD, eligibleLoans.size(), merchantId);
 
         try {
-            double bureauScore = riskVariables.getBureauScore();
-            String riskSegment = riskVariables.getRiskSegment();
-            String riskGroupLike = riskVariables.getRiskGroupLike();
-            String pincodeColor = ObjectUtils.isEmpty(lendingRiskVariables.getPincodeColor()) ? "" : "%" + lendingRiskVariables.getPincodeColor().name() + "%";
-            String tenure = "%" + eligibleLoans.getTenureInMonths() + "%";
-            logger.info("Lender assignment parameters -> bureau:{}, loanType:{}, tenure:{}, loanAmount:{}, riskGroup:{}, pincodeColor:{}", bureauScore, riskSegment, eligibleLoans.getTenure(),
-                    eligibleLoans.getAmount(), riskGroupLike, pincodeColor);
-            List<String> lenders = new ArrayList<>();
-            String decidedLender = null;
-            List<LenderAssignmentRules> ruleList=lenderAssignmentRulesDao.fetchEligibleRules(eligibleLoans.getAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
-            if (loanUtil.isInternalMerchant(merchantId)) {
-                ruleList=lenderAssignmentRulesDao.fetchEligibleRulesForInternal(eligibleLoans.getLoanAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
-            }
-            logger.info("Fetched Rules:{}", ruleList);
+            // Call lender assignment handler to get eligible loans with assigned lenders
+            List<EligibleLoanDTO> eligibleOffersWithLenders = lenderAssignmentHandlerV1(merchantId, eligibleLoans, merchantDetails);
 
-            List<String> eligibleLendersAsPerRules = new ArrayList<>();
-
-            try {
-                 eligibleLendersAsPerRules = ruleList.stream().map(LenderAssignmentRules::getLender).collect(Collectors.toCollection(ArrayList::new));
-            } catch (Exception exception) {
-                logger.info("exception while logging the lender assignment details under rules based lenders", exception);
+            if (CollectionUtils.isEmpty(eligibleOffersWithLenders)) {
+                AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible offers with lenders found for merchantId: {}", METHOD, merchantId);
+                return null;
             }
 
-            boolean isPanAadhaarLinked = false;
-            boolean isPanAadhaarLinkedStatusChecked = false;
+            List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders = new ArrayList<>();
 
-            if(!ObjectUtils.isEmpty(ruleList) && !CollectionUtils.isEmpty(eligibleLendersAsPerRules)) {
-                lenders = getLenderList(ruleList, EdiModel.SEVEN_DAY_MODEL, eligibleLendersAsPerRules.get(0), merchantId);
-                try {
-                    if (!CollectionUtils.isEmpty(lenders)) {
-                        ListIterator<String> iterator = lenders.listIterator();
-                        while (iterator.hasNext()) {
-                            String lender = iterator.next().toUpperCase();
-                            if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
-                                logger.info("skipping {} due to lender in rejected lender list for merchant {}", lender, merchantId);
-                                String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + merchantId;
-                                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
-                                iterator.remove();
-                                continue;
-                            }
-                            if (lenderEligiblePincodeCheckList.contains(lender)) {
+            // Process each eligible loan
+            for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
+                if (!CollectionUtils.isEmpty(loan.getEligibleLenders())) {
+                    try {
+                        // Get detailed lender data for this loan
+                        List<EligibleOffersResponseDTO.LenderData> lenderDataForLoan = getLenderData(
+                                loan.getEligibleLenders(), loan, lendingRiskVariables, merchantId);
 
-                                boolean shouldCheckPincodeList = true;
-
-                                if (PAYU.name().equalsIgnoreCase(lender)) {
-                                    shouldCheckPincodeList = eligibleLoans.getamount > 500000;
-                                    logger.info("Inside payu pincode check : amount {} - shouldCheckPincodeList {} - applicationId {}", application.getLoanAmount(), shouldCheckPincodeList, application.getId());
-                                }
-
-                                if (shouldCheckPincodeList) {
-
-                                    LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
-                                            lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
-                                    );
-                                    if (ObjectUtils.isEmpty(lenderEligiblePincodes)) {
-                                        funnelService.submitEventV3(merchantId, null, application.getId(),
-                                                FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
-                                        logger.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
-                                        String remarks = "Removing lender: " + lender + " from eligible as pincode: " + lendingRiskVariables.getPincode() + " not serviceable";
-                                        createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
-                                        iterator.remove();
-                                        continue;
-                                    }
-                                }
-                            }
-
-                            // Change 2 : Run lender specific base checks
-                            if (!lenderBaseChecksCleared(eligibleLoans, lender, EdiModel.SEVEN_DAY_MODEL, riskVariables, merchantId)) {
-                                log.info("lender config based base checks failed, skipping {} for {}", lender, application.getId());
-                                iterator.remove();
-                                continue;
-                            }
-                            if(!lenderAssignService.aadhaarSeedingStatusCheckLenders.isEmpty() && aadhaarSeedingStatusCheckLenders.contains(lender)) {
-
-                                // check if pan aadhaar linked status already checked so that we don't call the api again to re check it
-                                if (!isPanAadhaarLinkedStatusChecked) {
-                                    isPanAadhaarLinked = isPanAndAadhaarLinked(application.getMerchantId());
-                                    isPanAadhaarLinkedStatusChecked = true;
-                                }
-
-                                log.info("isPanAadhaarLinkedStatusChecked {} isPanAadhaarLinked {} applicationId {}", isPanAadhaarLinkedStatusChecked, isPanAadhaarLinked, application.getId());
-
-                                if (!isPanAadhaarLinked) {
-                                    log.info("removing {} from eligible lenders since panAndAdhaar is not linked for applicationId: {} and merchantId : {}", lender, application.getId(), application.getMerchantId());
-                                    String remarks = "removing " + lender + " from eligible lenders since panAndAdhaar is not linked for applicationId: " + application.getId() + " and merchantId : " + application.getMerchantId();
-                                    lenderAssignService.createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(),  lender, "LENDER_REMOVED", remarks);
-                                    iterator.remove();
-                                    continue;
-                                }
-                            }
-
-                            Pair<Boolean, String> lenderChecksResponse = lenderAssignService.runLenderChecksForApplication(application, lender, riskVariables);
-                            boolean lenderChecksSuccess = lenderChecksResponse.getKey();
-                            if (!lenderChecksSuccess) {
-                                String remarks = lenderChecksResponse.getValue();
-                                log.info(remarks);
-                                lenderAssignService.createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
-                                iterator.remove();
-                                continue;
-                            }
-
-                            if (additionalChecksFailed(application, valueOf(lender), merchantDetails)) {
-                                log.info("skipping {} due to additional checks failing for {}", lender, application.getId());
-                                iterator.remove();
-                                continue;
-                            }
-                            if (!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)) {
-                                log.info("skipping {} due to business category check failure for {}", lender, application.getId());
-                                iterator.remove();
-                            }
-                            if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
-                                log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
-                                String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + application.getId();
-                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
-                                iterator.remove();
-                            }
+                        if (!CollectionUtils.isEmpty(lenderDataForLoan)) {
+                            // Create TenureWithLender object with all required data
+                            EligibleOffersResponseDTO.TenureWithLender tenureWithLender = new EligibleOffersResponseDTO.TenureWithLender(
+                                    loan.getCategory(),
+                                    loan.getTenure(),
+                                    loan.getTenureInMonths(),
+                                    loan.getEdiCount(),
+                                    lenderDataForLoan
+                            );
+                            tenureWithLenders.add(tenureWithLender);
+                            AsyncLoggerUtil.logDebug(logger, "Added tenure option: {} months with {} lenders for merchantId: {}",
+                                    loan.getTenureInMonths(), lenderDataForLoan.size(), merchantId);
                         }
+                    } catch (Exception e) {
+                        AsyncLoggerUtil.logError(logger, "Error processing lender data for loan with tenure {} months: {}",
+                                loan.getTenureInMonths(), e.getMessage());
+                        // Continue processing other loans despite this error
                     }
-                } catch (Exception exception) {
-                    log.error("exception while custom pincode check for lender for application id : {}, {}", application.getId(), Arrays.asList(exception.getStackTrace()));
                 }
             }
-            if (!isApplicableForAggregation){
-                decidedLender = lenderAssignService.getLender(application, lenders, EdiModel.SEVEN_DAY_MODEL, riskVariables.getIsGstOffer(), riskSegment.substring(1, riskSegment.length()-1));
-                logger.info("lender to be assigned: {} {}", decidedLender, application.getId());
-            }
-            try {
-                lenderAssignService.saveEligibleLenderAudit(application, ObjectUtils.isEmpty(decidedLender) ? "" : decidedLender, CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "ELIGIBLE_LENDER");
-            } catch (Exception exception) {
-                logger.info("exception while logging the lender assignment details", exception);
+
+            if (tenureWithLenders.isEmpty()) {
+                AsyncLoggerUtil.logInfo(logger, "EXIT {} - No valid tenure options found for merchantId: {}", METHOD, merchantId);
+                return null;
             }
 
-            return decidedLender;
-        } catch(Exception ex){
-            logger.error("Exception occurred while assigning lender : {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            AsyncLoggerUtil.logInfo(logger, "EXIT {} - Found {} tenure options for merchantId: {}",
+                    METHOD, tenureWithLenders.size(), merchantId);
+            return tenureWithLenders;
+        } catch (Exception e) {
+            AsyncLoggerUtil.logError(logger, "Unexpected error in {}: {}", METHOD, e.getMessage(), e);
             return null;
         }
     }
 
-    public boolean lenderBaseChecksCleared(LendingEligibleLoan eligibleLoan, String lender, EdiModel ediModel, RiskVariablesDTO riskVariables, Long merchantId) {
+
+    public List<EligibleLoanDTO> lenderAssignmentHandlerV1(Long merchantId, List<EligibleLoanDTO> eligibleLoans, BasicDetailsDto merchantDetails) {
+        final String METHOD = "lenderAssignmentHandlerV1";
+        AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Processing {} eligible loans for merchantId: {}", METHOD, eligibleLoans.size(), merchantId);
+
+        try {
+            // Fetch risk variables for merchant
+            LendingRiskVariables lendingRiskVariables;
+            try {
+                lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+                if (lendingRiskVariables == null) {
+                    AsyncLoggerUtil.logError(logger, "EXIT {} - No risk variables found for merchantId: {}", METHOD, merchantId);
+                    return Collections.emptyList();
+                }
+            } catch (Exception e) {
+                AsyncLoggerUtil.logError(logger, "Error fetching risk variables for merchantId {}: {}", merchantId, e.getMessage(), e);
+                return Collections.emptyList();
+            }
+
+            // Convert to DTO for processing
+            RiskVariablesDTO baseRiskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
+            AsyncLoggerUtil.logDebug(logger, "{} - Base risk variables obtained for merchantId {}", METHOD, merchantId);
+
+            // Process each loan to assign eligible lenders
+            for (EligibleLoanDTO loan : eligibleLoans) {
+                try {
+                    AsyncLoggerUtil.logDebug(logger, "{} - Processing loan with tenure {} months for merchantId: {}",
+                            METHOD, loan.getTenureInMonths(), merchantId);
+
+                    // Prepare risk variables for this specific loan
+                    RiskVariablesDTO loanRiskVariables = prepareLoanRiskVariables(merchantId, loan, lendingRiskVariables, baseRiskVariables);
+
+                    // Fetch applicable lender assignment rules
+                    List<LenderAssignmentRules> ruleList = fetchApplicableRules(merchantId, loan, lendingRiskVariables, loanRiskVariables);
+
+                    if (CollectionUtils.isEmpty(ruleList)) {
+                        AsyncLoggerUtil.logInfo(logger, "{} - No applicable rules found for merchantId: {}, tenure: {}",
+                                METHOD, merchantId, loan.getTenureInMonths());
+                        loan.setEligibleLenders(Collections.emptyList());
+                        continue;
+                    }
+
+                    // Get initial list of eligible lenders based on rules
+                    List<String> eligibleLenders = getLenderList(
+                            ruleList,
+                            EdiModel.SEVEN_DAY_MODEL,
+                            null,
+                            merchantId);
+
+                    if (CollectionUtils.isEmpty(eligibleLenders)) {
+                        AsyncLoggerUtil.logInfo(logger, "{} - No eligible lenders from rules for merchantId: {}", METHOD, merchantId);
+                        loan.setEligibleLenders(Collections.emptyList());
+                        continue;
+                    }
+
+                    // Apply additional filters to eligible lenders
+                    eligibleLenders = filterEligibleLenders(
+                            merchantId,
+                            loan,
+                            lendingRiskVariables,
+                            loanRiskVariables,
+                            eligibleLenders,
+                            merchantDetails);
+
+                    AsyncLoggerUtil.logInfo(logger, "{} - Final eligible lenders for merchantId {}, tenure {}: {}",
+                            METHOD, merchantId, loan.getTenureInMonths(), eligibleLenders);
+
+                    // Set the eligible lenders for this loan
+                    loan.setEligibleLenders(eligibleLenders);
+
+                } catch (Exception ex) {
+                    AsyncLoggerUtil.logError(logger, "Error in {} processing loan with tenure {} months for merchantId {}: {}",
+                            METHOD, loan.getTenureInMonths(), merchantId, ex.getMessage(), ex);
+                    loan.setEligibleLenders(Collections.emptyList());
+                }
+            }
+
+            // Count loans with valid lenders
+            int loansWithLenders = (int) eligibleLoans.stream()
+                    .filter(loan -> !CollectionUtils.isEmpty(loan.getEligibleLenders()))
+                    .count();
+
+            AsyncLoggerUtil.logInfo(logger, "EXIT {} - Completed processing for merchantId: {}, found lenders for {}/{} loans",
+                    METHOD, merchantId, loansWithLenders, eligibleLoans.size());
+
+            return eligibleLoans;
+        } catch (Exception e) {
+            AsyncLoggerUtil.logError(logger, "Unexpected error in {} for merchantId {}: {}", METHOD, merchantId, e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    private RiskVariablesDTO prepareLoanRiskVariables(Long merchantId, EligibleLoanDTO loan,
+                                                      LendingRiskVariables lendingRiskVariables, RiskVariablesDTO baseRiskVariables) {
+
+        RiskVariablesDTO loanRiskVariables = new RiskVariablesDTO();
+        BeanUtils.copyProperties(baseRiskVariables, loanRiskVariables);
+
+        if (pricingExpEnabled) {
+            PricingExperiment experiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
+                    lendingRiskVariables.getRiskSegment(),
+                    lendingRiskVariables.getRiskGroup(),
+                    loan.getTenureInMonths(),
+                    (int) (merchantId % 10),
+                    lendingRiskVariables.getPincodeColor().name(),
+                    DateTime.now().toDate()
+            );
+
+            if (experiment != null) {
+                loanRiskVariables.setPricingExperimentMap(Collections.singletonMap(merchantId, experiment));
+                AsyncLoggerUtil.logDebug(logger,"Applied pricing experiment for merchantId {}", merchantId);
+                return loanRiskVariables;
+            }
+        }
+
+        List<LendingLenderPricing> lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndPincodeColor(
+                lendingRiskVariables.getRiskSegment(),
+                lendingRiskVariables.getRiskGroup(),
+                loan.getTenureInMonths(),
+                lendingRiskVariables.getPincodeColor().name(),
+                DateTime.now().toDate()
+        );
+
+        if (!CollectionUtils.isEmpty(lenderPricingList)) {
+            loanRiskVariables.setLenderPricingMap(lenderPricingList.stream()
+                    .collect(Collectors.toMap(LendingLenderPricing::getLender, Function.identity(), (a, b) -> a)));
+        }
+
+        return loanRiskVariables;
+    }
+
+    private List<LenderAssignmentRules> fetchApplicableRules(Long merchantId, EligibleLoanDTO loan,
+                                                             LendingRiskVariables lendingRiskVariables, RiskVariablesDTO loanRiskVariables) {
+
+        double bureauScore = loanRiskVariables.getBureauScore();
+        String riskSegment = loanRiskVariables.getRiskSegment();
+        String riskGroupLike = loanRiskVariables.getRiskGroupLike();
+        String pincodeColor = lendingRiskVariables.getPincodeColor() != null ?
+                "%" + lendingRiskVariables.getPincodeColor().name() + "%" : "";
+        String tenure = "%" + loan.getTenureInMonths() + "%";
+
+        AsyncLoggerUtil.logDebug(logger,"Fetching rules: bureau={}, segment={}, tenure={}, amount={}, riskGroup={}, pincodeColor={}",
+                bureauScore, riskSegment, tenure, loan.getAmount(), riskGroupLike, pincodeColor);
+
+        if (loanUtil.isInternalMerchant(merchantId)) {
+            return lenderAssignmentRulesDao.fetchEligibleRulesForInternal(loan.getAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
+        }
+        return lenderAssignmentRulesDao.fetchEligibleRules(loan.getAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
+    }
+
+    private List<String> filterEligibleLenders(Long merchantId, EligibleLoanDTO loan,
+                                               LendingRiskVariables lendingRiskVariables, RiskVariablesDTO riskVariables, List<String> lenders, BasicDetailsDto merchantDetails) {
+
+        boolean isPanAadhaarLinkedChecked = false;
+        boolean isPanAadhaarLinked = false;
+
+        Iterator<String> iterator = lenders.iterator();
+        while (iterator.hasNext()) {
+            String lender = iterator.next().toUpperCase();
+
+            if (isRejectedLender(riskVariables, lender, merchantId)) {
+                iterator.remove();
+                continue;
+            }
+
+            if (!isPincodeEligible(lender, loan, lendingRiskVariables)) {
+                iterator.remove();
+                continue;
+            }
+
+            if (!lenderBaseChecksCleared(loan, lender, EdiModel.SEVEN_DAY_MODEL, riskVariables, merchantId)) {
+                iterator.remove();
+                continue;
+            }
+
+            if (aadhaarSeedingStatusCheckLenders.contains(lender)) {
+                if (!isPanAadhaarLinkedChecked) {
+                    isPanAadhaarLinked = isPanAndAadhaarLinked(merchantId);
+                    isPanAadhaarLinkedChecked = true;
+                }
+                if (!isPanAadhaarLinked) {
+                    iterator.remove();
+                    continue;
+                }
+            }
+
+            Pair<Boolean, String> checkResponse = runLenderChecksForApplication(loan, lender, riskVariables, merchantId);
+            if (!checkResponse.getKey()) {
+                iterator.remove();
+                continue;
+            }
+
+            if (additionalChecksFailed(merchantId, lender, merchantDetails) ||
+                    !negativeCategoryAndLoanAmountCheckPassed(loan, lendingRiskVariables.getRiskSegment(), lender, merchantId)) {
+                iterator.remove();
+            }
+        }
+        return lenders;
+    }
+
+
+    private boolean isRejectedLender(RiskVariablesDTO riskVariables, String lender, Long merchantId) {
+        if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
+            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", "Rejected lender");
+            return true;
+        }
+        return false;
+    }
+
+    private boolean negativeCategoryAndLoanAmountCheckPassed(EligibleLoanDTO eligibleLoanDTO, String riskSegment, String lender, Long merchantId) {
+        if(RiskSegment.REPEAT.name().equalsIgnoreCase(riskSegment)){
+            LendingApplication lastLmsDisbursedApplication = lendingApplicationDao.getLastLmsDisbursedLoan(merchantId);
+            if(ObjectUtils.isEmpty(lastLmsDisbursedApplication)){
+                AsyncLoggerUtil.logInfo(logger,"last lms disbursed application not available for checks for merchantId{}", merchantId);
+                return true;
+            }
+            List<Long> lmsFieldIds = new ArrayList<>();
+            lmsFieldIds.add(BUSINESS_CATEGORY_LMS_FIELD_ID);
+            lmsFieldIds.add(BUSINESS_SUBCATEGORY_LMS_FIELD_ID);
+            List<LmsFieldValues> lmsFieldValuesList = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(
+                    lastLmsDisbursedApplication.getId(), lmsFieldIds
+            );
+            if(ObjectUtils.isEmpty(lmsFieldValuesList)){
+                AsyncLoggerUtil.logInfo(logger,"business category not available from last disbursed app for merchantId{}", merchantId);
+                return true;
+            }
+            String businessCategory = null;
+            String businessSubcategory = null;
+            for(LmsFieldValues lmsFieldValues : lmsFieldValuesList){
+                if(lmsFieldValues.getFieldId() == BUSINESS_CATEGORY_LMS_FIELD_ID){
+                    businessCategory = lmsFieldValues.getFieldDropdownValue();
+                }
+                else if (lmsFieldValues.getFieldId() == BUSINESS_SUBCATEGORY_LMS_FIELD_ID){
+                    businessSubcategory = lmsFieldValues.getFieldDropdownValue();
+                }
+            }
+
+            LenderBusinessCategory lendingLenderBusinessCategory = lenderBusinessCategoryDao.findBusinessCategoryChecks(
+                    lender, businessCategory, businessSubcategory
+            );
+            if(ObjectUtils.isEmpty(lendingLenderBusinessCategory)){
+                AsyncLoggerUtil.logInfo(logger,"business category not available for merchantId {}, {}", merchantId, lender);
+                return true;
+            }
+            if("INACTIVE".equalsIgnoreCase(lendingLenderBusinessCategory.getStatus())){
+                AsyncLoggerUtil.logInfo(logger,"skipping lender {} due to negative category for merchantId {}", lender, merchantId);
+                funnelService.submitEventV3(merchantId, null, null,
+                        FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_CATEGORY, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                String remarks = "skipping lender " + lender + " due to lending business category status: " + lendingLenderBusinessCategory.getStatus() + " is inactive for " + merchantId;
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
+                return false;
+            }
+            else if ("ACTIVE".equalsIgnoreCase(lendingLenderBusinessCategory.getStatus())){
+                if(Objects.nonNull(lendingLenderBusinessCategory.getMaxAmount()) &&
+                        (eligibleLoanDTO.getAmount() > lendingLenderBusinessCategory.getMaxAmount())
+                ){
+                    funnelService.submitEventV3(merchantId, null, null,
+                            FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_CATEGORY_AMOUNT_LIMIT, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                    AsyncLoggerUtil.logInfo(logger,"skipping {} due to breach of business category amount limit fo merchantId {}", lender, merchantId);
+                    String remarks = "skipping " + lender + " due to breach of business category amount limit: " + lendingLenderBusinessCategory.getMaxAmount() + "is less than lending application amount: " + eligibleLoanDTO.getAmount() + " for merchantId " + merchantId;
+                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
+                    return false;
+                }
+            }
+        }
+        else{
+            List<LendingApplication> rejectedApplicationList = lendingApplicationDao.getLastThreeRejectedApplications(merchantId);
+            for(LendingApplication rejectedApplication : rejectedApplicationList){
+                if(rejectedApplication.getLender().equalsIgnoreCase(lender)){
+                    if(NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(rejectedApplication.getManualKycReason()) ||
+                            NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(rejectedApplication.getPhysicalReason())
+                    ){
+                        AsyncLoggerUtil.logInfo(logger,"skipping lender {} due to last rejected application on negative category for merchantId {}", lender, merchantId);
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+
+    private boolean isPincodeEligible(String lender, EligibleLoanDTO loan, LendingRiskVariables lendingRiskVariables) {
+        if (lenderEligiblePincodeCheckList.contains(lender)) {
+            boolean shouldCheckPincode = !PAYU.name().equalsIgnoreCase(lender) || loan.getAmount() > 500000;
+            if (shouldCheckPincode) {
+                return lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
+                        lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
+                ) != null;
+            }
+        }
+        return true;
+    }
+
+
+    public boolean lenderBaseChecksCleared(EligibleLoanDTO eligibleLoan, String lender, EdiModel ediModel, RiskVariablesDTO riskVariables, Long merchantId) {
         if(maxIrrCheckFailedV2(eligibleLoan,ediModel, lender, riskVariables, merchantId)) {
-            log.info("skipping {} due to lender pricing based maxIrr checks failing for {}", lender, merchantId);
+            AsyncLoggerUtil.logInfo(logger,"skipping {} due to lender pricing based maxIrr checks failing for {}", lender, merchantId);
             String remarks = "skipping " + lender + " due to maxIrr checks failing for " + merchantId;
             createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
             return false;
         }
-        if(maxAprCheckFailedV2(eligibleLoan, ediModel, lender, riskVariables)){
-            log.info("skipping {} due to lender pricing based maxApr checks failing for {}", lender, merchantId);
+        if(maxAprCheckFailedV2(eligibleLoan, ediModel, lender, riskVariables, merchantId)){
+            AsyncLoggerUtil.logInfo(logger,"skipping {} due to lender pricing based maxApr checks failing for {}", lender, merchantId);
             String remarks = "skipping " + lender + " due to maxApr checks failing for " + merchantId;
             createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
             return false;
         }
 
         if(maxPfEligibleLender.contains(lender) && maxPfCheckFailedV2(eligibleLoan, merchantId,lender, riskVariables)){
-            log.info("skipping {} due to maxPf checks failing for {}", lender, merchantId);
+            AsyncLoggerUtil.logInfo(logger,"skipping {} due to maxPf checks failing for {}", lender, merchantId);
             String remarks = "skipping " + lender + " due to maxPf checks failing for " + merchantId;
             createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
             return false;
@@ -606,7 +850,142 @@ public class LoanEligibleService {
         return true;
     }
 
-    public boolean maxIrrCheckFailedV2(LendingEligibleLoan eligibleLoan, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables, Long merchantId) {
+
+    private Pair<Boolean, String> runLenderChecksForApplication(EligibleLoanDTO eligibleLoanDTO, String lender, RiskVariablesDTO riskVariables, Long merchantId) {
+        boolean success = true;
+        String response = null;
+        Lender lenderEnum = valueOf(lender);
+
+        double loanAmount = eligibleLoanDTO.getAmount();
+        Integer tenureInMonths = eligibleLoanDTO.getTenureInMonths();
+        Double summaryTpv = riskVariables.getSummaryTpv();
+        String riskSegment = riskVariables.getRiskSegment();
+        if(!ObjectUtils.isEmpty(riskSegment)) {
+            riskSegment = riskSegment.replace("%", "");
+        }
+        int maxTenure = riskVariables.getMaxTenure();
+        double tpvOffer = riskVariables.getTpvOffer();
+        if(maxTenure != 0 && tpvOffer != 0D && !ObjectUtils.isEmpty(tenureInMonths) && tenureInMonths != 0) {
+            tpvOffer = (tpvOffer / maxTenure) * tenureInMonths;
+        }
+
+        double edi = eligibleLoanDTO.getEdi();
+        if(!CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap())) {
+            PricingExperiment pricingExperiment = riskVariables.getPricingExperimentMap().get(merchantId);
+            AsyncLoggerUtil.logInfo(logger,"experiment available for {}: {}",merchantId , pricingExperiment);
+            Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
+            Double interestAmt = (loanAmount * (pricingExperiment.getInterestRate() * tenureInMonths) / 100) ;
+            edi = ((loanAmount + interestAmt) / payableDays);
+            edi = ediUtil.getEdiAfterRoundingOfferLogic(merchantId, edi, lender);
+        }
+        else {
+            LendingLenderPricing lenderPricing = riskVariables.getLenderPricingMap().get(lender);
+            if (!ObjectUtils.isEmpty(lenderPricing)) {
+                Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
+                Double interestAmt = (loanAmount * (lenderPricing.getInterestRate() * tenureInMonths) / 100) ;
+                edi = ((loanAmount + interestAmt) / payableDays);
+                edi = ediUtil.getEdiAfterRoundingOfferLogic(merchantId, edi, lender);
+            }
+        }
+
+        switch (lenderEnum) {
+            case CAPRI:
+                if (edi > summaryTpv) {
+                    response = "skipping capri for merchantId : " + merchantId + " due to merchant edi: " + edi + " is greater than summaryTpv: " + summaryTpv;
+                    success = false;
+                    break;
+                }
+                break;
+            case MUTHOOT:
+                if (loanAmount > (Math.round(tpvOffer / 1000) * 1000)) {
+                    response = "skipping muthoot for merchantId : " + merchantId + " due to merchant loan amount: " + loanAmount + " is greater than tpvOffer: " + (Math.round(tpvOffer / 1000) * 1000);
+                    success = false;
+                    break;
+                }
+                if (edi > 0.9 * riskVariables.getSummaryTpv()) {
+                    response = "skipping muthoot for merchantId : " + merchantId + " due to merchant loan edi amount: " + edi + " is greater than 0.9 * summary_tpv " + 0.9 * summaryTpv;
+                    success = false;
+                    break;
+                }
+                break;
+            case PAYU :
+                if (loanAmount > (Math.ceil(tpvOffer / 10000) * 10000)) {
+                    response = "skipping payU for merchantId : " + merchantId + " due to merchant loan amount: " + loanAmount + " is greater than tpvOffer: " + (Math.ceil(tpvOffer / 10000) * 10000);
+                    success = false;
+                    break;
+                }
+                if (edi > riskVariables.getSummaryTpv()) {
+                    response = "skipping payu for merchantId: " + merchantId + " due to merchant loan edi amount: " + edi + " is greater than summary_tpv " + summaryTpv;
+                    success = false;
+                    break;
+                }
+                if(tenureInMonths >= 15 && riskVariables.getVintage() < payUConfig.getMinVintageForMoreThan15MonthsLoans()) {
+                    response = "skipping " + lender + " due to vintage " + riskVariables.getVintage() + " less than " + payUConfig.getMinVintageForMoreThan15MonthsLoans() + " for " + tenureInMonths + " months loan tenure for merchantId "  + merchantId;
+                    success = false;
+                    break;
+                }
+                if(riskVariables.getVintage() <= 180 && tenureInMonths > payUConfig.getMaxLoanTenureFor180DaysVintage()) {
+                    response = "skipping " + lender + " due to tenure " + tenureInMonths + " greater than " + payUConfig.getMaxLoanTenureFor180DaysVintage() + " for vintage less than equal to 180 for merchantId "  + merchantId;
+                    success = false;
+                    break;
+                }
+                break;
+            case SMFG:
+                if (edi > 0.7 * summaryTpv) {
+                    response = "skipping smfg for merchantId : " + merchantId + " due to edi amount: " + edi + " is greater than 0.7 * summary_tpv " + 0.7 * summaryTpv;
+                    success = false;
+                    break;
+                }
+                if (REGULAR_ETC.name().equalsIgnoreCase(riskSegment)) {
+                    String category = null, subcategory = null;
+                    Optional<BasicDetailsDto> merchantDetailsOptional = merchantService.fetchMerchantBasicDetails(merchantId);
+                    if (merchantDetailsOptional.isPresent()) {
+                        category = merchantDetailsOptional.get().getBussinessCategory();
+                        subcategory = merchantDetailsOptional.get().getSubCategory();
+                    }
+                    if (riskVariables.isSTPFlag() && loanAmount <= 200000 &&
+                            (ObjectUtils.isEmpty(category) || ObjectUtils.isEmpty(subcategory))) {
+                        response = "skipping smfg for merchantId: " + merchantId + " due to risk segment: " + riskVariables.getRiskSegment() + ", loan amount: " + loanAmount + " is smaller than 200000 and category " + category + " or subcategory " + subcategory + " is empty";
+                        success = false;
+                        break;
+                    }
+                }
+                break;
+            case OXYZO:
+
+                AsyncLoggerUtil.logInfo(logger,"runLenderChecksForApplication for Oxyzo {} {} {}", riskVariables.getUnsecuredPos(), riskVariables.getMonthlyTpv(), loanAmount);
+
+                if(edi > 0.7 * (riskVariables.getMonthlyTpv()/30)){
+                    response = "skipping oxyzo for merchantId : " + merchantId + " due to edi amount: " + edi + " is greater than 0.7 * monthly_tpv " + 0.7 * (riskVariables.getMonthlyTpv()/30);
+                    success = false;
+                    break;
+                }
+                if(loanAmount > Math.ceil(tpvOffer)){
+                    response = "skipping oxyzo for merchantId : " + merchantId + " due to merchant loan amount: " + loanAmount + " is greater than tpvOffer: " + (Math.ceil(tpvOffer));
+                    success = false;
+                    break;
+                }
+                if("R1".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((loanAmount + riskVariables.getUnsecuredPos()) > (6 * riskVariables.getMonthlyTpv()))){
+                    response = "skipping oxyzo for merchantId : " + merchantId + " due to merchant loan amount: " + loanAmount + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + " is greater than 6 * Monthly Adj TPV: " + 6 * riskVariables.getMonthlyTpv();
+                    success = false;
+                    AsyncLoggerUtil.logInfo(logger,"inside unsecuredPOs check for R1");
+                    break;
+                }
+                if("R2".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((loanAmount + riskVariables.getUnsecuredPos()) > (4.5 * riskVariables.getMonthlyTpv()))){
+                    response = "skipping oxyzo for merchantId : " + merchantId + " due to merchant loan amount: " + loanAmount + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + " is greater than 4.5 * Monthly Adj TPV: " + 4.5 * riskVariables.getMonthlyTpv();
+                    success = false;
+                    AsyncLoggerUtil.logInfo(logger,"inside unsecuredPOs check for R2");
+                    break;
+                }
+                break;
+            default:
+                AsyncLoggerUtil.logDebug(logger,"No specific checks found for lender : {} for merchantId : {}", lender, merchantId);
+        }
+
+        return new ImmutablePair<>(success, response);
+    }
+
+    public boolean maxIrrCheckFailedV2(EligibleLoanDTO eligibleLoan, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables, Long merchantId) {
         BigDecimal maxIrr = BigDecimal.ZERO;
         double interestRate = eligibleLoan.getRateOfInterest();
 
@@ -627,39 +1006,61 @@ public class LoanEligibleService {
             }
         }
 
-        log.info("loan amount : {}, edi model : {} of loan id : {}", eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), merchantid);
+        AsyncLoggerUtil.logInfo(logger,"loan amount : {}, edi model : {} for merchantId : {}", eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), merchantId);
         Double apr = getAprForBaseChecks(eligibleLoan, eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender, interestRate, merchantId);
 
-        log.info("Calculated IRR : {}, IRR in DB : {}, application id : {}", apr, maxIrr, merchantid);
+        AsyncLoggerUtil.logInfo(logger,"Calculated IRR : {}, IRR in DB : {}, merchantId : {}", apr, maxIrr, merchantId);
         return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxIrr.setScale(2, RoundingMode.DOWN)) > 0;
     }
 
-    public Double getAprForBaseChecks(LendingEligibleLoan eligibleLoan, Double amountToCalculateAprOn, Integer ediModel, String lender, double interestRate, Long merchantId) {
+    public boolean isPanAndAadhaarLinked(Long merchantId) {
+        LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        if (!ObjectUtils.isEmpty(lendingPancardDetails) && !ObjectUtils.isEmpty(lendingPancardDetails.getName()) && !ObjectUtils.isEmpty(lendingPancardDetails.getPancardNumber()) && !ObjectUtils.isEmpty(lendingPancardDetails.getDob())) {
+
+            PanVerifyKYCResponseDto responseDto = kycHandler.verifyPanDetailsInternal(lendingPancardDetails.getPancardNumber(), lendingPancardDetails.getName(), lendingPancardDetails.getDob(), merchantId);
+
+            if (!ObjectUtils.isEmpty(responseDto)) {
+
+                String aadhaarSeedingStatus = !ObjectUtils.isEmpty(responseDto.getData())
+                        && !ObjectUtils.isEmpty(responseDto.getData().getAadhaarSeedingStatus()) ? responseDto.getData().getAadhaarSeedingStatus() : null;
+
+                if ("Y".equalsIgnoreCase(aadhaarSeedingStatus)) {
+                    return true;
+                }
+
+            }
+
+        }
+        return false;
+    }
+
+
+    public Double getAprForBaseChecks(EligibleLoanDTO eligibleLoan, Double amountToCalculateAprOn, Integer ediModel, String lender, double interestRate, Long merchantId) {
         try{
-            log.info("calculating APR using Lender Pricing for merchantId : {}", merchantId);
+            AsyncLoggerUtil.logInfo(logger,"calculating APR using Lender Pricing for merchantId : {}", merchantId);
             Double guess = 0.01;
             ArrayList<Double> values = new ArrayList<>();
-            log.info("amountToCalculateAprOn: {}", amountToCalculateAprOn);
+            AsyncLoggerUtil.logInfo(logger,"amountToCalculateAprOn: {}", amountToCalculateAprOn);
 
             //Get Lender pricing config for APR calculation
             Double edi = Double.valueOf(eligibleLoan.getEdi());
-            log.info("Edi of merchantId : {} and lender ;{}  is {}", merchantId, lender, edi);
+            AsyncLoggerUtil.logInfo(logger,"Edi of merchantId : {} and lender ;{}  is {}", merchantId, lender, edi);
             Long payableDays = (long) OfferUtils.getEdiDays(eligibleLoan.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
             Double interestAmt = (eligibleLoan.getAmount() * (interestRate * eligibleLoan.getTenureInMonths()) / 100) ;
             double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / payableDays);
             edi = ediUtil.getEdiAfterRoundingLogic(null, ediAmount, lender);
-            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, eligibleLoan.getAmount(), interestRate, edi, interestAmt);
+            AsyncLoggerUtil.logInfo(logger,"payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, eligibleLoan.getAmount(), interestRate, edi, interestAmt);
 
 
-            CommonResponse response = getEdiScheduleForEdi(null, edi, loanApplicationDetailsDto);
+            CommonResponse response = getEdiScheduleForEdi(eligibleLoan,edi, merchantId, lender);
             if(!response.isSuccess()){
-                logger.info(response.getMessage());
-                logger.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
+                AsyncLoggerUtil.logInfo(logger,response.getMessage());
+                AsyncLoggerUtil.logInfo(logger,"Unable to fetch edi schedule for APR calculation for merchantId : {}", merchantId);
                 return null;
             }
             List<EdiScheduleV2DTO> ediSchedule = (List<EdiScheduleV2DTO>)response.getData();
             if(ObjectUtils.isEmpty(ediSchedule)){
-                logger.info("Unable to fetch edi schedule for APR calculation for applicationid : {}", applicationId);
+                AsyncLoggerUtil.logInfo(logger,"Unable to fetch edi schedule for APR calculation for merchantId : {}", merchantId);
                 return null;
             }
             values.add(0-amountToCalculateAprOn);
@@ -677,25 +1078,25 @@ public class LoanEligibleService {
             Double apr = 0.0;
             double[] valuesDouble = new double[values.size()];
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
-            log.info("valuesDouble Size : {}", valuesDouble.length);
+            AsyncLoggerUtil.logInfo(logger,"valuesDouble Size : {}", valuesDouble.length);
             int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lender)) ? 360 : 365;
-            log.info("days in year : {} for application id : {}", daysInYear, merchantId);
+            AsyncLoggerUtil.logInfo(logger,"days in year : {} for application id : {}", daysInYear, merchantId);
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
-                log.info("APR : {}", apr);
+                AsyncLoggerUtil.logInfo(logger,"APR : {}", apr);
                 return null;
             }
-            log.info("APR : {}", apr);
+            AsyncLoggerUtil.logInfo(logger,"APR : {}", apr);
             return apr * 100;
         }
         catch(Exception e){
-            log.error("Unable to calculate APR for applicationId : {} Exception : {}, stacktrace : {}",merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            logger.error("Unable to calculate APR for applicationId : {} Exception : {}, stacktrace : {}",merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
 
 
-    public boolean maxAprCheckFailedV2(LendingEligibleLoan eligibleLoan, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+    public boolean maxAprCheckFailedV2(EligibleLoanDTO eligibleLoan, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables, Long merchantId) {
         BigDecimal maxApr = BigDecimal.ZERO;
         double interestRate = eligibleLoan.getRateOfInterest();
         double processingFee = eligibleLoan.getProcessingFee();
@@ -705,13 +1106,13 @@ public class LoanEligibleService {
             pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(eligibleLoan.getMerchantId()) : null;
         }
         if(!ObjectUtils.isEmpty(pricingExperiment)) {
-            log.info("Experiment fetched for {}: {}", eligibleLoan.getMerchantId(), pricingExperiment);
+           AsyncLoggerUtil.logInfo(logger,"Experiment fetched for {}: {}", eligibleLoan.getMerchantId(), pricingExperiment);
             maxApr = BigDecimal.valueOf(pricingExperiment.getApr());
             processingFee = eligibleLoan.getAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
             interestRate = pricingExperiment.getInterestRate();
         }else {
             LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
-            log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+            AsyncLoggerUtil.logInfo(logger,"Lending Lender pricing fetched : {}", lendingLenderPricing);
 
             if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
                 maxApr = BigDecimal.valueOf(lendingLenderPricing.getApr());
@@ -719,20 +1120,17 @@ public class LoanEligibleService {
                 interestRate = lendingLenderPricing.getInterestRate();
             }
         }
-        LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(eligibleLoan.getId()).
-                edi(Double.valueOf(eligibleLoan.getEdi())).tenureInMonths(eligibleLoan.getTenureInMonths()).
-                loanAmount(eligibleLoan.getAmount()).payableDays(Long.valueOf(eligibleLoan.getEdiCount())).
-                lender(lender).build();
-        log.info("Processing fee {}, loan amount : {}, edi model : {} of loan id : {}", processingFee, eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), eligibleLoan.getId());
-        Double apr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, eligibleLoan.getAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, interestRate);
-        log.info("Calculated APR : {}, APR in DB : {}, application id : {}", apr, maxApr, eligibleLoan.getId());
+        
+        AsyncLoggerUtil.logInfo(logger,"Processing fee {}, loan amount : {}, edi model : {} for merchantId: {}", processingFee, eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), merchantId);
+        Double apr = getAprForBaseChecks(eligibleLoan, eligibleLoan.getAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, interestRate,  merchantId);
+        AsyncLoggerUtil.logInfo(logger,"Calculated APR : {}, APR in DB : {}, merchantId : {}", apr, maxApr, merchantId);
         return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxApr.setScale(2, RoundingMode.DOWN)) > 0;
     }
 
-    private boolean maxPfCheckFailedV2(LendingEligibleLoan eligibleLoan, Long merchantId, String lender, RiskVariablesDTO riskVariables) {
+    private boolean maxPfCheckFailedV2(EligibleLoanDTO eligibleLoan, Long merchantId, String lender, RiskVariablesDTO riskVariables) {
         Double processingFee = Double.valueOf(eligibleLoan.getProcessingFee());
         Double loanAmount= eligibleLoan.getAmount();
-        log.info("PF generated for application_id:{} PF:{} and lender:{}", merchantId, processingFee, lender);
+        AsyncLoggerUtil.logInfo(logger,"PF generated for application_id:{} PF:{} and lender:{}", merchantId, processingFee, lender);
         Double pfPercentage = (processingFee/loanAmount)*100D;
 
         PricingExperiment pricingExperiment = null;
@@ -740,11 +1138,11 @@ public class LoanEligibleService {
             pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(merchantId) : null;
         }
         if(!ObjectUtils.isEmpty(pricingExperiment)) {
-            log.info("Experiment fetched for {}: {}", merchantId, pricingExperiment);
+            AsyncLoggerUtil.logInfo(logger,"Experiment fetched for {}: {}", merchantId, pricingExperiment);
             pfPercentage = pricingExperiment.getProcessingFeeRate();
         }else {
             LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
-            log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+            AsyncLoggerUtil.logInfo(logger,"Lending Lender pricing fetched : {}", lendingLenderPricing);
             if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
                 pfPercentage = lendingLenderPricing.getProcessingFeeRate();
             }
@@ -762,12 +1160,12 @@ public class LoanEligibleService {
     }
 
 
-    public boolean additionalChecksFailed(LendingApplication lendingApplication, Lender lender, BasicDetailsDto merchantDetails){
-        log.info("Running additional checks for lender:{}", lender);
+    public boolean additionalChecksFailed(Long  merchantId, String lender, BasicDetailsDto merchantDetails){
+        AsyncLoggerUtil.logInfo(logger,"Running additional checks for lender:{}", lender);
         boolean flag = false;
         if(ABFL.equals(lender)){
             if(ObjectUtils.isEmpty(merchantDetails)){
-                merchantDetails=merchantService.fetchMerchantDetails(lendingApplication.getMerchantId()).getMerchantDetail();
+                merchantDetails=merchantService.fetchMerchantDetails(merchantId).getMerchantDetail();
             }
             BureauResponseDTO responseDTO = null;
             if(!ObjectUtils.isEmpty(merchantDetails)){
@@ -778,8 +1176,8 @@ public class LoanEligibleService {
             } else{
                 flag =  responseDTO.getVariables().getMaxDpd6Months()>=30;
                 if (flag) {
-                    String remarks = "skipping " + lender + " due to max Dpd 6 months: " + responseDTO.getVariables().getMaxDpd6Months() + " is greater than 30 for " + merchantid;
-                    createAndSaveLendingAuditTrial(merchantid, lendingApplication.getMerchantId(), lender.name(), "LENDER_REMOVED", remarks);
+                    String remarks = "skipping " + lender + " due to max Dpd 6 months: " + responseDTO.getVariables().getMaxDpd6Months() + " is greater than 30 for " + merchantId;
+                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
                 }
             }
         }
@@ -787,42 +1185,34 @@ public class LoanEligibleService {
     }
 
 
-    public List<EligibleOffersResponseDTO.LenderData> getLenderData(List<String> eligibleLenders, List<String> prevAssignedLenders, LendingApplication lendingApplication) {
+    public List<EligibleOffersResponseDTO.LenderData> getLenderData(List<String> eligibleLenders, EligibleLoanDTO eligibleLoanDTO, LendingRiskVariables lendingRiskVariables, Long merchantId) {
         try {
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-            LendingLenderQuota defaultLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+            Double amount = eligibleLoanDTO.getAmount();
+            Integer tenureInMonths = eligibleLoanDTO.getTenureInMonths();
             if(!ObjectUtils.isEmpty(eligibleLenders)) {
                 List<LendingLenderQuota> lenderLimits;
-                lenderLimits = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(eligibleLenders, lendingApplication.getLoanAmount());
+                lenderLimits = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(eligibleLenders, eligibleLoanDTO.getAmount());
                 eligibleLenders.clear();
-                log.info("lender limits : {}", lenderLimits);
+                AsyncLoggerUtil.logInfo(logger,"lender limits : {}", lenderLimits);
                 if (Objects.nonNull(lenderLimits)) {
                     for (LendingLenderQuota lendingLenderQuota : lenderLimits) {
-                        if(Objects.nonNull(defaultLender) && lendingLenderQuota.getLender().equals(defaultLender.getLender())){
-                            continue;
-                        }
                         eligibleLenders.add(lendingLenderQuota.getLender());
                     }
-                    log.info("eligible lenders:{}", eligibleLenders);
+                    AsyncLoggerUtil.logInfo(logger,"eligible lenders:{}", eligibleLenders);
                 }
             }
-            List<LenderAggregationResponseDto.LenderData> eligibleLenderList = new ArrayList<>();
-            addDefaultLender(eligibleLenders, prevAssignedLenders, defaultLender);
-            log.info("previous lenders:{}", prevAssignedLenders);
+            List<EligibleOffersResponseDTO.LenderData> eligibleLenderList = new ArrayList<>();
 
             for (String lender : eligibleLenders) {
                 LendingLenderPricing lendingLenderPricing = null;
                 PricingExperiment pricingExperiment = null;
-                if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
+                if(loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
                     if(pricingExpEnabled) {
                         pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                                lendingApplication.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                                eligibleLoanDTO.getTenureInMonths(), (int) (merchantId % 10), lendingRiskVariables.getPincodeColor().name(), Date.from(Instant.now()));
                     }
-                    lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
-                            lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
-                }
-                if (Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender)) {
-                    continue;
+                    lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), eligibleLoanDTO.getTenureInMonths(), lender,
+                            lendingRiskVariables.getPincodeColor().name(), Date.from(Instant.now()));
                 }
                 logger.info("adding lender {} to list", lender);
                 Double apr;
@@ -832,116 +1222,131 @@ public class LoanEligibleService {
                 Double processingFee;
                 if(!ObjectUtils.isEmpty(pricingExperiment)) {
                     interestRate = pricingExperiment.getInterestRate();
-                    processingFee = lendingApplication.getLoanAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
-                    Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                    Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                    Double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-                    edi = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
-                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication.getPayableDays()),edi, lendingApplication.getLoanAmount() - processingFee, lendingApplication.getMerchantId(), lender);
-                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), edi, lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
+                    processingFee =amount * (pricingExperiment.getProcessingFeeRate() / 100);
+                    Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
+                    Double interestAmt = (amount * (pricingExperiment.getInterestRate() * tenureInMonths) / 100) ;
+                    Double ediAmount = ((amount + interestAmt) / payableDays);
+                    edi = ediUtil.getEdiAfterRoundingOfferLogic(merchantId, ediAmount, lender);
+                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(eligibleLoanDTO.getEdiCount()),edi,amount - processingFee, merchantId, lender);
+                    irr = lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount().intValue(), edi,amount, merchantId, lender);
                 }
-                else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+                else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
+                    processingFee =amount * (lendingLenderPricing.getProcessingFeeRate() / 100);
                     interestRate = lendingLenderPricing.getInterestRate();
-                    Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                    Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                    Double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-                    edi = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
-                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication.getPayableDays()),edi, lendingApplication.getLoanAmount() - processingFee, lendingApplication.getMerchantId(), lender);
-                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), edi, lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
+                    Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
+                    Double interestAmt = (amount * (lendingLenderPricing.getInterestRate() * tenureInMonths) / 100) ;
+                    Double ediAmount = ((amount + interestAmt) / payableDays);
+                    edi = ediUtil.getEdiAfterRoundingOfferLogic(merchantId, ediAmount, lender);
+                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(eligibleLoanDTO.getEdiCount()),edi,amount - processingFee, merchantId, lender);
+                    irr = lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount().intValue(), edi,amount, merchantId, lender);
                 }
                 else{
-                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+                    processingFee =amount * (lendingLenderPricing.getProcessingFeeRate() / 100);
                     interestRate = lendingLenderPricing.getInterestRate();
-                    Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                    Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                    Double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-                    edi = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
-                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication.getPayableDays()),edi, lendingApplication.getLoanAmount() - processingFee, lendingApplication.getMerchantId(), lender);
-                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), edi, lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
+                    Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
+                    Double interestAmt = (amount * (lendingLenderPricing.getInterestRate() * tenureInMonths) / 100) ;
+                    Double ediAmount = ((amount + interestAmt) / payableDays);
+                    edi = ediUtil.getEdiAfterRoundingOfferLogic(merchantId, ediAmount, lender);
+                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(eligibleLoanDTO.getEdiCount()),edi,amount - processingFee, merchantId, lender);
+                    irr = lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount().intValue(), edi,amount, merchantId, lender);
                 }
-                LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
+                EligibleOffersResponseDTO.LenderData lenderData = new EligibleOffersResponseDTO.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
                 lenderData.setLenderName(lender);
                 lenderData.setApr(apr);
                 lenderData.setIrr(irr);
                 lenderData.setEdi(edi);
                 lenderData.setProcessingFee(processingFee);
-                lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
-                lenderData.setApprovalRate(getPropensityMatrix(valueOf(lender)));
-                lenderData.setForeClosureEntityDTOList(getForeclosureAmount(valueOf(lender)));
+                //lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
+                //lenderData.setApprovalRate(getPropensityMatrix(valueOf(lender)));
+                lenderData.setForeClosureDetails(getForeclosureAmount(valueOf(lender)));
                 lenderData.setNachBounceAmount(getNachBounceAmount(valueOf(lender)));
                 lenderData.setInterestRate(interestRate);
                 eligibleLenderList.add(lenderData);
 
 
-                // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
-                eligibleLenderList.sort((lender1, lender2) -> {
-                    boolean isLender1Default = defaultLender != null &&
-                            defaultLender.getLender().equals(lender1.getLenderName());
-                    boolean isLender2Default = defaultLender != null &&
-                            defaultLender.getLender().equals(lender2.getLenderName());
-
-                    if (isLender1Default && !isLender2Default) return 1;
-
-                    if (!isLender1Default && isLender2Default) return -1;
-
-                    int interestRateComparison = lender2.getInterestRate().compareTo(lender1.getInterestRate());
-                    if (interestRateComparison != 0) {
-                        return interestRateComparison;
-                    }
-
-                    String rate1 = lender1.getApprovalRate();
-                    String rate2 = lender2.getApprovalRate();
-
-                    if (rate1.equals(rate2)) {
-                        return lender1.getLenderName().compareTo(lender2.getLenderName());
-                    }
-                    if ("HIGH".equals(rate1)) return -1;
-                    if ("HIGH".equals(rate2)) return 1;
-                    if ("MEDIUM".equals(rate1)) return -1;
-                    if ("MEDIUM".equals(rate2)) return 1;
-                    return 0;
-                });
+                // SORT: logic
+              
             }
-            log.info("eligible lenders after sorting:{}", eligibleLenderList);
+            AsyncLoggerUtil.logInfo(logger,"eligible lenders after sorting:{}", eligibleLenderList);
 
-            log.info("adding rejected lenders to the list for lendingApplication:{}:{}", lendingApplication.getId(), prevAssignedLenders);
-            if (Objects.nonNull(prevAssignedLenders)) {
-                for (String lender : prevAssignedLenders) {
-                    LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
-                    lenderData.setLenderName(lender);
-                    lenderData.setRejected(true);
-                    lenderData.setApr(lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender));
-                    lenderData.setApprovalRate(getPropensityMatrix(valueOf(lender)));
-                    lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
-                    eligibleLenderList.add(lenderData);
-
-                }
-            }
+            AsyncLoggerUtil.logInfo(logger,"adding rejected lenders to the list for merchantId : {}", merchantId);
+       
             return eligibleLenderList;
         } catch (Exception ex) {
-            log.info("exception occurred:{},{}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            AsyncLoggerUtil.logInfo(logger,"exception occurred:{},{}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return null;
         }
     }
 
+    public Integer getNachBounceAmount(Lender lender) {
+        Map<Lender, Integer> nachBounceAmountMap = new HashMap<Lender, Integer>() {{
+            put(TRILLIONLOANS, 500);
+            put(PAYU, 500);
+            put(PIRAMAL, 650);
+            put(LIQUILOANS, 650);
+            put(CREDITSAISON, 650);
+            put(LIQUILOANS_P2P, 650);
+            put(LIQUILOANS_P2P_OF, 650);
+        }};
+        return nachBounceAmountMap.getOrDefault(lender, null);
+    }
+
+    List<EligibleOffersResponseDTO.ForeClosureEntityDTO> getForeclosureAmount(Lender lender){
+
+        List<ForeClosureConfig> foreClosureConfigs = foreClosureDao.findByLender(lender.name());
+        return convertToForeClosureEntityDto(foreClosureConfigs);
+
+    }
+
+    private List<EligibleOffersResponseDTO.ForeClosureEntityDTO> convertToForeClosureEntityDto(List<ForeClosureConfig> foreClosureConfigs) {
+        List<EligibleOffersResponseDTO.ForeClosureEntityDTO> foreClosureEntityDTOList = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(foreClosureConfigs)) {
+            for (ForeClosureConfig foreClosureConfig: foreClosureConfigs) {
+                EligibleOffersResponseDTO.ForeClosureEntityDTO foreClosureEntityDTO = new EligibleOffersResponseDTO.ForeClosureEntityDTO();
+                foreClosureEntityDTO.setRate(foreClosureConfig.getRate());
+                foreClosureEntityDTO.setDurationFrom(foreClosureConfig.getDurationFrom());
+                foreClosureEntityDTO.setDurationTo(foreClosureConfig.getDurationTo());
+                foreClosureEntityDTO.setMinAmount(foreClosureConfig.getMinAmount());
+                foreClosureEntityDTO.setTenure(foreClosureConfig.getTenure());
+                foreClosureEntityDTOList.add(foreClosureEntityDTO);
+            }
+        }
+        return foreClosureEntityDTOList;
+    }
+
+    public List<EligibleOffersResponseDTO.PenaltyConfig> getPenaltyConfig(String lender) {
+        List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(2D, true, lender);
+        AsyncLoggerUtil.logInfo(logger,"penal charges for lender:{}:{}", lender, penaltyFeeConfigSlaves);
+        List<EligibleOffersResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
+        if (!ObjectUtils.isEmpty(penaltyFeeConfigSlaves)) {
+            for (PenaltyFeeConfigSlave penaltyFeeConfigSlave : penaltyFeeConfigSlaves) {
+                EligibleOffersResponseDTO.PenaltyConfig penaltyConfig = new EligibleOffersResponseDTO.PenaltyConfig();
+                penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
+                penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
+                penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
+                penaltyConfigs.add(penaltyConfig);
+            }
+        }
+        return penaltyConfigs;
+    }
+    
     List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender, Long merchantId){
-        logger.info("Assigned Lender: {}  EdiModel: {}", assignedLender, ediModel );
+        AsyncLoggerUtil.logInfo(logger,"Assigned Lender: {}  EdiModel: {}", assignedLender, ediModel );
         List<String> eligibleLenders = new ArrayList<>();
-        logger.info("lender assignment rules: {}", lenderAssignmentRules);
-        logger.info("is internal merchant {}", loanUtil.isInternalMerchant(merchantId));
+        AsyncLoggerUtil.logInfo(logger,"lender assignment rules: {}", lenderAssignmentRules);
+        AsyncLoggerUtil.logInfo(logger,"is internal merchant {}", loanUtil.isInternalMerchant(merchantId));
         for(LenderAssignmentRules rule:lenderAssignmentRules){
             String lender = rule.getLender();
-            logger.info("running skip check for lender {} for  {}", lender, merchantId);
+            AsyncLoggerUtil.logInfo(logger,"running skip check for lender {} for  {}", lender, merchantId);
             if(ObjectUtils.isEmpty(ediModel) || ediModel.name().equals(LenderOffDays.valueOf(lender).getEdiModel().name())){
                 if(!ObjectUtils.isEmpty(assignedLender) && rule.getLender().equals(assignedLender)){
-                    logger.info("lender change workflow, skip {} for {}", lender, merchantId);
+                    AsyncLoggerUtil.logInfo(logger,"lender change workflow, skip {} for {}", lender, merchantId);
                     continue;
                 }
-                logger.info("adding {} to the eligible list for merchantId: {}", lender, merchantId);
+                AsyncLoggerUtil.logInfo(logger,"adding {} to the eligible list for merchantId: {}", lender, merchantId);
                 if(PIRAMAL.name().equalsIgnoreCase(lender) && !loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, piramalRolloutPercentage)) {
-                    logger.info("removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
+                    AsyncLoggerUtil.logInfo(logger,"removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
                     String remarks = "removing " + lender + " from eligible list for merchantId : " + merchantId + " due to not in rollout percentage " + piramalRolloutPercentage;
                     createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks);
                     continue;
@@ -952,7 +1357,7 @@ public class LoanEligibleService {
                 eligibleLenders.add(lender);
             }
         }
-        logger.info("Eligible Lenders: {}", eligibleLenders);
+        AsyncLoggerUtil.logInfo(logger,"Eligible Lenders: {}", eligibleLenders);
         return eligibleLenders;
     }
 
@@ -995,7 +1400,7 @@ public class LoanEligibleService {
                 rolloutPercent = payuRolloutPercent;
                 break;
             case "CREDITSAISON":
-                rolloutPercent = csConfig.getRolloutPercent();
+                rolloutPercent = creditSaisonConfig.getRolloutPercent();
                 break;
             case "SMFG":
                 rolloutPercent = smfgConfig.getRolloutPercentage();
@@ -1010,42 +1415,42 @@ public class LoanEligibleService {
                 rolloutPercent = 0;
         }
         if(!loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, rolloutPercent)) {
-            log.info("removing {} from eligible lender list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, rolloutPercent);
+            AsyncLoggerUtil.logInfo(logger,"removing {} from eligible lender list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, rolloutPercent);
             return true;
         }
         return false;
     }
 
-    public CommonResponse getEdiScheduleForEdi(long applicationId, Double edi , LoanApplicationDetailsDto loanApplicationDetailsDto) {
-        logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
+    public CommonResponse getEdiScheduleForEdi(EligibleLoanDTO eligibleLoan, Double edi, Long merchantId, String lender ) {
+        AsyncLoggerUtil.logInfo(logger,"Creating EDI Schedule V2 for merchantId:{}", merchantId);
         try {
-            if (loanApplicationDetailsDto == null) {
-                return new CommonResponse(false, "Lending application not found");
+            if (eligibleLoan == null) {
+                return new CommonResponse(false, "eligible loan not found");
             }
 
             int installmentNo = 1;
-            int ediCount = loanApplicationDetailsDto.getPayableDays().intValue();
-            Double openingBalance = loanApplicationDetailsDto.getLoanAmount();
+            int ediCount = eligibleLoan.getEdiCount();
+            Double openingBalance = eligibleLoan.getAmount();
             double totalInterest = 0D;
             Double totalPrincipal = 0D;
             List<EdiScheduleV2DTO> ediSchedules = new ArrayList<>();
             Calendar cal = Calendar.getInstance();
 
             double reducingInterestRateDaily =
-                    Finance.rate(ediCount, edi.intValue(), loanApplicationDetailsDto.getLoanAmount());
+                    Finance.rate(ediCount, edi.intValue(), eligibleLoan.getAmount());
             int normalEdIinstallmentNo = 1;
             while (normalEdIinstallmentNo <= ediCount) {
-                Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * loanApplicationDetailsDto.getLoanAmount()));
+                Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * eligibleLoan.getAmount()));
                 double interest = round(edi.intValue() - principal);
 
-                if (Lender.PIRAMAL.name().equalsIgnoreCase(loanApplicationDetailsDto.getLender())) {
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
                     interest = roundToWhole(interest);
                     principal = edi.intValue() - interest;
                 }
 
-                if(normalEdIinstallmentNo == ediCount && !loanApplicationDetailsDto.getLoanAmount().equals(totalPrincipal + principal)) {
-                    double diff = loanApplicationDetailsDto.getLoanAmount() - (totalPrincipal + principal);
-                    principal = round(loanApplicationDetailsDto.getLoanAmount() - totalPrincipal);
+                if(normalEdIinstallmentNo == ediCount && !eligibleLoan.getAmount().equals(totalPrincipal + principal)) {
+                    double diff = eligibleLoan.getAmount() - (totalPrincipal + principal);
+                    principal = round(eligibleLoan.getAmount() - totalPrincipal);
                     interest = round(interest - diff < 0 ? 0 : interest - diff);
                 }
                 totalPrincipal = totalPrincipal + principal;
@@ -1065,7 +1470,7 @@ public class LoanEligibleService {
             }
             return new CommonResponse(true, "success", ediSchedules);
         } catch(Exception ex) {
-            logger.error("Exception while creating schedule V2 for applicationId {}, Exception is {}, Stacktrace : {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            logger.error("Exception while creating schedule V2 for merchantId {}, Exception is {}, Stacktrace : {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new CommonResponse(false, "Something went wrong");
     }
@@ -1102,44 +1507,6 @@ public class LoanEligibleService {
             logger.warn("Failed to cache eligibility response: {}", e.getMessage());
         }
     }
-
-    private EligibleOffersResponseDTO.TenureWithLender convertLoanToTenureWithLender(LendingEligibleLoan loan, MaxPricingValuesDTO pricingValues) {
-        // Create the tenure with lender without unnecessary object creation
-        EligibleOffersResponseDTO.TenureWithLender tenure = new EligibleOffersResponseDTO.TenureWithLender();
-        tenure.setCategory(loan.getCategory());
-        tenure.setTenure(loan.getPayableConverter());
-        tenure.setTenureInMonths(loan.getTenureInMonths());
-        tenure.setEdiCount(loan.getEdiCount());
-
-        // Create lender data efficiently
-        EligibleOffersResponseDTO.LenderData lenderData = new EligibleOffersResponseDTO.LenderData();
-        lenderData.setEligibleLoanId(loan.getId());
-        lenderData.setLenderName("BharatPe");
-
-        // Apply pricing values if available
-        if (pricingValues != null) {
-            lenderData.setProcessingFee(pricingValues.getProcessingFee());
-            lenderData.setApr(pricingValues.getApr());
-            lenderData.setIrr(pricingValues.getIrr());
-        } else {
-            // Default values if pricing not available
-            lenderData.setProcessingFee(2.0);
-            lenderData.setApr(loan.getInterestRate() * 12);
-            lenderData.setIrr(loan.getInterestRate() * 12 * 0.85);
-        }
-
-        // Set remaining values
-        lenderData.setRepaymentAmount(loan.getRepaymentAmount().intValue());
-        lenderData.setInterestRate(loan.getInterestRate());
-        lenderData.setIsRejected(false);
-        lenderData.setApprovalRate("95%");
-
-        // Add lender to tenure using singleton list to avoid creating ArrayList
-        tenure.setLender(Collections.singletonList(lenderData));
-
-        return tenure;
-    }
-
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
             LendingEligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, MaxPricingValuesDTO maxPricingValuesDTO) {
@@ -1222,183 +1589,6 @@ public class LoanEligibleService {
         responseDTO.setSuccess(false);
         return responseDTO;
     }
-
-//    public List<LoanEligibilityDTO> getNewLoanDetails(BasicDetailsDto merchantBasicDetails, Experian experian, MerchantResponseDTO merchantResponseDTO, BankDetailsDto merchantBankDetail, boolean skip, String pancard, boolean isZomato, String lendingType, boolean yellowPincode, String bankCode) {
-//        Double bpScore = (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D;
-//        double selfTpv = (merchantResponseDTO != null && merchantResponseDTO.getSelfTxnValue1Mon() != null) ? merchantResponseDTO.getSelfTxnValue1Mon() : 0d;
-//        double tpvLast30Days = (merchantResponseDTO != null && merchantResponseDTO.getTpv1Mon() != null) ? merchantResponseDTO.getTpv1Mon() - selfTpv : 0D;
-//        int txnLast30Days = 30;
-//        double avgTpv = tpvLast30Days / txnLast30Days;
-//        if (exemptMerchant.contains(merchantBasicDetails.getId())) {
-//            avgTpv = 100000;
-//            bpScore = 20D;
-//            merchantResponseDTO.setUniqueCustomer1mon(20);
-//        }
-//        List<LendingPaymentSchedule> prevLoans;
-//        if (lendingType.equalsIgnoreCase("CREDITLINE")) {
-//            prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantBasicDetails.getId(), true);
-//        } else {
-//            prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantBasicDetails.getId(), false);
-//        }
-//
-////        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-//
-//        int loanCount = (prevLoans == null || prevLoans.isEmpty()) ? 0 : prevLoans.size();
-//        boolean repeatedLoan = loanCount > 0;
-//        if (skip) {
-//            experian.setSkip(true);
-//            experianDao.save(experian);
-//        }
-//        boolean isEligibleForConstruct2And3 = false;
-////        boolean isEligibleForConstruct2And3 = isEligibleForConstruct2And3(merchantSummary, prevLoans);
-//        boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans, merchantBasicDetails.getId());
-//        LendingApplication lendingApplication = null;
-//        if (isRepeatLoanNoDerog && prevLoans != null) {
-//            lendingApplication = lendingApplicationDao.findByIdAndMerchantId(prevLoans.get(0).getApplicationId(),
-//                    merchantBasicDetails.getId());
-//        }
-//        int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
-//        if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
-//            experian.setReason(null);
-//        }
-//        JsonNode creditBureauResponse = null;
-//        ResponseUtil responseUtil;
-//        String bureau = null;
-//        try {
-//            ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchantBasicDetails.getId());
-//            Date reportDate = null;
-//            if (experian.getResponse() != null) {
-//                responseUtil = getCreditBureauResponse(experian);
-//                reportDate = responseUtil.getReportDate();
-//                experian.setReportDate(reportDate);
-//                bureau = responseUtil.getType();
-//            }
-//            if (pancard == null && experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
-//                responseUtil = getCreditBureauResponse(experian);
-//                creditBureauResponse = objectMapper.readTree(experian.getResponse());
-//                bureau = responseUtil.getType();
-//            } else if (pancard != null || (reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
-//                try {
-//                    creditBureauResponse = fetchExperianDetails(merchantBasicDetails.getMobile(), experian, merchantBasicDetails.getId(), bpScore, merchantBankDetail, pancard == null);
-//                    experian.setRetryCount(0);
-//                } catch (Exception e) {
-//                    logger.info("Experian not responding---", e);
-//                    experian.setReason(ExperianConstants.TIMEOUT);
-//                    experianDao.save(experian);
-//                    if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
-//                        logger.info("Experian timeout for merchant: {}, pancard: {}", merchantBasicDetails.getId(), experian.getPancardNumber());
-//                        experian.setRetryCount(experian.getRetryCount() + 1);
-//                        experianDao.save(experian);
-//                        //emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
-//                        return new ArrayList<>();
-//                    } else if (experian.getRetryCount() != null && experian.getRetryCount() == 1) {
-//                        creditBureauResponse = fetchExperianDetails(merchantBasicDetails.getMobile(), experian, merchantBasicDetails.getId(), bpScore, merchantBankDetail, pancard == null);
-//                    }
-//                }
-//                if (creditBureauResponse != null) {
-//                    logger.info("Found Experian for merchant:{}", merchantBasicDetails.getId());
-//                    bureau = "EXPERIAN";
-//                } else {
-//                    logger.info("Experian not found for merchant:{}, calling crif", merchantBasicDetails.getId());
-//                    creditBureauResponse = apiGatewayService.fetchCrifResponse(merchantBasicDetails, experian);
-//                    if (creditBureauResponse != null) {
-//                        logger.info("Found Crif for merchant:{}", merchantBasicDetails.getId());
-//                        bureau = "CRIF";
-//                    } else {
-//                        logger.info("Bureau not found for merchant:{}", merchantBasicDetails.getId());
-//                    }
-//                }
-//            }
-//            if (creditBureauResponse != null) {
-//                experian.setResponse(creditBureauResponse.toString());
-//                experian.setBureau(bureau);
-//            } else {
-//                logger.info("bureau response not found for merchant:{}", merchantBasicDetails.getId());
-//                experian.setResponse(null);
-//                experian.setBureau(null);
-//                experian.setReportDate(null);
-//                experian.setExperianScore(null);
-//                experianDao.save(experian);
-//            }
-//            responseUtil = getCreditBureauResponse(experian);
-//            if (responseUtil.isValid(experian.getPancardNumber(), merchantBasicDetails.getMobile())) {
-//                String email = responseUtil.getEmail();
-//                Double bureauScore = responseUtil.getBureauScore();
-//                if (email != null) experian.setEmail(email);
-//                if (bureauScore != null) experian.setExperianScore(bureauScore);
-//                experian.setResponse(responseUtil.getResponse());
-//                experian.setBureau(responseUtil.getType());
-//                experian.setReportDate(responseUtil.getReportDate());
-//                experianDao.save(experian);
-//            }
-//            if (responseUtil.isValid(experian.getPancardNumber(), merchantBasicDetails.getMobile())) {
-//                try {
-//                    if (!exemptMerchant.contains(merchantBasicDetails.getId()) && responseUtil.isDerog(merchantBasicDetails, isRepeatLoanNoDerog, experian)) {
-//                        return new ArrayList<>();
-//                    }
-//                } catch (Exception e) {
-//                    logger.info("Exception while checking derog for merchant: {}", merchantBasicDetails.getId());
-//                    logger.error("Exception---", e);
-//                }
-//                //base checks
-//                if (!exemptMerchant.contains(merchantBasicDetails.getId()) && !baseChecks(isZomato, merchantBasicDetails, merchantResponseDTO, experian, lendingType, prevLoans, bpScore, yellowPincode, false, bankCode)) {
-//                    logger.info("Base Checks Failed, so rejecting merchant: {}", merchantBasicDetails.getId());
-//                    return new ArrayList<>();
-//                }
-//                return fetchBureauEligibleLoan(responseUtil, merchantBasicDetails.getId(), bpScore, experian, repeatedLoan, avgTpv, isEligibleForConstruct2And3, loanCount, previousLoanDays, lendingApplication, yellowPincode);
-//            }
-//        } catch (ResourceAccessException e) {
-//            logger.info("Experian not responding---", e);
-//            logger.info("Experian timeout for merchant: {}, pancard: {}", merchantBasicDetails.getId(), experian.getPancardNumber());
-//            experian.setReason(ExperianConstants.TIMEOUT);
-//            experian.setRetryCount(experian.getRetryCount() + 1);
-//            experianDao.save(experian);
-//            emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: " + merchantBasicDetails.getId());
-//        } catch (Exception e) {
-//            experian.setRetryCount(experian.getRetryCount() + 1);
-//            experianDao.save(experian);
-//            logger.error("Exception while fetching experian details---", e);
-//        }
-//        logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchantBasicDetails.getId());
-//        //calculate NTC....
-//        //base checks
-//        if (!exemptMerchant.contains(merchantBasicDetails.getId()) && !baseChecks(isZomato, merchantBasicDetails, merchantResponseDTO, experian, lendingType, prevLoans, bpScore, yellowPincode, true, bankCode)) {
-//            logger.info("Base Checks Failed, so rejecting merchant: {}", merchantBasicDetails.getId());
-//            return new ArrayList<>();
-//        }
-//        return calculateNTC(bpScore, merchantBasicDetails.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
-//    }
-
-//    private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard, boolean skip) {
-//        if (true) return false;
-//        ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
-//        CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-//        if (experianDetails == null || pancard != null || (LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
-//            logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
-//            experian.setNoExperian(true);
-//            return true;
-//        } else if (!skip && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
-//            logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
-//            experian.setNoExperian(true);
-//            String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[", "").replaceAll("\\]", "").split(",");
-//            List<String> maskedMobiles = new ArrayList<>();
-//            Collections.addAll(maskedMobiles, mobiles);
-//            experian.setMaskedMobiles(maskedMobiles);
-//            return true;
-//        } else if (crifRequestResponse != null && crifRequestResponse.getApiName().equalsIgnoreCase("STAGE2") && crifRequestResponse.getResponse() != null) {
-//            try {
-//                JsonNode crifResponse = objectMapper.readTree(crifRequestResponse.getResponse());
-//                if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
-//                    logger.info("Crif not found for merchant: {}, going to Crif question", merchant.getId());
-//                    experian.setNoExperian(true);
-//                    return true;
-//                }
-//            } catch (Exception e) {
-//                logger.error("Exception while parsing crif response", e);
-//            }
-//        }
-//        return false;
-//    }
 
     public ApplicationDerogResponseDTO processDerogSince(Long merchantId, Long applicationId, int daysDiffToCheck) {
         ApplicationDerogResponseDTO responseDTO = new ApplicationDerogResponseDTO();
@@ -1687,225 +1877,6 @@ public class LoanEligibleService {
         return null;
     }
 
-
-
-//    private List<LoanEligibilityDTO> fetchBureauEligibleLoan(ResponseUtil responseUtil, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
-//        int bureauVintage = responseUtil.fetchBureauVintage();//months
-//        String accountCategory = responseUtil.fetchAccountCategory();// A,B,C or NTC
-//        if (accountCategory.equals("NTC")) {
-//            logger.info("Loan category is NTC for merchant: {}, Calculate NTC...", merchantId);
-//            return calculateNTC(bpScore, merchantId, repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
-//            //calculate NTC....
-//        }
-//        String segment = calculateSegment(bureauVintage, accountCategory, bpScore);
-//        String color;
-//        if (ExperianConstants.RED.contains(segment)) {
-//            color = ExperianConstants.COLOR.RED.name();
-//            experian.setCategory(segment);
-//            experian.setColor(color);
-//            experian.setReason(ExperianConstants.CATEGORY_RED);
-//            experianDao.save(experian);
-//            logger.info("Category color RED, so rejecting merchant: {}", merchantId);
-//            return new ArrayList<>();
-//        } else if (ExperianConstants.AMBER.contains(segment)) {
-//            color = ExperianConstants.COLOR.AMBER.name();
-//        } else if (ExperianConstants.LIGHT_GREEN.contains(segment)) {
-//            color = ExperianConstants.COLOR.LIGHT_GREEN.name();
-//        } else {
-//            color = ExperianConstants.COLOR.DARK_GREEN.name();
-//        }
-//        logger.info("Bureau Segment: {}, Color: {} for merchant: {}", segment, color, merchantId);
-//        //update segment and color
-//        experian.setCategory(segment);
-//        experian.setColor(color);
-//        experianDao.save(experian);
-//        logger.info("Calculating bureau eligible loans for merchant: {}", merchantId);
-//        return calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode);
-//    }
-
-//    private List<LoanEligibilityDTO> calculateNTC(Double bpScore, Long merchantId, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, Experian experian, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
-//        logger.info("Calculating NTC for merchant: {}", merchantId);
-//        String segment;
-//        String color;
-//        if (bpScore <= 15) {
-//            segment = "2N";
-//            color = ExperianConstants.COLOR.AMBER.name();
-//        } else if (bpScore <= 25) {
-//            segment = "3N";
-//            color = ExperianConstants.COLOR.LIGHT_GREEN.name();
-//        } else {
-//            segment = "4N";
-//            color = ExperianConstants.COLOR.DARK_GREEN.name();
-//        }
-//        logger.info("NTC Segment: {}, Color: {} for merchant: {}", segment, color, merchantId);
-//        //update segment and color
-//        experian.setCategory(segment);
-//        experian.setColor(color);
-//        experianDao.save(experian);
-//        return loanCount > 2 ? calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode) : calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, true, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode);
-//    }
-
-//    private List<LoanEligibilityDTO> calculateEligibleLoans(double avgTpv, boolean repeatedLoan, String color, boolean isEligibleForConstruct2And3, boolean isNTC, int previousLoanDays, Long merchantId, Long experianId, LendingApplication lendingApplication, boolean yellowPincode) {
-//        logger.info("Calculating offers for merchant: {}", merchantId);
-//        String masterCategory = getMasterCategory(color, isNTC, repeatedLoan);
-//        logger.info("Master Category for merchant: {} is {}", merchantId, masterCategory);
-//        List<LendingCategories> lendingCategories;
-//        String type;
-//        MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchantId);
-//        String set = (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null) ? merchantSummaryLending.getSegment() : "2";
-//        double prevLoanAmount = 0d;
-//        if (lendingApplication != null) {
-//            switch (color) {
-//                case "AMBER":
-//                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.1;
-//                    break;
-//                case "LIGHT_GREEN":
-//                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.25;
-//                    break;
-//                case "DARK_GREEN":
-//                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.5;
-//                    break;
-//            }
-//        }
-//        if (yellowPincode) {
-//            lendingCategories = lendingCategoryDao.findByBureau("OGL");
-//            type = null;
-//        } else if (isEligibleForConstruct2And3) {
-//            List<String> payableConverters = new ArrayList<>();
-//            switch (previousLoanDays) {
-//                case 26:
-//                    payableConverters.add("1+3 Months");
-//                    break;
-//                case 77:
-//                    payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months"));
-//                    break;
-//                default:
-//                    payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months", "1+12 Months"));
-//            }
-//            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct3(masterCategory, payableConverters);
-//            type = "Only Interest";
-//        } else {
-//            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1(masterCategory);
-//            type = null;
-//        }
-//        if (lendingCategories.isEmpty()) {
-//            logger.error("No active lending category found for merchant: {}", merchantId);
-//            return new ArrayList<>();
-//        } else {
-//            String loanType = yellowPincode ? "OGL" : "REGULAR";
-//            logger.info("Deleting eligible loans for merchant: {}", merchantId);
-//            eligibleLoanDao.deleteByMerchantId(merchantId);
-//            List<LoanEligibilityDTO> loanEligibilityDTOList = new ArrayList<>();
-//            for (LendingCategories lendingCategory : lendingCategories) {
-//                if (lendingCategory.getLoanConstruct() != null && lendingCategory.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-//                    if (yellowPincode && ((isNTC && !lendingCategory.getCategory().contains("NTC")) || (!isNTC && !lendingCategory.getCategory().contains("ETC")))) {
-//                        continue;
-//                    }
-//                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
-//                    if (loanEligibilityDTO != null) {
-//                        loanEligibilityDTOList.add(loanEligibilityDTO);
-//                    } else {
-//                        logger.info("loan offer is null for merchant: {}", merchantId);
-//                    }
-//                }
-//            }
-//            if (yellowPincode && loanEligibilityDTOList.isEmpty()) {
-//                logger.info("No OGL loan for merchant:{}, fetching 10k loans", merchantId);
-//                for (LendingCategories category : lendingCategories) {
-//                    if ((isNTC && category.getCategory().contains("NTC")) || (!isNTC && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-//                        loanEligibilityDTOList.add(calculateLoanBreakup(category, 0, null, merchantId, experianId, 10000D, color, "2", loanType, false, true));
-//                    }
-//                }
-//            }
-//            loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-//            if (!yellowPincode && lendingApplication != null && lendingApplication.getCategory() != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
-//                LendingCategories category = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-//                if (category != null && category.getLoanConstruct() != null && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-//                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(category, 0, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
-//                    if (loanEligibilityDTO != null) {
-//                        logger.info("loan offer calculated using previous category for merchant: {}", merchantId);
-//                        loanEligibilityDTOList.add(loanEligibilityDTO);
-//                        loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-//                    } else {
-//                        logger.info("loan offer is null for merchant: {}", merchantId);
-//                    }
-//                }
-//            }
-//            if (!yellowPincode && !loanEligibilityDTOList.isEmpty()) {
-//                try {
-//                    LendingApplication ntbLoan = lendingApplicationDao.getPreviousNTBLoan(merchantId);
-//                    if (ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
-//                        logger.info("Calculating regular loan using previous NTB loan amount for merchant:{}", merchantId);
-//                        LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
-//                        if (categories != null) {
-//                            LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, "NTB", false, false);
-//                            if (loanEligibilityDTO != null) {
-//                                logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchantId);
-//                                loanEligibilityDTOList.add(loanEligibilityDTO);
-//                                loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-//                            } else {
-//                                logger.info("loan offer is null for merchant: {}", merchantId);
-//                            }
-//                        }
-//                    }
-//                } catch (Exception e) {
-//                    logger.error("Exception in regular ntb loan", e);
-//                }
-//            }
-//            if (!loanEligibilityDTOList.isEmpty()) {
-//                experianDao.updateEligibleAmount(experianId, loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), loanType);
-//            }
-//            return loanEligibilityDTOList;
-//        }
-//    }
-
-//    private String getMasterCategory(String color, boolean isNTC, boolean repeatedLoan) {
-//        switch (color) {
-//            case "AMBER":
-//                if (isNTC) {
-//                    if (repeatedLoan) {
-//                        return "S4A";
-//                    } else {
-//                        return "S3A";
-//                    }
-//                } else {
-//                    if (repeatedLoan) {
-//                        return "S2A";
-//                    } else {
-//                        return "S1A";
-//                    }
-//                }
-//            case "LIGHT_GREEN":
-//                if (isNTC) {
-//                    if (repeatedLoan) {
-//                        return "S4LG";
-//                    } else {
-//                        return "S3LG";
-//                    }
-//                } else {
-//                    if (repeatedLoan) {
-//                        return "S2LG";
-//                    } else {
-//                        return "S1LG";
-//                    }
-//                }
-//            case "DARK_GREEN":
-//                if (isNTC) {
-//                    if (repeatedLoan) {
-//                        return "S4DG";
-//                    } else {
-//                        return "S3DG";
-//                    }
-//                } else {
-//                    if (repeatedLoan) {
-//                        return "S2DG";
-//                    } else {
-//                        return "S1DG";
-//                    }
-//                }
-//        }
-//        return "S4A";
-//    }
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
@@ -2341,85 +2312,6 @@ public class LoanEligibleService {
         return ntcCategories.contains(experian.getCategory());
     }
 
-//    private boolean baseChecks(boolean isZomato, BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO, Experian experian, String lendingType, List<LendingPaymentSchedule> prevLoans, double bpScore, boolean yellowPincode, boolean isNTC, String bankCode) {
-//        if (yellowPincode) {
-//            if (bankCode == null) {
-//                logger.info("Non enachable bank code, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-//                experian.setCategory("1N");
-//                experian.setColor(ExperianConstants.COLOR.RED.name());
-//                experian.setReason(ExperianConstants.ENACH);
-//                experianDao.save(experian);
-//                return false;
-//            }
-//            if ((isNTC && merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null && merchantResponseDTO.getBpScore() < 15) || (!isNTC && merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null && merchantResponseDTO.getBpScore() < 13)) {
-//                logger.info("Low bp score, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-//                experian.setCategory("1N");
-//                experian.setColor(ExperianConstants.COLOR.RED.name());
-//                experian.setReason(ExperianConstants.LOW_BP_SCORE);
-//                experianDao.save(experian);
-//                return false;
-//            }
-//            if (merchant.getBussinessCategory() == null || "Food_and_Drink".equalsIgnoreCase(merchant.getBussinessCategory())) {
-//                logger.info("F&B category, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-//                experian.setCategory("1N");
-//                experian.setColor(ExperianConstants.COLOR.RED.name());
-//                experian.setReason(ExperianConstants.BUSINESS_CATEGORY);
-//                experianDao.save(experian);
-//                return false;
-//            }
-//        }
-//        if (!isZomato && checkFraud(merchantResponseDTO)) {
-//            logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
-//            experian.setCategory("1N");
-//            experian.setColor(ExperianConstants.COLOR.RED.name());
-//            experian.setReason(ExperianConstants.FRAUD);
-//            experianDao.save(experian);
-//            return false;
-//        }
-//        if (!isZomato && !exemptMerchant.contains(merchant.getId()) && checkOverdue(prevLoans, merchantResponseDTO.getMerchantId())) {
-//            logger.info("Overdue Merchant, so rejecting merchant: {}", merchant.getId());
-//            experian.setCategory("1N");
-//            experian.setColor(ExperianConstants.COLOR.RED.name());
-//            experian.setReason(ExperianConstants.OVERDUE);
-//            experian.setRejected(true);
-//            experian.setRejectedDate(new Date());
-//            experianDao.save(experian);
-//            return false;
-//        }
-//        if (lendingType.equalsIgnoreCase("CREDITLINE")) {
-//            if (bpScore <= 12D) {
-//                logger.info("BP Score less than 12, so rejecting merchant: {}", merchant.getId());
-//                experian.setCategory("1N");
-//                experian.setColor(ExperianConstants.COLOR.RED.name());
-//                experian.setReason(ExperianConstants.LOW_BP_SCORE);
-//                experianDao.save(experian);
-//                return false;
-//            }
-//        } else {
-//            if (!isZomato && !yellowPincode && bpScore < 9D) {
-//                logger.info("BP Score less than 9, so rejecting merchant: {}", merchant.getId());
-//                experian.setCategory("1N");
-//                experian.setColor(ExperianConstants.COLOR.RED.name());
-//                experian.setReason(ExperianConstants.LOW_BP_SCORE);
-//                experianDao.save(experian);
-//                return false;
-//            }
-//        }
-//        if (!isZomato) {
-//            PaymentTransactionNewSlave firstTransaction = paymentTransactionNewDaoSlave.getFirstTransaction(merchant.getId());
-//            BharatSwipeAccountSlave bharatSwipeAccount = bharatSwipeAccountDaoSlave.findByMerchantId(merchant.getId());
-//            int vintageDays = bharatSwipeAccount != null ? 30 : 60;
-//            if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < vintageDays) {
-//                logger.info("Vintage less than 60 days, so rejecting merchant: {}", merchant.getId());
-//                experian.setCategory("1N");
-//                experian.setColor(ExperianConstants.COLOR.RED.name());
-//                experian.setReason(ExperianConstants.VINTAGE);
-//                experianDao.save(experian);
-//                return false;
-//            }
-//        }
-//        return true;
-//    }
 
     public ResponseUtil getCreditBureauResponse(Experian experian) {
         JsonNode bureauResponse = null;

@@ -50,6 +50,7 @@ public class EligibleOffersResponseDTO {
         private Double processingFee;
         private Double apr;
         private Double irr;
+        private Double edi;
         private Integer repaymentAmount;
         private Double interestRate;
         private Boolean isRejected;

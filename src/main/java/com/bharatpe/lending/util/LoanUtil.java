@@ -1944,14 +1944,14 @@ public class LoanUtil {
 		return sevenDayEligibleLoanOffer;
 	}
 
-	public LendingEligibleLoan calculateLoanOfferBreakup(
+	public EligibleLoanDTO calculateLoanOfferBreakup(
 			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
 			Double version
 	) {
 
 		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
 		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
-		List<LendingEligibleLoan> eligibleLoanList = new ArrayList<>();
+		List<EligibleLoanDTO> eligibleLoanList = new ArrayList<>();
 
 		BigDecimal processingFee;
 		BigDecimal amountBD = new BigDecimal(amount);
@@ -1963,7 +1963,7 @@ public class LoanUtil {
 			throw new NullPointerException("processing fee cannot be null in tenure details");
 		}
 
-		LendingEligibleLoan sevenDayEligibleLoanOffer = LendingEligibleLoan.builder()
+		EligibleLoanDTO sevenDayEligibleLoanOffer = EligibleLoanDTO.builder()
 				.loanType(loanType)
 				.offerType(offerType)
 				.amount(amount)
