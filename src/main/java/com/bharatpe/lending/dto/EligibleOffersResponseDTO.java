@@ -17,7 +17,6 @@ import java.util.List;
 @AllArgsConstructor
 public class EligibleOffersResponseDTO {
     private List<OfferDetails> offers;
-    private List<LenderData> rejectedLenders;
 
     @Data
     @Builder
@@ -25,7 +24,7 @@ public class EligibleOffersResponseDTO {
     @AllArgsConstructor
     public static class OfferDetails {
         private Double loanAmount;
-        private List<TenureWithLender> tenures;
+        private List<TenureWithLender> eligibleOffers;
     }
 
     @Data
@@ -38,6 +37,7 @@ public class EligibleOffersResponseDTO {
         private Integer tenureInMonths;
         private Integer ediCount;
         private List<LenderData> lender;
+        private List<String> rejectedLenders;
     }
 
     @Data

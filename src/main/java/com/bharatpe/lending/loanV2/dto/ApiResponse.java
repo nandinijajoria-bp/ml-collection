@@ -12,11 +12,12 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ApiResponse<T> {
+    public  String responseCode;
     public boolean success;
     public String message;
     public T data;
     private String errorCode;
-    private String detailedErrorCode; // Add this field to replace statusCode
+    private String responseMessage; // Add this field to replace statusCode
 
     public ApiResponse(boolean success, String message) {
         this.success = success;
@@ -46,5 +47,13 @@ public class ApiResponse<T> {
         this.success = success;
         this.data = data;
         this.message = message;
+    }
+
+    public ApiResponse(boolean success, String message, T data, String responseCode, String responseMessage) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+        this.responseCode = responseCode;
+        this.responseMessage = responseMessage;
     }
 }

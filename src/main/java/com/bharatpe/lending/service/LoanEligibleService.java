@@ -288,8 +288,10 @@ public class LoanEligibleService {
     OxyzoConfig oxyzoConfig;
 
     @Autowired
-    CreditSaisonConfig creditSaisonConfig; ;
+    CreditSaisonConfig creditSaisonConfig;
 
+    @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,CAPRI,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
+    private List<String> activeLenders;
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
@@ -497,6 +499,12 @@ public class LoanEligibleService {
                         List<EligibleOffersResponseDTO.LenderData> lenderDataForLoan = getLenderData(
                                 loan.getEligibleLenders(), loan, lendingRiskVariables, merchantId);
 
+                        List<String> rejectedLenders = activeLenders.stream()
+                                .filter(lender -> !loan.getEligibleLenders().contains(lender))
+                                .collect(Collectors.toList());
+                        AsyncLoggerUtil.logInfo(logger, "Rejected lenders for loan with tenure {} months: {}",
+                                loan.getTenureInMonths(), rejectedLenders);
+
                         if (!CollectionUtils.isEmpty(lenderDataForLoan)) {
                             // Create TenureWithLender object with all required data
                             EligibleOffersResponseDTO.TenureWithLender tenureWithLender = new EligibleOffersResponseDTO.TenureWithLender(
@@ -504,7 +512,8 @@ public class LoanEligibleService {
                                     loan.getTenure(),
                                     loan.getTenureInMonths(),
                                     loan.getEdiCount(),
-                                    lenderDataForLoan
+                                    lenderDataForLoan,
+                                    rejectedLenders
                             );
                             tenureWithLenders.add(tenureWithLender);
                             AsyncLoggerUtil.logDebug(logger, "Added tenure option: {} months with {} lenders for merchantId: {}",
