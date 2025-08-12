@@ -242,7 +242,7 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
 
-	@RequestMapping(value = "/eligible_offers/v2", method = RequestMethod.GET,
+	@RequestMapping(value = "/eligible_offers/v1", method = RequestMethod.GET,
 			consumes = MediaType.APPLICATION_JSON_VALUE,
 			produces = MediaType.APPLICATION_JSON_VALUE)
 	public Mono<ResponseEntity<EligibleLendingOffersResponseDTO>> getEligibleOfferDetailsV2(
@@ -266,7 +266,7 @@ public class LoanDetailsController {
 				});
 	}
 
-	@RequestMapping(value = "/eligible_offers/v1", method = RequestMethod.GET,
+	@RequestMapping(value = "/eligible_offers/v2", method = RequestMethod.GET,
 			consumes = MediaType.APPLICATION_JSON_VALUE,
 			produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<ApiResponse<EligibleOffersResponseDTO>> getEligibleOfferDetailsV1(
