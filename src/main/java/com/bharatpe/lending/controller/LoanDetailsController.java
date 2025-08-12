@@ -317,6 +317,7 @@ public class LoanDetailsController {
 		}
 	}
 
+
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute BasicDetailsDto merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
 		logger.info("updateEligibleLoanAmount request with merchant_id: {}, with body: {}", merchant.getId(), requestDTO);

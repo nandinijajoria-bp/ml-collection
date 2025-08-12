@@ -1,9 +1,7 @@
 package com.bharatpe.lending.loanV2.dto;
 
-import com.bharatpe.lending.dto.EligibleOffersResponseDTO;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -18,20 +16,18 @@ public class ApiResponse<T> {
     public String message;
     public T data;
     private String errorCode;
-    private String statusCode;
-
+    private String detailedErrorCode; // Add this field to replace statusCode
 
     public ApiResponse(boolean success, String message) {
         this.success = success;
         this.message = message;
     }
 
-    public ApiResponse(boolean success, String errorCode,String message) {
+    public ApiResponse(boolean success, String errorCode, String message) {
         this.success = success;
         this.message = message;
-        this.errorCode=errorCode;
+        this.errorCode = errorCode;
     }
-
 
     public ApiResponse(T data) {
         this.data = data;
@@ -39,26 +35,16 @@ public class ApiResponse<T> {
         this.message = "success";
     }
 
-    public ApiResponse(T data, String statusCode,String message) {
+    public ApiResponse(T data, String statusCode, String message) {
         this.data = data;
         this.success = true;
         this.message = message;
         this.errorCode = statusCode;
-
     }
 
-    public ApiResponse(boolean success, T data , String message)
-    {
+    public ApiResponse(boolean success, T data, String message) {
         this.success = success;
         this.data = data;
         this.message = message;
-    }
-
-    public ApiResponse(boolean success, String message, T  data, String number, String statusCode) {
-        this.success = success;
-        this.message = message;
-        this.data = data;
-        this.errorCode = number;
-        this.statusCode = statusCode;
     }
 }
