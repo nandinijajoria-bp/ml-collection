@@ -58,6 +58,7 @@ public class StageServiceFactory {
 
     @Autowired
     LenderAggregationStageService lenderAggregationStageService;
+
     @Autowired
     ModifiedOfferStageService modifiedOfferStageService;
 
@@ -75,6 +76,9 @@ public class StageServiceFactory {
 
     @Autowired
     UpiAutopayStageService upiAutopayStageService;
+
+    @Autowired
+    OfferEvaluationStageDataService offerEvaluationStageDataService;
 
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
         switch (lendingViewStates) {
@@ -104,6 +108,8 @@ public class StageServiceFactory {
                 return permissionStageDataService;
             case OFFER_PAGE:
                 return offerStageDataService;
+            case OFFER_EVALUATION_PAGE:
+                return offerEvaluationStageDataService;
             case ENACH_PAGE:
                 return enachStageService;
             case UPI_AUTOPAY_PAGE:

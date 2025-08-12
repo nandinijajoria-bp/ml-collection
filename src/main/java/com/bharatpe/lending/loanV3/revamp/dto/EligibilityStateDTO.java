@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.enums.KycStatus;
@@ -62,5 +63,6 @@ public class EligibilityStateDTO {
     private String dob;
     private Long refreshCountDownMinutes;
     private Long merchantId;
+    private LendingApplication lendingApplication;
 
 }
