@@ -204,7 +204,7 @@ public class LoanEligibleService {
     LendingEdiScheduleService lendingEdiScheduleService;
 
     @Autowired
-    LenderMetricsHistoryDao lenderMetricsHistoryDao;
+    LendingMetricHistoryCustomDao lenderMetricsHistoryDao;
 
     @Autowired
     OfferRankingConfigDao offerRankingConfigDao;
@@ -306,7 +306,7 @@ public class LoanEligibleService {
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
 
-    public Mono<EligibleLendingOffersResponseDTO> getEligibilityDetailsReactive(Long merchantId, Double queryAmount, Integer ediModel) {
+    /*public Mono<EligibleLendingOffersResponseDTO> getEligibilityDetailsReactive(Long merchantId, Double queryAmount, Integer ediModel) {
         return Mono.fromCallable(() -> {
             try {
                 return getEligibilityDetails(merchantId, queryAmount, ediModel);
@@ -314,7 +314,7 @@ public class LoanEligibleService {
                 throw Exceptions.propagate(e);
             }
         }).subscribeOn(Schedulers.elastic());
-    }
+    }*/
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, Integer ediModel) throws BureauCallMaskedApiException {
 
@@ -534,13 +534,13 @@ public class LoanEligibleService {
                         List<EligibleOffersResponseDTO.LenderData> initialLenders = initialLendersList.stream()
                                 .map(lenderDataMap::get)
                                 .filter(Objects::nonNull)
-                                .peek(ld -> ld.setRankingType(RankingType.INITIAL))
+                                .peek(ld -> ld.setRankingType(RankingType.valueOf(RankingType.INITIAL.name())))
                                 .collect(Collectors.toList());
 
                         List<EligibleOffersResponseDTO.LenderData> fallbackLenders = fallbackLendersList.stream()
                                 .map(lenderDataMap::get)
                                 .filter(Objects::nonNull)
-                                .peek(ld -> ld.setRankingType(RankingType.FALLBACK))
+                                .peek(ld -> ld.setRankingType(RankingType.valueOf(RankingType.FALLBACK.name())))
                                 .collect(Collectors.toList());
                         AsyncLoggerUtil.logInfo(logger,"initial lenders: {}, fallback lenders: {} for merchantId: {}", initialLenders, fallbackLenders, merchantId);
 
