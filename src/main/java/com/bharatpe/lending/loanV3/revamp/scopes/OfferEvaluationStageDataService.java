@@ -123,7 +123,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     private void trackFunnelEvent(String merchantId, FunnelEnums.StageEvent stageEvent) {
         try {
-            funnelService.submitEventV3(merchantId, FunnelEnums.StageId.OFFER_EVALUATION, stageEvent);
+            funnelService.submitEventV3(Long.valueOf(merchantId),null, null,  FunnelEnums.StageId.OFFER_EVALUATION, stageEvent , null, null);
         } catch (Exception e) {
             log.error("Error tracking funnel event for merchant {}: {}", merchantId, e.getMessage());
         }
@@ -145,8 +145,8 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
         lendingApplicationDao.save(lendingApplication);
 
-        funnelService.submitEventV3(merchantId, FunnelEnums.StageId.OFFER_EVALUATION,
-                FunnelEnums.StageEvent.REJECTED);
+        funnelService.submitEventV3(Long.valueOf(merchantId),null, null, FunnelEnums.StageId.OFFER_EVALUATION,
+                FunnelEnums.StageEvent.REJECTED, null, null);
     }
 
     private EligibilityStateDTO mapToEligibilityState(OfferEvaluationRequestDTO requestData) {
