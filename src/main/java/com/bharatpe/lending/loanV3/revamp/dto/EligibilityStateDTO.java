@@ -64,5 +64,6 @@ public class EligibilityStateDTO {
     private Long refreshCountDownMinutes;
     private Long merchantId;
     private LendingApplication lendingApplication;
+    private boolean isAggregationFlowApplicable;
 
 }

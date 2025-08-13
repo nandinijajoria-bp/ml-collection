@@ -192,6 +192,10 @@ public class LoanDetailsV3Service {
                     setOfferResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
+                case OFFER_EVALUATION_PAGE:
+                    setOfferEvaluationResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
                 case PAN_PIN_PAGE:
                     setPanPinResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
@@ -1314,6 +1318,29 @@ public class LoanDetailsV3Service {
     }
 
     private static void setOfferResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
+        loanDetailsV3Response.setErrorString(eligibilityStateDTO.getErrorString());
+        loanDetailsV3Response.setEdiDaysModel(eligibilityStateDTO.getEdiDaysModel());
+        loanDetailsV3Response.setKycPanStatus(eligibilityStateDTO.getKycPanStatus());
+        loanDetailsV3Response.setPancard(eligibilityStateDTO.getPancard());
+        loanDetailsV3Response.setPincode(eligibilityStateDTO.getPincode());
+        loanDetailsV3Response.setBpClubMember(eligibilityStateDTO.getBpClubMember());
+        loanDetailsV3Response.setClubV2Member(eligibilityStateDTO.getClubV2Member());
+        loanDetailsV3Response.setAccountDetails(eligibilityStateDTO.getAccountDetails());
+        loanDetailsV3Response.setEligibility(eligibilityStateDTO.getEligibility());
+        loanDetailsV3Response.setIsPreapprovedRepeatLoan(eligibilityStateDTO.getIsPreapprovedRepeatLoan());
+        loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
+        loanDetailsV3Response.setOfferIncreased(eligibilityStateDTO.getOfferIncreased());
+        loanDetailsV3Response.setPreviousFinalOffer(eligibilityStateDTO.getPreviousFinalOffer());
+        loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
+        if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
+            loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
+        }
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO.getRefreshCountDownMinutes())){
+            loanDetailsV3Response.setRefreshCountDownMinutes(eligibilityStateDTO.getRefreshCountDownMinutes());
+        }
+    }
+
+    private static void setOfferEvaluationResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
         loanDetailsV3Response.setErrorString(eligibilityStateDTO.getErrorString());
         loanDetailsV3Response.setEdiDaysModel(eligibilityStateDTO.getEdiDaysModel());
         loanDetailsV3Response.setKycPanStatus(eligibilityStateDTO.getKycPanStatus());

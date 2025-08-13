@@ -36,7 +36,8 @@ public class EligibleOffersResponseDTO {
         private String tenure;
         private Integer tenureInMonths;
         private Integer ediCount;
-        private List<LenderData> lender;
+        private List<LenderData> initialLenders;
+        private List<LenderData> fallbackLenders;
         private List<String> rejectedLenders;
     }
 
@@ -56,6 +57,8 @@ public class EligibleOffersResponseDTO {
         private Boolean isRejected;
         private String approvalRate;
         private Integer nachBounceAmount;
+        private RankingType rankingType;
+        private Integer rankingOrder;
         private List<PenaltyConfig> penaltyConfigs;
         private List<ForeClosureEntityDTO> foreClosureDetails;
     }

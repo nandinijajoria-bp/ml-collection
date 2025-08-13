@@ -11,6 +11,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.loanV3.utils.EmiUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,6 +31,9 @@ public class MaskedMobileStageService implements IStageDataService<MaskedMobileD
 
     @Autowired
     private EmiUtils emiUtils;
+
+    @Autowired
+    LoanUtil loanUtil;
 
     @Value("${masked.otp.threshold:3}")
     int otpThreshold;
@@ -52,8 +56,17 @@ public class MaskedMobileStageService implements IStageDataService<MaskedMobileD
         if(!ObjectUtils.isEmpty(merchantOtpRetry) && merchantOtpRetry.getRetries()>=otpThreshold && DateUtils.isSameDay(new Date(), merchantOtpRetry.getUpdatedAt())){
             maskedMobileDTO.setRetryLimitExhausted(true);
         }
-        LendingViewStates lendingViewStates = emiUtils.isEmiFlowEnabled() && emiUtils.isEligible(scopeDataArgs.getMerchant().getId())
-                ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
+
+        LendingViewStates lendingViewStates;
+        boolean isPlanSelectionEligible = emiUtils.isEmiFlowEnabled() && emiUtils.isEligible(scopeDataArgs.getMerchant().getId());
+
+        if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null)) {
+            // When aggregation flow is applicable, use OFFER_EVALUATION_PAGE instead of OFFER_PAGE
+            lendingViewStates = isPlanSelectionEligible ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_EVALUATION_PAGE;
+        } else {
+            // When aggregation flow is not applicable, keep using OFFER_PAGE
+            lendingViewStates = isPlanSelectionEligible ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
+        }
 
         return new LendingStateDTO<>(maskedMobileDTO, lendingViewStates, LendingViewStates.MASKED_MOBILE);
     }

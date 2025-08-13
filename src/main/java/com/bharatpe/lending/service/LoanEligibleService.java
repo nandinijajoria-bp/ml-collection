@@ -12,10 +12,8 @@ import com.bharatpe.lending.common.dto.MaxPricingValuesDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.EligibleLoanAudit;
-import com.bharatpe.lending.common.enums.EdiModel;
-import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.enums.RiskSegment;
+import com.bharatpe.lending.common.entity.LenderMetricsHistory;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
 import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
@@ -37,10 +35,7 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LenderAssignmentRules;
-import com.bharatpe.lending.entity.LenderEligiblePincodes;
-import com.bharatpe.lending.entity.LendingLenderQuota;
-import com.bharatpe.lending.entity.LendingPancardDetails;
+import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -179,6 +174,9 @@ public class LoanEligibleService {
     SmfgConfig smfgConfig;
 
     @Autowired
+    LenderRankingEngine lenderRankingEngine;
+
+    @Autowired
     PricingExperimentDao pricingExperimentDao;
 
     @Autowired
@@ -205,6 +203,12 @@ public class LoanEligibleService {
     @Autowired
     LendingEdiScheduleService lendingEdiScheduleService;
 
+    @Autowired
+    LenderMetricsHistoryDao lenderMetricsHistoryDao;
+
+    @Autowired
+    OfferRankingConfigDao offerRankingConfigDao;
+
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
@@ -216,6 +220,12 @@ public class LoanEligibleService {
 
     @Value("${pricing.experiment.enable:false}")
     boolean pricingExpEnabled;
+
+    @Value("${inital.lenders.limit:3}")
+    int initalLendersLimit;
+
+    @Value("${fallback.lenders.limit:4}")
+    int fallbackLendersLimit;
 
     @Value("${new.eligibility.refresh.window.rollout.percent:0}")
     Integer newEligibilityRefreshWindowRolloutPercent;
@@ -505,6 +515,36 @@ public class LoanEligibleService {
                         AsyncLoggerUtil.logInfo(logger, "Rejected lenders for loan with tenure {} months: {}",
                                 loan.getTenureInMonths(), rejectedLenders);
 
+                        List<String> lenderNames = lenderDataForLoan.stream()
+                                .map(EligibleOffersResponseDTO.LenderData::getLenderName)
+                                .collect(Collectors.toList());
+
+                        List<LenderMetricsHistory> lenderMetricsHistoryList = lenderMetricsHistoryDao.findByLenderInAndIsLenderSwitchedOffFalse(lenderNames);
+
+                        List<OfferRankingConfig> initialOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
+                        List<OfferRankingConfig> fallbackOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
+
+
+                        List<String> initialLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,initialOfferRankingConfigs, RankingType.INITIAL, initalLendersLimit,merchantId, loan.getTenureInMonths() );
+                        List<String> fallbackLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,fallbackOfferRankingConfigs, RankingType.FALLBACK, fallbackLendersLimit, merchantId, loan.getTenureInMonths());
+
+                        Map<String, EligibleOffersResponseDTO.LenderData> lenderDataMap = lenderDataForLoan.stream()
+                                .collect(Collectors.toMap(EligibleOffersResponseDTO.LenderData::getLenderName, Function.identity()));
+
+                        List<EligibleOffersResponseDTO.LenderData> initialLenders = initialLendersList.stream()
+                                .map(lenderDataMap::get)
+                                .filter(Objects::nonNull)
+                                .peek(ld -> ld.setRankingType(RankingType.INITIAL))
+                                .collect(Collectors.toList());
+
+                        List<EligibleOffersResponseDTO.LenderData> fallbackLenders = fallbackLendersList.stream()
+                                .map(lenderDataMap::get)
+                                .filter(Objects::nonNull)
+                                .peek(ld -> ld.setRankingType(RankingType.FALLBACK))
+                                .collect(Collectors.toList());
+                        AsyncLoggerUtil.logInfo(logger,"initial lenders: {}, fallback lenders: {} for merchantId: {}", initialLenders, fallbackLenders, merchantId);
+
+
                         if (!CollectionUtils.isEmpty(lenderDataForLoan)) {
                             // Create TenureWithLender object with all required data
                             EligibleOffersResponseDTO.TenureWithLender tenureWithLender = new EligibleOffersResponseDTO.TenureWithLender(
@@ -512,7 +552,8 @@ public class LoanEligibleService {
                                     loan.getTenure(),
                                     loan.getTenureInMonths(),
                                     loan.getEdiCount(),
-                                    lenderDataForLoan,
+                                    initialLenders,
+                                    fallbackLenders,
                                     rejectedLenders
                             );
                             tenureWithLenders.add(tenureWithLender);
@@ -546,6 +587,10 @@ public class LoanEligibleService {
         final String METHOD = "lenderAssignmentHandlerV1";
         AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Processing {} eligible loans for merchantId: {}", METHOD, eligibleLoans.size(), merchantId);
 
+       /* List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
+        log.info("Already assigned lenders for applicationId : {} {}", application.get().getId(), alreadyAssignedLender);
+        List<String> availableLenders = initialEligibleLenders.stream().filter(lender -> !alreadyAssignedLender.contains(lender)).collect(Collectors.toCollection(ArrayList::new));
+*/
         try {
             // Fetch risk variables for merchant
             LendingRiskVariables lendingRiskVariables;
@@ -1272,14 +1317,8 @@ public class LoanEligibleService {
                 lenderData.setNachBounceAmount(getNachBounceAmount(valueOf(lender)));
                 lenderData.setInterestRate(interestRate);
                 eligibleLenderList.add(lenderData);
-
-
-                // SORT: logic
-              
             }
             AsyncLoggerUtil.logInfo(logger,"eligible lenders after sorting:{}", eligibleLenderList);
-
-            AsyncLoggerUtil.logInfo(logger,"adding rejected lenders to the list for merchantId : {}", merchantId);
        
             return eligibleLenderList;
         } catch (Exception ex) {
@@ -1288,17 +1327,21 @@ public class LoanEligibleService {
         }
     }
 
+    private static final Map<Lender, Integer> NACH_BOUNCE_AMOUNT_MAP;
+
+    static {
+        NACH_BOUNCE_AMOUNT_MAP = new HashMap<>();
+        NACH_BOUNCE_AMOUNT_MAP.put(TRILLIONLOANS, 500);
+        NACH_BOUNCE_AMOUNT_MAP.put(PAYU, 500);
+        NACH_BOUNCE_AMOUNT_MAP.put(PIRAMAL, 650);
+        NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS, 650);
+        NACH_BOUNCE_AMOUNT_MAP.put(CREDITSAISON, 650);
+        NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS_P2P, 650);
+        NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS_P2P_OF, 650);
+    }
+
     public Integer getNachBounceAmount(Lender lender) {
-        Map<Lender, Integer> nachBounceAmountMap = new HashMap<Lender, Integer>() {{
-            put(TRILLIONLOANS, 500);
-            put(PAYU, 500);
-            put(PIRAMAL, 650);
-            put(LIQUILOANS, 650);
-            put(CREDITSAISON, 650);
-            put(LIQUILOANS_P2P, 650);
-            put(LIQUILOANS_P2P_OF, 650);
-        }};
-        return nachBounceAmountMap.getOrDefault(lender, null);
+        return NACH_BOUNCE_AMOUNT_MAP.getOrDefault(lender, null);
     }
 
     List<EligibleOffersResponseDTO.ForeClosureEntityDTO> getForeclosureAmount(Lender lender){

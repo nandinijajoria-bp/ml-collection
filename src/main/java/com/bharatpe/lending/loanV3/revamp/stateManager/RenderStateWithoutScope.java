@@ -160,16 +160,24 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             log.info("experian is missing {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
+
         if (showMaskedMobilePage(scopeDataArgs, loanDetailsV3Response)) {
             log.info("masked mobile page {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
+
         if(emiUtils.isEmiFlowEnabled() && showPlanSelectionPage(scopeDataArgs, loanDetailsV3Response)){
             log.info("emi, edi plan selection page {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
+
         if (showOfferPage(scopeDataArgs,loanDetailsV3Response)) {
             log.info("eligibility exist {}", scopeDataArgs);
+            return loanDetailsV3Response;
+        }
+
+        if (showOfferEvaluationPage(scopeDataArgs,loanDetailsV3Response)) {
+            log.info("eligibile offer exist {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
         if (hasNonNachableBank(scopeDataArgs,loanDetailsV3Response)) {
@@ -375,6 +383,22 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         return lendingStateDTO;
     }
 
+    public LendingStateDTO<EligibilityStateDTO> offerEvaluationWorkflow(ScopeDataArgs scopeDataArgs) {
+        LendingStateDTO<EligibilityStateDTO> lendingStateDTO = null;
+        if (null == scopeDataArgs.getOpenApplication() || "rejected".equalsIgnoreCase(scopeDataArgs.getOpenApplication().getStatus())) {
+            EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
+            eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
+            eligibilityV3Service.fetchEligibilityWithoutScopeRequest(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
+            if (!ObjectUtils.isEmpty(eligibilityStateDTO.getEligibility())) {
+                lendingStateDTO = new LendingStateDTO<>();
+                lendingStateDTO.setScopeState(LendingViewStates.OFFER_EVALUATION_PAGE);
+                return lendingStateDTO;
+            }
+            scopeDataArgs.setEligibilityStateDTO(eligibilityStateDTO);
+        }
+        return lendingStateDTO;
+    }
+
     public boolean showMaskedMobilePage(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
         log.info("checking for masked mobile for {}", scopeDataArgs.getMerchant().getId());
         LendingStateDTO<MaskedMobileDTO> lendingStateDTO = maskedMobileWorkflow(scopeDataArgs);
@@ -407,6 +431,12 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     public boolean showOfferPage(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
         log.info("checking for offer for {}", scopeDataArgs.getMerchant().getId());
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = offerWorkflow(scopeDataArgs);
+        return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
+    }
+
+    public boolean showOfferEvaluationPage(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
+        log.info("checking for offer for {}", scopeDataArgs.getMerchant().getId());
+        LendingStateDTO<EligibilityStateDTO> lendingStateDTO = offerEvaluationWorkflow(scopeDataArgs);
         return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
     }
 
