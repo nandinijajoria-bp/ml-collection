@@ -44,7 +44,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     @Autowired
     FunnelService funnelService;
 
-
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,CAPRI,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
 

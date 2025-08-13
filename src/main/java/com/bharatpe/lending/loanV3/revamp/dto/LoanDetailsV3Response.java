@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.enums.VkycStatus;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
@@ -124,6 +125,7 @@ public class LoanDetailsV3Response {
     private VkycStatus vkycStatus;
     private Boolean vkycEligible;
     private Boolean dkycEligible;
+    private LendingApplication lendingApplication;
 
     @Data
     @ToString
