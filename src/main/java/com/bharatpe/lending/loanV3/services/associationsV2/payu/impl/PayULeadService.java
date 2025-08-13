@@ -20,6 +20,7 @@ import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUCreateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUUpdateLeadRequestDTO;
@@ -252,16 +253,17 @@ public class PayULeadService {
 
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequestDto.getCKycResponseDto();
 
+        NameAndDobDetailsDto nameAndDobDetails = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
         DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         applicantDetails = PayUUpdateLeadRequestDTO.ApplicantDetailsDTO.builder()
                 .applicantId(null)
-                .firstName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getFirstName())
-                .middleName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getMiddleName())
-                .lastName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getLastName())
+                .firstName(nameAndDobDetails.getFirstName())
+                .middleName(nameAndDobDetails.getMiddleName())
+                .lastName(nameAndDobDetails.getLastName())
                 .mobileNumber(kycUtils.getMobileFromKycData(cKycResponseDto))
                 .pan(cKycResponseDto.getPanNumber())
-                .dob(LocalDate.parse(cKycResponseDto.getDob(), inputFormatter).format(outputFormatter))
+                .dob(LocalDate.parse(nameAndDobDetails.getDob(), inputFormatter).format(outputFormatter))
                 .gender(getGender(kycUtils.getGender(cKycResponseDto.getGender()))) // TODO check if gender value is from correct db and is required
                 .isMainApplicant(true)
                 .build();
