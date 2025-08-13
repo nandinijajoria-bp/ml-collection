@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -8,6 +9,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -16,6 +18,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +51,12 @@ public class RiskDecisionAsyncService {
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
+    private LendingPaymentScheduleDao lendingPaymentScheduledDao;
+
+    @Autowired
+    private LoanUtil loanUtil;
+
+    @Autowired
     LendingApplicationDao lendingApplicationDao;
 
     @Value("${lender.change.enabled:false}")
@@ -58,6 +67,13 @@ public class RiskDecisionAsyncService {
 
     @Value("${piramal.bypass.offer.modification:false}")
     private Boolean bypassOfferModification;
+
+    @Value("${topup.foreclosure.threshold.amount.check:10000}")
+    private Double topupForecosureThreshodAmountCheck;
+
+    @Value("${topup.foreclosure.threshold.rollout:false}")
+    private Boolean topupForecosureThreshodRollout;
+
 
     @Autowired
     LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
@@ -105,6 +121,18 @@ public class RiskDecisionAsyncService {
                 double requestedLoanAmount = lendingApplication.getLoanAmount();
                 double approvedLoanAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
 
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && topupForecosureThreshodRollout){
+                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduledDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                    double foreclosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+                    double newAmount = approvedLoanAmount - foreclosureAmount;
+                    if(newAmount <= topupForecosureThreshodAmountCheck){
+                        log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForecosureThreshodAmountCheck, applicationId);
+                        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
+                        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                        commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
+                    }
+                    return;
+                }
                 // If approved loan amount is less than requested loan amount, proceed with downgrade checks
                 if (approvedLoanAmount < requestedLoanAmount) {
                     LendingApplication newApplication = commonService.createDuplicateApplication(lendingApplication,lendingApplicationLenderDetails);

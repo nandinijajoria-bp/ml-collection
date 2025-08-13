@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.consumer;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.*;
@@ -12,6 +13,7 @@ import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.enums.LoanType;
@@ -19,6 +21,7 @@ import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
@@ -28,6 +31,7 @@ import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV3.utils.RiskEngineUtil;
 import com.bharatpe.lending.util.EdiUtil;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -87,6 +91,12 @@ public class BreRequestKafka {
     private EdiUtil ediUtil;
 
     @Autowired
+    private LoanUtil loanUtil;
+
+    @Autowired
+    private LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
     private EasyLoanUtil easyLoanUtil;
 
     @Value("${offer.modified.eligible.lender:}")
@@ -100,6 +110,12 @@ public class BreRequestKafka {
 
     @Value("${abfl.topup.downgrade.flow.rollout:0}")
     Integer abflTopupDowngradeFlowRollout;
+
+    @Value("${topup.foreclosure.threshold.amount.check.abfl:50000}")
+    private Double topupForeclosureThreshodAmountCheckABFL;
+
+    @Value("${topup.foreclosure.threshold.rollout:false}")
+    private Boolean topupForecosureThreshodRollout;
 
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
@@ -229,6 +245,28 @@ public class BreRequestKafka {
             existingLendingApplicationLenderDetails.setNbfcApprovedLoanOfferAmt(data.getLoanAmount());
             existingLendingApplicationLenderDetails.setRoi(Double.valueOf(data.getRoi()));
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
+
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) && topupForecosureThreshodRollout){
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.get().getMerchantId(), "ACTIVE");
+                double foreclosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+                double newAmount = data.getLoanAmount() - foreclosureAmount;
+                if(newAmount <= topupForeclosureThreshodAmountCheckABFL){
+                    LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
+                            .applicationId(lendingApplication.get().getId())
+                            .lendingApplication(lendingApplication.get())
+                            .lendingApplicationLenderDetails(existingLendingApplicationLenderDetails)
+                            .modifyLender(false)
+                            .manageState(true)
+                            .build();
+                    log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForecosureThreshodAmountCheckABFL,lendingApplication.get().getId());
+                    existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
+                    existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
+                    lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                    commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
+                }
+                return;
+            }
+
             if(offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
                     && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
                 if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
@@ -260,6 +298,7 @@ public class BreRequestKafka {
                 }
 
             }
+
             existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_COMPLETED.name());
             LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(breCallbackResponseDto.getLender()),LenderAssociationStages.BRE);
             existingLendingApplicationLenderDetails.setStage(nextStage.name());
