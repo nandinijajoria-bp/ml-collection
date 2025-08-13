@@ -29,6 +29,8 @@ import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +38,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -89,6 +93,9 @@ public class UpdateLeadService {
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
+    @Autowired
+    ObjectMapper objectMapper;
+
     @Transactional
     public Boolean updateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
@@ -126,7 +133,7 @@ public class UpdateLeadService {
             LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchantId());
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
             List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
-            applicant.add(getApplicantDetails(lendingApplication, lendingBBS, lendingGstDetail, lenderAssociationDetailsRequestDto, lendingApplicationKycDetails));
+            applicant.add(getApplicantDetails(lendingApplication, lendingBBS, lendingGstDetail, lenderAssociationDetailsRequestDto, lendingApplicationKycDetails, lendingRiskVariablesSnapshot));
             int vintage = (int) Math.ceil(Optional.ofNullable(lendingRiskVariablesSnapshot.getVintage()).orElse(0L) / 30.0);
             if (defaultVintageAssignment && loanUtil.isInternalMerchant(lenderAssociationDetailsRequestDto.getMerchantId())) {
                 vintage = internalMerchantVinatge;
@@ -146,6 +153,8 @@ public class UpdateLeadService {
                             .build())
                     .auditTrailInformation(createAuditTrailList(lendingApplication, lendingApplicationKycDetails))
                     .build();
+            CreateLeadRequestDTO.AdditionalInformation additionalInformation = createLeadRequestDTO.getAdditionalInformation();
+            if(!LoanType.TOPUP.name().equals(lendingApplication.getLoanType())) additionalInformation.setCustomerSegment(lendingApplication.getLoanAmount() >= 500000D ? "cream" : "nonCream");
             if (LoanType.TOPUP.name().equals(lendingApplication.getLoanType())) {
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
                 if (ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
@@ -157,7 +166,6 @@ public class UpdateLeadService {
                 }
                 Integer topupCount = lendingApplicationDao.findDisbursedApplicationCountForMerchantIdAndLenderAndLoan("PIRAMAL", lendingApplication.getMerchantId(), "TOPUP");
                 LendingApplicationLenderDetails parentLendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(parentLendingApplication.getId(), "ACTIVE", parentLendingApplication.getLender());
-                CreateLeadRequestDTO.AdditionalInformation additionalInformation = createLeadRequestDTO.getAdditionalInformation();
                 additionalInformation.setPiramalExistingLoanNo(parentLendingApplication.getNbfcId());
                 additionalInformation.setPiramalExistingLeadId(parentLendingApplicationLenderDetails.getLeadId());
                 additionalInformation.setPercentPaidThroughQr(loanUtil.getAmountPaidThroughQrPer(lendingPaymentSchedule));
@@ -175,7 +183,6 @@ public class UpdateLeadService {
                                     .verificationStatus("PASS")
                                     .serviceProvider("")
                                     .build()).build());
-                    createLeadRequestDTO.setAdditionalInformation(additionalInformation);
                 }
                 createLeadRequestDTO.setLocationInformation(CreateLeadRequestDTO.LocationInformation.builder()
                         .latitude(lendingApplication.getLatitude())
@@ -183,6 +190,7 @@ public class UpdateLeadService {
                         .timeStamp(lendingApplication.getCreatedAt()).build());
                 createLeadRequestDTO.setProductId("BPETU");
             }
+            createLeadRequestDTO.setAdditionalInformation(additionalInformation);
             return NbfcRequestDto.builder()
                     .applicationId(lenderAssociationDetailsRequestDto.getApplicationId())
                     .payload(createLeadRequestDTO)
@@ -197,15 +205,26 @@ public class UpdateLeadService {
     }
 
     private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(LendingApplication lendingApplication, LendingBBS lendingBBS, LendingGstDetail lendingGstDetail,
-                                                                      LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, LendingApplicationKycDetails lendingApplicationKycDetails) {
+                                                                      LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, LendingApplicationKycDetails lendingApplicationKycDetails, LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot) {
 
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+        double monthlyIncome = 0D;
+        double monthlyObligations = 0D;
+        try {
+            JsonNode rootNode = objectMapper.valueToTree(lendingRiskVariablesSnapshot.getMetaData());
+            JsonNode bureauNode = rootNode.path("BUREAU");
+            monthlyIncome = BigDecimal.valueOf(bureauNode.path("DEBT").asDouble()).setScale(2, RoundingMode.HALF_UP).doubleValue();
+            monthlyObligations = BigDecimal.valueOf(bureauNode.path("INCOME").asDouble()).setScale(2, RoundingMode.HALF_UP).doubleValue();
+        } catch (Exception e) {
+            log.error("Exception fetch monthly income and monthly Obligations for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .customerId(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getCccId())
                 .businessInformation(CreateLeadRequestDTO.ApplicantsDetail.BusinessInformation.builder()
                         .businessName(lendingApplication.getBusinessName())
                         .businessType("PROPRIETORSHIP")
-                        .monthlyIncome(Objects.nonNull(lendingBBS) ? lendingBBS.getIncome() : 0d)
+                        .monthlyIncome(monthlyIncome)
+                        .monthlyObligations(monthlyObligations)
                         .businessAddress(getAddress(lenderAssociationDetailsRequestDto.getLendingApplication(), "OFFICE"))
                         .industry((Objects.nonNull(basicDetailsDto) && Objects.nonNull(basicDetailsDto.get().getBussinessCategory()) ?
                                 basicDetailsDto.get().getBussinessCategory() : "BUSINESS"))
