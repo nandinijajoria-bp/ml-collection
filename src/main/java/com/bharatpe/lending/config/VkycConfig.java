@@ -16,8 +16,6 @@ public class VkycConfig {
     public static final String PREFIX = "vkyc";
 
     private String enabledLenders = "";
-    private String eligibilityCheckLenders = "PAYU";
-    private String retryExhaustFlowEnabledLenders = "PAYU";
     private String dkycEligibleLenders = "PAYU";
     private Integer aadhaarExpiryTatInHours = 72;
     private Integer maxRetryCount = 3;
@@ -28,5 +26,13 @@ public class VkycConfig {
     private String vkycStatusUrl = "/api/v1/vkyc/status-check";
     private String skipVkycUrl = "/api/v1/vkyc/skip-vkyc";
     private Integer minAppVersion = 7295;
+    private Integer maxRetryCountForCs = 4;
+
+
+    // New integration related configs
+    private String retryExhaustFlowEnabledLenders = "PAYU,CREDITSAISON";
+    private String eligibilityCheckLenders = "PAYU,CREDITSAISON";
+    private Integer aadhaarExpiryTatInHousForCreditSaison = 24; // 24 hours for Credit Saison
+    private Integer minAppVersionForCs = 7298;
 
 }

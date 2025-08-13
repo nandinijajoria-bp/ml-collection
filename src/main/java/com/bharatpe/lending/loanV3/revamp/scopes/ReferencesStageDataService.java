@@ -7,7 +7,6 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ReferenceStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -17,13 +16,10 @@ import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.lang.ref.Reference;
 import java.util.Arrays;
 
 @Component
@@ -92,11 +88,10 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 referenceStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));
                 referenceStateDTO.setMobile(scopeDataArgs.getMerchant().getMobile());
             }
-
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
 
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-                nextLendingViewState = loanUtil.getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
+                nextLendingViewState = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication);
             }
 
         } catch (Exception e) {

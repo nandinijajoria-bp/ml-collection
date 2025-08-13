@@ -547,8 +547,17 @@ public class VerifyOTPService {
             lendingApplication.setProcessingFee(0D);
         }
 
-        MerchantNachDetailsResponseDTO enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getId());
+        MerchantNachDetailsResponseDTO enachSuccess = null;
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
         boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender());
+        if(loanUtil.isMandateSwitchEnabled(lendingApplication) && isNachSkippable && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()) {
+            logger.info("Nach is not eligible for application: {} and merchant: {}, setting Nach Details so that flow will not break", lendingApplication.getId(), lendingApplication.getMerchantId());
+            loanUtil.updateNachDetailsIfNachIneligible(lendingApplication);
+        }
+        else {
+            enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getId());
+        }
         if(ObjectUtils.isEmpty(enachSuccess) && isNachSkippable){
             enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getLender());
         }
@@ -654,9 +663,14 @@ public class VerifyOTPService {
                 logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
             if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
-                nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
-                        LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
-                logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
+                if(!LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && loanUtil.isMandateSwitchEnabled(lendingApplication) && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible() && lendingApplicationDetails.isAutoPayUpiEligible()) {
+                    logger.info("Skipping doc upload workflow for application {} since NACH is ineligible for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+                }
+                else{
+                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                                                         LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
+                    logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
+                }
             }
         }
         catch(Exception e){
@@ -695,8 +709,8 @@ public class VerifyOTPService {
 
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
             markParentLoanInActiveTopup(lendingApplication);
-            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
-            logger.info("saving next page as : {}", vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
+            logger.info("saving next page as : {}", vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
         }
         else{
             if(loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -718,8 +732,16 @@ public class VerifyOTPService {
             lendingApplicationDao.save(lendingApplication);
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
         }
-        redisNotificationService.sendPendingEnachNotification(merchantBasicDetailsDto, lendingApplication);
-        notificationExecutor.submit(() -> sendNotification(merchantBasicDetailsDto, lendingApplication));
+
+        if(loanUtil.isMandateSwitchEnabled(lendingApplication) && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible() && lendingApplicationDetails.isAutoPayUpiEligible()) {
+            logger.info("Skipping enach notification for application: {} and merchant: {}, since NACH is ineligible", lendingApplication.getId(), lendingApplication.getMerchantId());
+        }
+        else {
+            logger.info("Sending enach notification for application: {} and merchant: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+            redisNotificationService.sendPendingEnachNotification(merchantBasicDetailsDto, lendingApplication);
+            notificationExecutor.submit(() -> sendNotification(merchantBasicDetailsDto, lendingApplication));
+        }
+
         logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
         if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
             logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
@@ -827,7 +849,7 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
-            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(),Lender.PIRAMAL.name()).contains(activeLoan.getNbfc())) {
+            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(),Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeClosureAmountForLender(activeLoan);
                 if(previousAmount <= 0){
                     throw new RuntimeException(String.format("Error getting %s foreclosure details", activeLoan.getNbfc()));

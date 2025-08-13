@@ -191,8 +191,12 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name(),LenderAssociationStages.AADHAR_UPLOAD.name(),
                         LenderAssociationStages.SELFIE_UPLOAD.name());
             case PAYU:
-                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name(),
-                        LenderAssociationStages.SHOP_STOCK_PHOTO_UPLOAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.KYC.name());
+                List<String> stages = new ArrayList<>(Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name()));
+                if (!isTopUp) {
+                    stages.addAll(Arrays.asList(LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name(),
+                            LenderAssociationStages.SHOP_STOCK_PHOTO_UPLOAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.KYC.name()));
+                }
+                return stages;
             case CREDITSAISON:
                 return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.KYC.name());
             case UGRO:

@@ -6,7 +6,9 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
@@ -117,6 +119,8 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Value("${payment.bank.change.flow.applicable:false}")
     private boolean isPaymentBankChangeFlowApplicable;
 
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
     VKycService vkycService;
@@ -133,7 +137,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
                 lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
                 log.info("Setting LendingViewStates to ENACH_PAGE for merchantId: {}", scopeDataArgs.getMerchant().getId());
             } else {
-                lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
+                lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender(), false));
             }
         }
         return lendingStateDTO;
@@ -207,7 +211,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             if(LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())){
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.AGREEMENT_PAGE);
             }
-            else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, openApplication.getMerchantId(), openApplication.getLender()));
+            else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, openApplication.getMerchantId(), openApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())));
         }
         BankAccountDetails accountDetails = loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId());
         enachStateDTO.setBankDetails(accountDetails);
@@ -379,7 +383,14 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
                     });
         }
 
-        NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        if (lendingRiskVariablesSnapshot == null) {
+            log.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
+        }
+
+        String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+
+        NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
 
         // UPI NACH for Loan Amount <= 50000
         if (ObjectUtils.isEmpty(nachMandateEligibilityConfig)

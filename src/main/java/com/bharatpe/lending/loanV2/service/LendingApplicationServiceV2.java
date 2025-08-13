@@ -63,6 +63,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
@@ -131,10 +132,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
+import static com.bharatpe.lending.common.enums.VkycStatus.VKYC_SKIPPED;
 import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_CATEGORY;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_SUB_CATEGORY;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.CREDITSAISON;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
 
@@ -1352,6 +1355,11 @@ public class LendingApplicationServiceV2 {
             if (lendingApplication == null) {
                 return new ApiResponse<>(false, "application not found");
             }
+
+            log.info("Checking if Nach is ineligible for application: {}", lendingApplication.getId());
+            boolean isNachIneligible = loanUtil.isMandateSwitchEnabled(lendingApplication) ? loanUtil.isLendingApplicationIneligibleForNach(lendingApplication) : false;
+            log.info("Nach ineligibility status for application {}: {}", lendingApplication.getId(), isNachIneligible);
+
             boolean isSmallTicketLoan = LoanType.SMALL_TICKET.name().equalsIgnoreCase(lendingApplication.getLoanType());
             if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus()) || ApplicationStatus.DELETED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 return new ApiResponse<>(false, "Application not in pending state");
@@ -1466,6 +1474,9 @@ public class LendingApplicationServiceV2 {
             if (successEnach != null) {
                 enachMandatory = false;
             }
+            else if(isNachIneligible){
+                enachMandatory = false;
+            }
 //        else if (lendingApplication.getAgreementAt() != null && "REGULAR".equals(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date()) > 3) {
 //            enachMandatory = false;
 //        }
@@ -1497,30 +1508,27 @@ public class LendingApplicationServiceV2 {
             applicationDTO.add(kycDTO);
 
             // UPI-Autopay Status
-            if(enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)) {
-                if(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent)){
-                    log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
-                    ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
-                    applicationDTO.add(upiAutopayDTO);
-                }
-                else if(!LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
-                    log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
-                    ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
-                    applicationDTO.add(upiAutopayDTO);
-                }
+            if(isEligibleToShowUpiAutopayStatus(lendingApplication)){
+                log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
+                ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
+                applicationDTO.add(upiAutopayDTO);
             }
 
             // E-Nach Status
-            applicationDTO.add(applicationDTO2);
+            if(!isNachIneligible){
+                applicationDTO.add(applicationDTO2);
+            }
 
-            if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
+            if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                 LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()).orElse(null);
                 String status = "PENDING";
                 if (!ObjectUtils.isEmpty(vkycDetails) && VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
                     status = VkycStatus.getSuccessVkycStatusList().contains(vkycDetails.getStatus()) ? "APPROVED" : "REJECTED";
                 }
-                if (!ObjectUtils.isEmpty(vkycDetails)) {
+
+                if (shouldSkipVkycVerificationForCS(lendingApplication, vkycDetails)) {
+                    log.info("VKYC skipped for application: will not show the VKYC Verification {} | vkycDetails: {} | lender: {}", lendingApplication.getId(), vkycDetails, lendingApplication.getLender());
+                } else if (!ObjectUtils.isEmpty(vkycDetails)) {
                     ApplicationDTO vKycDTO = new ApplicationDTO();
                     vKycDTO.setText("VKYC Verification");
                     vKycDTO.setDisabled(enachMandatory);
@@ -1747,6 +1755,22 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in applicationStatus v2 for application:{}", applicationId, e);
         }
         return new ApiResponse<>(false, "Something went wrong");
+    }
+
+    private boolean isEligibleToShowUpiAutopayStatus(LendingApplication lendingApplication) {
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+            log.error("LendingApplicationDetails not found for application: {}", lendingApplication.getId());
+            return false;
+        }
+        log.info("Checking if UPI Autopay status should be shown for application: {} and lending application details: {}", lendingApplication.getId(), lendingApplicationDetails);
+        if(loanUtil.isMandateSwitchEnabled(lendingApplication) && lendingApplicationDetails.isAutoPayUpiEligible() && loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication)){
+            return true;
+        }
+        else if(!loanUtil.isMandateSwitchEnabled(lendingApplication) && loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication)){
+            return true;
+        }
+        return false;
     }
 
     private ApplicationDTO fetchUpiAutopayDetails(LendingApplication lendingApplication) {
@@ -2482,7 +2506,7 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
 
-                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
 
                 // update tat start time on resubmit
                 LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
@@ -2867,7 +2891,9 @@ public class LendingApplicationServiceV2 {
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
                 RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = getLenderRepaymentSchedule(applicationId, lendingApplication.getLender(), false);
-                disbursalAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getNetDisbursalAmount()));
+                if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                    disbursalAmount = Double.valueOf(String.format("%.2f", repaymentScheduleResponseDTO.getNetDisbursalAmount()));
+                }
                 repaymentAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getTotalRepaymentExpected()));
             }
             Double monthlyIncome = lendingRiskVariables.getMonthlyIncome();
@@ -2943,7 +2969,7 @@ public class LendingApplicationServiceV2 {
                     .selectedLanguage(language)
                     .build();
 
-            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
                 if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
                     log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
@@ -3971,7 +3997,9 @@ public class LendingApplicationServiceV2 {
             ) throw new Exception("Unable to create repayment schedule for PayU" + applicationId);
             data.put("interest_charged_to_borrower", repaymentScheduleResponseDTO.getTotalInterestPayable());
             data.put("repayment_amount", repaymentScheduleResponseDTO.getTotalRepaymentExpected());
-            data.put("loan_amount_disbursed", repaymentScheduleResponseDTO.getNetDisbursalAmount());
+            if (!kfsDto.isTopUpLoan()) {
+                data.put("loan_amount_disbursed", repaymentScheduleResponseDTO.getNetDisbursalAmount());
+            }
         } else {
             repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
         }
@@ -4124,9 +4152,8 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        if(Lender.PIRAMAL.name().equalsIgnoreCase(kfsDto.getLender())) {
+        if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(kfsDto.getLender())) {
             LendingApplication parentLendingApplication = lendingApplicationDao.findByExternalLoanId(kfsDto.getParentLoanBplId());
-
             if (kfsDto.isTopUpLoan()) {
                 data.put("parent_loan_amount", parentLendingApplication.getLoanAmount());
                 data.put("parent_lan_no", parentLendingApplication.getNbfcId());
@@ -5382,5 +5409,15 @@ public class LendingApplicationServiceV2 {
         } catch (Exception e) {
             log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+    }
+
+    private boolean shouldSkipVkycVerificationForCS(LendingApplication lendingApplication, LendingApplicationVkycDetails vkycDetails) {
+        if (ObjectUtils.isEmpty(lendingApplication) || ObjectUtils.isEmpty(vkycDetails)) {
+            log.info("Lending application or vkyc details are empty, skipping vkyc verification for CS");
+            return false;
+        }
+
+        return CREDITSAISON.name().equalsIgnoreCase(lendingApplication.getLender())
+                && VKYC_SKIPPED.equals(vkycDetails.getStatus());
     }
 }

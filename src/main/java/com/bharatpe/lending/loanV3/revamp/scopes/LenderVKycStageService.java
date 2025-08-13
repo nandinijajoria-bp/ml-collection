@@ -7,6 +7,9 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationVkycDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.enums.VkycStatus;
+import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.lendingplatform.lending.service.VkycServiceV2;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV3.revamp.dto.LenderVKycStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -23,6 +26,8 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 
+import static com.bharatpe.lending.enums.Lender.CREDITSAISON;
+
 
 @Service
 @Slf4j
@@ -33,6 +38,8 @@ public class LenderVKycStageService implements IStageDataService<LenderVKycState
     private final VKycService vKycService;
     private final LoanDetailsV3Service loanDetailsV3Service;
     private final LendingApplicationVkycDetailsDao lendingApplicationVkycDetailsDao;
+    private final RolloutUtil rolloutUtil;
+    private final VkycServiceV2 vkycServiceV2;
 
 
     @Override
@@ -58,30 +65,40 @@ public class LenderVKycStageService implements IStageDataService<LenderVKycState
             lenderVKycStateDTO.setLender(openApplication.getLender());
             lenderVKycStateDTO.setApplicationId(openApplication.getId());
             lenderVKycStateDTO.setVkycCompleted(false);
-            if (!vKycService.isVkycEnabled(openApplication.getMerchantId(), openApplication.getLender())) {
+            // If the application is not eligible for vKYC, we return the application status page
+            if (!vKycService.isVkycEnabled(openApplication.getMerchantId(), openApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType()))) {
                 log.info("vKyc is not enabled for merchantId: {} and lender: {}, returning APPLICATION STATUS scope", openApplication.getMerchantId(), openApplication.getLender());
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
                 return new LendingStateDTO<>(lenderVKycStateDTO, LendingViewStates.APPLICATION_STATUS_PAGE, LendingViewStates.LENDER_VKYC_PAGE);
             }
+            // After eligibility check, we save the application view state to LENDER_VKYC_PAGE
             loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.LENDER_VKYC_PAGE);
             LendingApplicationVkycDetails lendingApplicationVkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(openApplication.getId(), openApplication.getLender())
-                    .orElseGet(() -> vKycService.createPendingVkycDetailsRecord(openApplication));
+                    .orElseGet(() -> vKycService.createPendingVkycDetailsRecord(openApplication)); // Then we create a new vKYC details record if it doesn't exist
+
             updateApplicationVKycDetails(openApplication, lendingApplicationVkycDetails, lendingApplicationLenderDetails, scopeDataArgs.getLoanDetailsV3Request().getAppVersion());
             lenderVKycStateDTO.setVKycStatus(lendingApplicationVkycDetails.getStatus());
             lenderVKycStateDTO.setRejectReason(lendingApplicationVkycDetails.getRejectReason());
             lenderVKycStateDTO.setVkycEligible(lendingApplicationVkycDetails.getVkycEligible());
             lenderVKycStateDTO.setDkycEligible(lendingApplicationVkycDetails.getDkycEligible());
             if (VkycStatus.getTerminatedVkycStatusList().contains(lendingApplicationVkycDetails.getStatus())) {
+                // If the vKYC status is terminated, we return the application status page with the vKYC status and completion flag
+                // VKYC_COMPLETED, DKYC_COMPLETED, VKYC_HARD_FAILED, VKYC_REJECTED, VKYC_SKIPPED
+
+                log.info("vKYC status is terminated for applicationId: {}, status: {}, returning APPLICATION STATUS scope", openApplication.getId(), lendingApplicationVkycDetails.getStatus());
                 lenderVKycStateDTO.setVkycCompleted(VkycStatus.getSuccessVkycStatusList().contains(lendingApplicationVkycDetails.getStatus()));
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
                 return new LendingStateDTO<>(lenderVKycStateDTO, LendingViewStates.APPLICATION_STATUS_PAGE, LendingViewStates.LENDER_VKYC_PAGE);
             }
             if (vKycService.rejectApplicationIfRequired(openApplication, lendingApplicationVkycDetails, lendingApplicationLenderDetails)) {
+                // If the application is rejected, we set the vKYC status and reject reason, then return the application status page
+                log.info("vKYC application is rejected/skipped for applicationId: {}, status: {}, returning APPLICATION STATUS scope", openApplication.getId(), lendingApplicationVkycDetails.getStatus());
                 lenderVKycStateDTO.setVKycStatus(lendingApplicationVkycDetails.getStatus());
                 lenderVKycStateDTO.setRejectReason(lendingApplicationVkycDetails.getRejectReason());
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
                 return new LendingStateDTO<>(lenderVKycStateDTO, LendingViewStates.APPLICATION_STATUS_PAGE, LendingViewStates.LENDER_VKYC_PAGE);
             }
+            log.info("vKYC is for applicationId: {}, merchantId: {}, status: {}, returning again LENDER_VKYC_PAGE scope", openApplication.getId(), openApplication.getMerchantId(), lendingApplicationVkycDetails.getStatus());
             return new LendingStateDTO<>(lenderVKycStateDTO, LendingViewStates.LENDER_VKYC_PAGE, LendingViewStates.LENDER_VKYC_PAGE);
         } catch (Exception ex) {
             log.error("Exception while initiating vKyc for merchant:{} {} {}", scopeDataArgs.getMerchant().getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
@@ -89,12 +106,22 @@ public class LenderVKycStageService implements IStageDataService<LenderVKycState
         }
     }
 
+    // This method updates the vKYC details for the lending application.
     private void updateApplicationVKycDetails(LendingApplication lendingApplication, LendingApplicationVkycDetails vkycDetails, LendingApplicationLenderDetails lenderDetails, Integer appVersion) {
         try {
+            log.info("Updating vKyc details for applicationId: {}, lender: {}, merchantId: {}", lendingApplication.getId(), lendingApplication.getLender(), lendingApplication.getMerchantId());
             if (VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
                 log.info("vkyc already {} of {} for applicationId {} returning ", vkycDetails.getStatus(), lendingApplication.getLender(), lendingApplication.getId());
                 return;
             }
+            // This is new flow for CreditSaison vKYC :
+            if (rolloutUtil.isEligibleForCreditSaisonVkyc(lendingApplication.getMerchantId()) && CREDITSAISON.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                log.info("Updating vKyc details for Credit Saison for applicationId: {}", lendingApplication.getId());
+                vkycServiceV2.updateVkycDetailsForCreditSaison(lendingApplication, vkycDetails, lenderDetails, appVersion);
+                return;
+            }
+
+            // This below code is for existing vKYC flow i.e PayU
             if (VkycStatus.VKYC_IN_PROGRESS.equals(vkycDetails.getStatus())) {
                 vKycService.statusCheck(lendingApplication, vkycDetails, lenderDetails);
                 return;

@@ -8,6 +8,8 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -55,6 +57,9 @@ public class TLUpdateLeadService {
 
     @Autowired
     TrillionLoansConfig trillionLoansConfig;
+
+    @Autowired
+    MerchantService merchantService;
 
     @Transactional
     public boolean invokeUpdateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -105,6 +110,30 @@ public class TLUpdateLeadService {
                         .bankAccountType(getAccountType(merchantNachDetailsResponseDTO.getAccountType()))
                         .beneficiaryType("SELF")
                         .build();
+            }
+            else if(loanUtil.isMandateSwitchEnabled(lendingApplication) && lendingApplicationDetails.isAutoPayUpiEligible() && !lendingApplicationDetails.isNachEligible()){
+                log.info("Mandate switch is enabled, Updating Payload for Autopay Upi only scenario for applicationId: {}", lendingApplication.getId());
+                Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
+                BankDetailsDto merchantBankDetail = null;
+                if (!bankDetailsDtoOptional.isPresent()) {
+                    log.error("Bank details not found for merchantId: {} and applicationId: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                    return null;
+                }
+                merchantBankDetail = bankDetailsDtoOptional.get();
+                log.info("Bank details found for merchantId: {} and applicationId: {}: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), merchantBankDetail);
+
+                updateLeadDetails = TLUpdateLeadRequestV2Dto.builder()
+                        .clientId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId())
+                        .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
+                        .accountNumber(merchantBankDetail.getAccountNumber())
+                        .ifscCode(merchantBankDetail.getIfsc())
+                        .accountHolderName(merchantBankDetail.getBeneficiaryName())
+                        .bankName(merchantBankDetail.getBankName())
+                        .bankAccountType(getAccountType(merchantBankDetail.getAccountType()))
+                        .beneficiaryType("SELF")
+                        .build();
+
+                log.info("Updated lead details for merchantId: {} and applicationId: {}: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), updateLeadDetails);
             }
             if (payloadValidation.isInvalidUpdateLeadPayload(updateLeadDetails)) {
                 log.info("Error in getting update lead details payload for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());

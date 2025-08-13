@@ -56,24 +56,24 @@ public class CreateLeadWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = createLald(lendingApplication);
         if (ObjectUtils.isEmpty(lald)) {
             log.warn("Lending application lender details not created for application id: {}", applicationId);
-            return;
+            return false;
         }
         LenderBaseRequest<CreateLeadRequest> createLeadRequest = getCreateLeadRequest(lendingApplication);
         if(ObjectUtils.isEmpty(createLeadRequest)) {
             log.warn("Create lead request is empty for applicationId={}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
-            return;
+            return false;
         }
         WorkflowRegistry workflowRegistry = workflowRegistryFactory
                 .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
         updateLad(applicationId, workflowRegistry);
-        invokeCreateLead(applicationId, lendingApplication, lald, createLeadRequest);
+        return invokeCreateLead(applicationId, lendingApplication, lald, createLeadRequest);
     }
 
     private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {
@@ -88,19 +88,19 @@ public class CreateLeadWorkflow implements Workflow {
         return CREATE_LEAD_WORKFLOW;
     }
 
-    private void invokeCreateLead(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeCreateLead(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                   LenderBaseRequest<CreateLeadRequest> createLeadRequest) {
         LenderApiResponse<CreateLeadResponse> response = lendingPlatformClient.initiateCreateLead(createLeadRequest);
-        processCreateLeadResponse(applicationId, lendingApplication, lald, response);
+        return processCreateLeadResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processCreateLeadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processCreateLeadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                            LenderApiResponse<CreateLeadResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isCreateLeadResponseDataSuccess(response)) {
             log.info("Create lead failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, LEAD_CREATION_FAILED);
-            return;
+            return false;
         }
 
         if (response.getLender() == Lender.CREDITSAISON) {
@@ -112,7 +112,7 @@ public class CreateLeadWorkflow implements Workflow {
                 log.info("Create lead failed for application id {} due to Credit Saison dedupe/exposure logic", applicationId);
                 lald.setLeadSubStatus(LeadSubStatus.FAILED);
                 nbfcUtils.modifyLender(lendingApplication, lald, LEAD_CREATION_FAILED);
-                return;
+                return false;
             }
         }
 
@@ -123,8 +123,10 @@ public class CreateLeadWorkflow implements Workflow {
             lald.setCccId(response.getData().getClientId());
             lald.setLeadId(response.getData().getLeadId());
             lendingApplicationLenderDetailsService.save(lald);
+            return true;
         }catch (Exception e) {
             log.error("Processing create lead response failed for application id {}", applicationId, e);
+            return false;
         }
     }
 

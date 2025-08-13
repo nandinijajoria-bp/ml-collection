@@ -1195,6 +1195,8 @@ public class LenderAssignService implements ILenderAssignService {
 
         if(PIRAMAL.name().equalsIgnoreCase(prevLender)) return PIRAMAL.name();
 
+        if(PAYU.name().equalsIgnoreCase(prevLender)) return PAYU.name();
+
         return null;
     }
 

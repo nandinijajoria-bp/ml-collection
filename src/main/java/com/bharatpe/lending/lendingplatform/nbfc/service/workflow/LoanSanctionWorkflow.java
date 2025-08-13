@@ -36,7 +36,7 @@ public class LoanSanctionWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
         lald.setLeadStatus(LOAN_SANCTION.name());
@@ -47,9 +47,9 @@ public class LoanSanctionWorkflow implements Workflow {
             log.warn("Loan sanction request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, SANCTION_FAILED);
-            return;
+            return false;
         }
-        invokeLoanSanction(applicationId, lendingApplication, lald, loanSanctionRequest);
+        return invokeLoanSanction(applicationId, lendingApplication, lald, loanSanctionRequest);
     }
 
     @Override
@@ -57,23 +57,24 @@ public class LoanSanctionWorkflow implements Workflow {
         return LOAN_SANCTION_WORKFLOW;
     }
 
-    private void invokeLoanSanction(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeLoanSanction(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                     LenderBaseRequest<LoanSanctionRequest> loanSanctionRequest) {
         LenderApiResponse<Boolean> response = lendingPlatformClient.initiateLoanSanction(loanSanctionRequest);
-        processLoanSanctionResponse(applicationId, lendingApplication, lald, response);
+        return processLoanSanctionResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processLoanSanctionResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processLoanSanctionResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                              LenderApiResponse<Boolean> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isLoanSanctionResponseDataSuccess(response)) {
             log.info("Loan sanction response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, SANCTION_FAILED);
-            return;
+            return false;
         }
         log.info("Loan sanction response success for application id {}", applicationId);
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
 
     private boolean isLoanSanctionResponseDataSuccess(LenderApiResponse<Boolean> response) {

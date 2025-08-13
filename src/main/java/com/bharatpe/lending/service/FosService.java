@@ -155,7 +155,14 @@ public class FosService {
     @Autowired
     LoanDashboardService loanDashboardService;
 
+    @Value("${nach.eligible.default.flag:true}")
+    boolean merchantNachEligibleFlag;
 
+    @Value("${autopay.upi.eligible.default.flag:false}")
+    boolean merchantAutoPayEligibleFlag;
+
+    @Autowired
+    LendingConfigsDao lendingConfigsDao;
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null, null);
         Map<String, Object> data = new HashMap<>();
@@ -1046,10 +1053,12 @@ public class FosService {
     public ResponseDTO computeEligibilityParams(String eligibility, String applicationStatus, Long merchantId, String reason) {
         logger.info("Starting to compute eligibility parameters for merchantId: {}, eligibility: {}, applicationStatus: {}, reason: {}",
                 merchantId, eligibility, applicationStatus, reason);
+        Integer fosMandateTaskPercent = getfosTaskRollOutPercentage();
+        if(easyLoanUtil.percentScaleUp(merchantId,fosMandateTaskPercent)) return computeEligibilityParamsNewFlow(eligibility,applicationStatus,merchantId,reason);
         String loanType = getLoanType(eligibility, merchantId);
         String offerType = getOfferType(eligibility);
         Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
-        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0, null);
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0, 0,null);
         if("eligible".equalsIgnoreCase(eligibility)) {
             fosMerchantEligibilityDto.setUpgradeLoanOfferEligibility(getUpgradeLoanOfferEligibility(merchantId));
         }
@@ -1060,7 +1069,26 @@ public class FosService {
         return responseDTO;
     }
 
+    private Integer getfosTaskRollOutPercentage() {
+        try {
+            Integer fosMandateTaskPercent = 0;
+            LendingConfigs lendingConfigs = lendingConfigsDao.findByName("fos.mandate.task.new.flow.percent");
+            logger.info("fos.mandate.task.new.flow.percent: {}", lendingConfigs);
+            fosMandateTaskPercent = Integer.valueOf(lendingConfigs.getConfigValue().get("DEFAULT"));
+            logger.info("fos.mandate.task.new.flow.percent: value {}", fosMandateTaskPercent);
+            return fosMandateTaskPercent;
+        }catch (Exception e) {
+            logger.error("Autopay upi task roll out percentage failed", e.getMessage(),Arrays.asList(e.getStackTrace()));
+            return 0;
+        }
+    }
+
     public ResponseDTO getFosTaskStatus(Long merchantId, Long taskTimestampEpoch, Long refCode, Integer timeWindow) {
+        Integer fosMandateTaskPercent = getfosTaskRollOutPercentage();
+        if(easyLoanUtil.percentScaleUp(merchantId,fosMandateTaskPercent)){
+            logger.info("FOS mandate task percent scale up is enabled for merchantId: {}", merchantId);
+            return getFosTaskStatusNewFlow(merchantId, taskTimestampEpoch, refCode, timeWindow);
+        }
         ResponseDTO responseDTO = new ResponseDTO();
         FosTaskStatusDto fosTaskStatusDto = new FosTaskStatusDto();
         logger.info("getFosTaskStatus for merchantId : {} taskTimestampEpoch : {} refCode : {} timeWindow : {}", merchantId, taskTimestampEpoch, refCode, timeWindow);
@@ -1091,11 +1119,11 @@ public class FosService {
             MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
             logger.info("Fetched NACH details for merchantId: {}: {}", merchantId, bpEnach);
             if (ObjectUtils.isEmpty(lendingApplication) ||
-                    ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
+                    ( (lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
                                     lendingApplication.getAgreementAt().after(taskEndTimeStamp))
                                     && (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp))
-                            ))
+                            ) )
             ) {
                 fosTaskStatusDto.setStatus("INCOMPLETE");
                 fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
@@ -1248,6 +1276,11 @@ public class FosService {
         logger.info("nachTaskSuccess request : {}", request);
 
         Long merchantId = Long.valueOf(request.containsKey("merchant_id") ? request.get("merchant_id").toString() : "0");
+        Integer fosMandateTaskPercent = getfosTaskRollOutPercentage();
+        if (easyLoanUtil.percentScaleUp(merchantId, fosMandateTaskPercent)) {
+            logger.info("merchant {} is under percent scale up method", merchantId);
+           return nachTaskSuccessNewFlow(request);
+        }
         Long visitTimestamp = Long.valueOf(request.containsKey("visit_timestamp") ? request.get("visit_timestamp").toString() : "0");
         int timeWindow = Integer.parseInt(request.containsKey("time_window") ? request.get("time_window").toString() : "0");
         String refCode = String.valueOf(request.containsKey("ref_code") ? request.get("ref_code").toString() : null);
@@ -1266,6 +1299,7 @@ public class FosService {
             return new ResponseDTO(Boolean.FALSE, "Application not found.", response);
         }
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
         response.put("ref_code", ObjectUtils.isEmpty(lendingApplicationDetails) ? null:lendingApplicationDetails.getCpvReferralCode());
         response.put("agreement_at", ObjectUtils.isEmpty(lendingApplication) ? null:lendingApplication.getAgreementAt());
         try{
@@ -1312,6 +1346,26 @@ public class FosService {
             response.put("application_id", null);
             return new ResponseDTO(Boolean.FALSE, "Error occurred while checking nach status", response);
         }
+    }
+
+
+
+
+
+    private boolean getMandateTaskStatus(boolean nachEligible, boolean autoPayUpiEligible, boolean autoPayStatus, boolean nachStatus) {
+
+        if (!nachEligible && !autoPayUpiEligible) {
+            // Neither eligible, fallback to NACH as default
+            return true;
+        } else if (nachEligible && !autoPayUpiEligible) {
+            return nachStatus;
+        } else if (!nachEligible && autoPayUpiEligible) {
+            return autoPayStatus;
+        } else {
+            // Both eligible, both must be true
+            return nachStatus && autoPayStatus;
+        }
+
     }
 
     private void saveRefCodeAudit(LendingApplicationDetails lendingApplicationDetails, String refCode, LendingApplication lendingApplication, String auditType){
@@ -1371,5 +1425,250 @@ public class FosService {
         }
         logger.info("Upgrade loan offer eligibility outside try block for merchantId : {} is {}", merchantId, upgradeLoanOfferEligibility);
         return upgradeLoanOfferEligibility;
+    }
+
+
+    public ResponseDTO getFosTaskStatusNewFlow(Long merchantId, Long taskTimestampEpoch, Long refCode, Integer timeWindow) {
+        ResponseDTO responseDTO = new ResponseDTO();
+        FosTaskStatusDto fosTaskStatusDto = new FosTaskStatusDto();
+        logger.info("getFosTaskStatus for merchantId : {} taskTimestampEpoch : {} refCode : {} timeWindow : {}", merchantId, taskTimestampEpoch, refCode, timeWindow);
+        try {
+            Date taskStartTimestamp = dateTimeUtil.getDatePlusMinutes(new Date(taskTimestampEpoch * 1000), -1 * timeWindow);
+            logger.info("taskStartTimestamp: {} for merchantId : {} ", taskStartTimestamp, merchantId);
+            Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
+            logger.info("Calculated taskEndTimeStamp: {} for merchantId: {}", taskEndTimeStamp, merchantId);
+//            Merchant merchant = merchantDao.getById(merchantId);
+            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+            if(ObjectUtils.isEmpty(lendingApplication)){
+                logger.info("application not found for merchantId : {}", merchantId);
+                fosTaskStatusDto.setMessage("application not found");
+                responseDTO.setSuccess(Boolean.TRUE);
+                responseDTO.setData(fosTaskStatusDto);
+                return responseDTO;
+            }
+            logger.info("Found lending application for merchantId: {} with applicationId: {} and application data: {}", merchantId, lendingApplication.getId(), lendingApplication);
+            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+                logger.info("invalid merchant ID for merchantId : {}", merchantId);
+                fosTaskStatusDto.setMessage("merchant doesn't exist");
+                responseDTO.setData(fosTaskStatusDto);
+                responseDTO.setSuccess(Boolean.TRUE);
+                return responseDTO;
+            }
+            logger.info("Fetched basic details {} for merchantId: {}", basicDetailsDto, merchantId);
+            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            boolean merchantNachEligible = merchantNachEligibleFlag;
+            boolean merchantAutoPayEligible = merchantAutoPayEligibleFlag;
+            merchantNachEligible = !ObjectUtils.isEmpty(lendingApplicationDetails) && lendingApplicationDetails.getMandateFlagsToggledOn() != null  ? lendingApplicationDetails.isNachEligible() : merchantNachEligibleFlag;
+            merchantAutoPayEligible = !ObjectUtils.isEmpty(lendingApplicationDetails) && lendingApplicationDetails.getMandateFlagsToggledOn() != null ? lendingApplicationDetails.isAutoPayUpiEligible() : merchantAutoPayEligibleFlag;
+            boolean autoPayUpiStatus = "APPROVED".equalsIgnoreCase(lendingApplication.getUpiAutopayStatus());
+
+            logger.info("Fetched NACH details for merchantId: {}: {}", merchantId, bpEnach);
+
+            boolean isNachInvalid = false;
+            if (merchantNachEligible) {
+                isNachInvalid = ObjectUtils.isEmpty(bpEnach)
+                        || bpEnach.getUpdatedAt().before(taskStartTimestamp)
+                        || bpEnach.getUpdatedAt().after(taskEndTimeStamp);
+            }
+
+            boolean isAutoPayInvalid = false;
+            if (merchantAutoPayEligible) {
+                isAutoPayInvalid = !autoPayUpiStatus;
+            }
+
+
+            if (ObjectUtils.isEmpty(lendingApplication) ||
+                    ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
+                            (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
+                                    lendingApplication.getAgreementAt().after(taskEndTimeStamp))
+                                    && ( isNachInvalid || isAutoPayInvalid )
+                            ))
+            ) {
+                fosTaskStatusDto.setStatus("INCOMPLETE");
+                fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
+                fosTaskStatusDto.setMessage("no application found against this task");
+                responseDTO.setData(fosTaskStatusDto);
+                responseDTO.setSuccess(Boolean.TRUE);
+                logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
+                return responseDTO;
+            } else {
+                if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
+                    fosTaskStatusDto.setStatus("COMPLETE");
+                    fosTaskStatusDto.setMessage("task completed");
+                    logger.info("nach done for merchant {}", merchantId);
+                } else {
+                    fosTaskStatusDto.setStatus("INCOMPLETE");
+                    fosTaskStatusDto.setMessage("Nach pending for the application");
+                    logger.info("nach pending for merchant {}", merchantId);
+                }
+                logger.info("agreement done for merchant {} and applicationId : {} and agreement date is {}", lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getAgreementAt());
+                if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+                    lendingApplicationDetails = new LendingApplicationDetails();
+                    lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+                }
+                lendingApplicationDetails.setCpvReferralCode(String.valueOf(refCode));
+                logger.info("updated lending_application_details -> {} for merchantId : {}", lendingApplicationDetails.getCpvReferralCode(), merchantId);
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
+                saveRefCodeAudit(lendingApplicationDetails, String.valueOf(refCode), lendingApplication, "LOAN_TASK");
+                populateApplicationStage(lendingApplication, fosTaskStatusDto);
+                if (lendingApplication.getLoanType().equalsIgnoreCase("SMALL_TICKET")) {
+                    fosTaskStatusDto.setEligibleForPayout("NO");
+                    fosTaskStatusDto.setLoanType(lendingApplication.getLoanType());
+                } else {
+                    LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+                    fosTaskStatusDto.setEligibleForPayout("YES");
+                    fosTaskStatusDto.setLoanType(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)? null:lendingRiskVariablesSnapshot.getRiskSegment().name());
+                    logger.info("MerchantId: {} has loan type {}. Eligible for payout: YES", merchantId, lendingApplication.getLoanType());
+                }
+                fosTaskStatusDto.setApplicationId(lendingApplication.getId());
+                responseDTO.setData(fosTaskStatusDto);
+                responseDTO.setSuccess(Boolean.TRUE);
+                logger.info("fos task status for merchant, {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
+                return responseDTO;
+            }
+        } catch (Exception e) {
+            logger.error("exception occurred while fetching fos task status for merchant: {}", merchantId, e);
+        }
+        return new ResponseDTO(Boolean.FALSE, "something went wrong!!");
+    }
+
+
+    public ResponseDTO nachTaskSuccessNewFlow(Map<String, Object> request){
+
+        logger.info("nachTaskSuccess request : {}", request);
+
+        Long merchantId = Long.valueOf(request.containsKey("merchant_id") ? request.get("merchant_id").toString() : "0");
+        Long visitTimestamp = Long.valueOf(request.containsKey("visit_timestamp") ? request.get("visit_timestamp").toString() : "0");
+        int timeWindow = Integer.parseInt(request.containsKey("time_window") ? request.get("time_window").toString() : "0");
+        String refCode = String.valueOf(request.containsKey("ref_code") ? request.get("ref_code").toString() : null);
+        if (merchantId == 0 || visitTimestamp == 0 || timeWindow == 0 || refCode == null) {
+            return new ResponseDTO(Boolean.FALSE, "Required parameteers Missing", null);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+        logger.info("lendingApplication -> {}", lendingApplication);
+        if(ObjectUtils.isEmpty(lendingApplication)){
+            logger.info("Application not found for merchant: {}", merchantId);
+            response.put("message", "Application not found");
+            response.put("status", false);
+            response.put("application_id", null);
+            return new ResponseDTO(Boolean.FALSE, "Application not found.", response);
+        }
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
+        boolean nachEligible = merchantNachEligibleFlag;
+        boolean autoPayUpiEligible = merchantAutoPayEligibleFlag;
+
+        if(lendingApplicationDetails != null && lendingApplicationDetails.getMandateFlagsToggledOn() != null){
+            nachEligible = lendingApplicationDetails.isNachEligible();
+            autoPayUpiEligible = lendingApplicationDetails.isAutoPayUpiEligible();
+        }
+
+        boolean autoPayStatus =  "APPROVED".equalsIgnoreCase(lendingApplication.getUpiAutopayStatus());
+        boolean nachStatus = "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus());
+        logger.info("nachEligible: {}, autoPayUpiEligible: {}, autoPayStatus: {}, nachStatus: {}", nachEligible, autoPayUpiEligible, autoPayStatus, nachStatus);
+        boolean mandateTaskStatus = getMandateTaskStatus(nachEligible,autoPayUpiEligible,autoPayStatus,nachStatus);
+
+        response.put("ref_code", ObjectUtils.isEmpty(lendingApplicationDetails) ? null:lendingApplicationDetails.getCpvReferralCode());
+        response.put("agreement_at", ObjectUtils.isEmpty(lendingApplication) ? null:lendingApplication.getAgreementAt());
+        try{
+            Date taskStartTimestamp = dateTimeUtil.getDatePlusMinutes(new Date(visitTimestamp * 1000), -1 * timeWindow);
+            logger.info("task status timestamp: {}", taskStartTimestamp);
+            Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
+            MerchantNachDetailsResponseDTO enach = enachHandler.findSuccessEnach(lendingApplication.getMerchantId(), lendingApplication.getId());
+            logger.info("findSuccessEnachResponse:{}", enach);
+            if( ( nachEligible && !ObjectUtils.isEmpty(enach) && enach.getUpdatedAt().after(taskStartTimestamp) && enach.getUpdatedAt().before(taskEndTimeStamp)) ||  (!nachEligible && autoPayUpiEligible)){
+                if(mandateTaskStatus){
+                    if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+                        lendingApplicationDetails = new LendingApplicationDetails();
+                        lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+                    }
+                    logger.info("nach done for application:{}", lendingApplication.getId());
+                    logger.info("lending_application_details refCode for nach -> {}", lendingApplicationDetails.getCpvReferralCodeNach());
+                    lendingApplicationDetails.setCpvReferralCodeNach(refCode);
+                    lendingApplicationDetailsDao.save(lendingApplicationDetails);
+                    saveRefCodeAudit(lendingApplicationDetails, refCode, lendingApplication, "NACH_TASK");
+                    response.put("message", "nach done for the application");
+                    response.put("nach_status", nachStatus);
+                    response.put("autopay_upi_status", autoPayStatus);
+                    response.put("status", mandateTaskStatus);
+                    response.put("application_id", lendingApplication.getId());
+                    logger.info("nach done for the application:{} and response is {}", lendingApplication.getId(), response);
+                    return new ResponseDTO(Boolean.TRUE, "nach done for the application", response);
+                } else{
+                    logger.info("nach is pending for application:{}", lendingApplication.getId());
+                    response.put("message", "nach is pending for the application");
+                    response.put("status", false);
+                    response.put("nach_status", nachStatus);
+                    response.put("autopay_upi_status", autoPayStatus);
+                    response.put("application_id", null);
+                    logger.info("nach is pending for the application:{} and response is {}", lendingApplication.getId(), response);
+                    return new ResponseDTO(Boolean.FALSE, "nach is pending for the application", response);
+                }
+            } else{
+                logger.info("no application found against this task");
+                response.put("message", "no application found against this task");
+                response.put("status", false);
+                response.put("nach_status", nachStatus);
+                response.put("autopay_upi_status", autoPayStatus);
+                response.put("application_id", null);
+                return new ResponseDTO(Boolean.FALSE, "no application found against this task", response);
+            }
+        } catch (Exception ex){
+            logger.error("Error occurred while checking nach status for merchant:{}, {}, {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            response.put("message", "Error occurred while checking nach status");
+            response.put("status", false);
+            response.put("nach_status", nachStatus);
+            response.put("autopay_upi_status", autoPayStatus);
+            response.put("application_id", null);
+            return new ResponseDTO(Boolean.FALSE, "Error occurred while checking nach status", response);
+        }
+    }
+
+    public ResponseDTO computeEligibilityParamsNewFlow(String eligibility, String applicationStatus, Long merchantId, String reason) {
+
+        String loanType = getLoanType(eligibility, merchantId);
+        String offerType = getOfferType(eligibility);
+        Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
+
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+
+        LendingApplicationDetails lendingApplicationDetails = null;
+
+        if(lendingApplication != null) {
+            lendingApplicationDetails  = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        }
+
+        boolean autopayUpiStatus = false;
+        boolean nachEligible = merchantNachEligibleFlag;
+        boolean autoPayUpiEligible = merchantAutoPayEligibleFlag;
+
+        if(lendingApplication != null && lendingApplicationDetails != null && lendingApplicationDetails.getMandateFlagsToggledOn() != null) {
+            nachEligible =  lendingApplicationDetails.isNachEligible();
+            autoPayUpiEligible =  lendingApplicationDetails.isAutoPayUpiEligible();
+            autopayUpiStatus = "APPROVED".equalsIgnoreCase(lendingApplication.getUpiAutopayStatus());
+        }
+
+        boolean loanAmountLessThan20k = false;
+        if(lendingApplication != null && lendingApplication.getLoanAmount() != null) {
+            loanAmountLessThan20k = lendingApplication.getLoanAmount() < 20000;
+        }
+        boolean pendingVerification = false;
+        if(lendingApplication != null && "pending_verification".equalsIgnoreCase(lendingApplication.getStatus()))  {
+            pendingVerification = true;
+        }
+
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, ("pending nach application".equals(reason) && nachEligible) ?1:0, (!autopayUpiStatus && autoPayUpiEligible && !loanAmountLessThan20k && pendingVerification) ? 1:0 , null);
+        if("eligible".equalsIgnoreCase(eligibility)) {
+            fosMerchantEligibilityDto.setUpgradeLoanOfferEligibility(getUpgradeLoanOfferEligibility(merchantId));
+        }
+        ResponseDTO responseDTO = new ResponseDTO();
+        responseDTO.setData(fosMerchantEligibilityDto);
+        responseDTO.setSuccess(Boolean.TRUE);
+        logger.info("Returning response DTO for merchantId {}: {}", merchantId, responseDTO);
+        return responseDTO;
     }
 }

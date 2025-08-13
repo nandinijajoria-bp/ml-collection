@@ -8,4 +8,6 @@ public class EmiEligibility {
     private Boolean emiRejected;
     private String rejectReason;
     private Integer emiEligibleIn;
+    private Integer minLoanAmountAllowed;
+    private String riskSegment;
 }

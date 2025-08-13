@@ -379,12 +379,12 @@ public class LendingMerchantLoansResponseDTO extends TopupEligibilityResponseDat
     }
 
     private void updateFromLoanSummary(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse.LoanSummary loanSummary, LendingPaymentSchedule lpsTable) {
-        loan.setEdiAmount((double) loanSummary.getInstalmentAmount());
-        loan.setDueAmount((double) loanSummary.getOverdueInstalmentAmount());
-        loan.setPendingAmount((double) loanSummary.getPendingInstalmentAmount());
-        loan.setPaidPrinciple((double) loanSummary.getPaidPrincipalAmount());
-        loan.setPaidAmount((double) loanSummary.getTotalPaidAmount());
-        loan.setDuePenalty(loanSummary.getPaidPenalCharges());
+        loan.setEdiAmount((double) loanSummary.getInstalmentAmountAsInt());
+        loan.setDueAmount((double) loanSummary.getOverdueInstalmentAmountAsInt());
+        loan.setPendingAmount((double) loanSummary.getPendingInstalmentAmountAsInt());
+        loan.setPaidPrinciple((double) loanSummary.getPaidPrincipalAmountAsInt());
+        loan.setPaidAmount((double) loanSummary.getTotalPaidAmountAsInt());
+        loan.setDuePenalty(loanSummary.getPaidPenalChargesAsInt());
     }
 
     private double calculateRepaymentAmount(LoanDetailsResponse.LoanSummary loanSummary) {

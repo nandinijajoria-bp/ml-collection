@@ -4,12 +4,13 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
-import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
-import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUKycRequestDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUCommonResponseDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUKycResponseDTO;
+import com.bharatpe.lending.loanV3.dto.response.payu.PayuKycValidityResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,6 +97,37 @@ public class PayUKycService {
             log.error("exception occurred while KYC request payload for PayU for applicationId: {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    public boolean invokeKycValidity(Long applicationId, String leadId) {
+        try {
+            log.info("checking kyc validity for applicationId: {}, leadId: {}", applicationId, leadId);
+            NBFCRequestDTO<PayUKycRequestDTO> payload = NBFCRequestDTO.<PayUKycRequestDTO>builder()
+                    .applicationId(applicationId)
+                    .lender(Lender.PAYU.name())
+                    .productName("LENDING")
+                    .payload(PayUKycRequestDTO.builder()
+                            .applicationId(leadId)
+                            .build())
+                    .build();
+            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(payload, LenderAssociationStages.KYC_VALIDITY);
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                PayUCommonResponseDTO<?> commonResponseDTO = objectMapper.convertValue(nbfcResponseDto.getData(), PayUCommonResponseDTO.class);
+                if ("SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus()) && !ObjectUtils.isEmpty(commonResponseDTO.getApiResponse())) {
+                    log.info("KYC validity response of PayU from nbfc {} with applicationId: {}", commonResponseDTO, applicationId);
+                    PayuKycValidityResponseDTO kycResponseDTO = objectMapper.convertValue(commonResponseDTO.getApiResponse(), PayuKycValidityResponseDTO.class);
+                    if (!ObjectUtils.isEmpty(kycResponseDTO) && !ObjectUtils.isEmpty(kycResponseDTO.getStatusList())) {
+                        log.info("kyc is valid for applicationId: {}, leadId: {}", applicationId, leadId);
+                        return kycResponseDTO.getStatusList().stream()
+                                .anyMatch(status -> "NEW_APP_KYC_REQUIRED".equalsIgnoreCase(status.getState()) && "NOT_REQUIRED".equalsIgnoreCase(status.getStatus()));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception in invoking kyc validity API for payu for applicationId {} {} {}", leadId, e.getLocalizedMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        log.info("kyc validity failed for applicationId: {}, leadId: {}", applicationId, leadId);
+        return false;
     }
 
 }

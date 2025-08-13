@@ -549,7 +549,7 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         log.info("checking for vkyc status for {}", scopeDataArgs.getMerchant().getId());
         LendingApplication lendingApplication = scopeDataArgs.getOpenApplication();
         if (!ObjectUtils.isEmpty(lendingApplication) && Arrays.asList("pending_verification", "approved").contains(lendingApplication.getStatus())
-                && vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
+                && vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
             LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()).orElse(null);
             if (!ObjectUtils.isEmpty(vkycDetails) && !VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
                 LendingStateDTO<ApplicationStateDTO> lendingStateDTO = new LendingStateDTO<>();

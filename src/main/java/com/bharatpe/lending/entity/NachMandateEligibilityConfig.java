@@ -7,13 +7,12 @@ import lombok.Setter;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
-import java.util.Date;
 
 @Entity
 @Getter
 @Setter
 @Table(name = "nach_mandate_eligibility_config")
-public class NachMandateEligibilityConfig extends BaseEntity{
+public class NachMandateEligibilityConfig extends BaseEntity {
 
     @Column(name = "lender")
     private String lender;
@@ -30,8 +29,14 @@ public class NachMandateEligibilityConfig extends BaseEntity{
     @Column(name = "upi_autopay_required")
     private Boolean upiAutopayRequired;
 
+    @Column(name = "nach_required")
+    private Boolean nachRequired;
+
     @Column(name = "status")
     private Boolean status;
+
+    @Column(name = "loan_segment")
+    private String loanSegment;
 
 }
 

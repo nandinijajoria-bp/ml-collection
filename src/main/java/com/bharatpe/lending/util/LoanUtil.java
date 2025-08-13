@@ -38,11 +38,7 @@ import com.bharatpe.lending.dto.*;
 
 import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
-import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.EnachMode;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.enums.ReferenceRelation;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
@@ -59,6 +55,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
@@ -105,6 +102,7 @@ import java.util.stream.Collectors;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.*;
+import static com.bharatpe.lending.enums.MandatesInJourney.*;
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
@@ -130,6 +128,7 @@ public class LoanUtil {
 	LendingCovidCitiesDao lendingCovidCitiesDao;
 
 	@Autowired
+	@Lazy
 	LoanDetailsServiceV2 loanDetailsServiceV2;
 
 	@Autowired
@@ -445,8 +444,14 @@ public class LoanUtil {
 	@Value("${pricing.experiment.enable:false}")
 	boolean pricingExpEnabled;
 
+	@Value("${mandate.switch.rollout.percent:10}")
+	Integer mandateSwitchRolloutPercent;
+
 	@Autowired
 	PricingExperimentDao pricingExperimentDao;
+
+	@Autowired
+	VKycService vKycService;
 
 	@Autowired
 	@Qualifier("accountInfoTaskExecutor")
@@ -1940,6 +1945,54 @@ public class LoanUtil {
 		return sevenDayEligibleLoanOffer;
 	}
 
+	public LendingEligibleLoan calculateLoanBreakupV2(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version
+	) {
+
+		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
+		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		List<LendingEligibleLoan> eligibleLoanList = new ArrayList<>();
+
+		BigDecimal processingFee;
+		BigDecimal amountBD = new BigDecimal(amount);
+		BigDecimal processingFeeRateBD = BigDecimal.valueOf(tenureDetail.getProcessingFee());
+		if(tenureDetail.getProcessingFee() != null){
+			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
+		}
+		else{
+			throw new NullPointerException("processing fee cannot be null in tenure details");
+		}
+
+
+		LendingEligibleLoan sevenDayEligibleLoanOffer = LendingEligibleLoan.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(sevenDayRepayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.initialRoi(tenureDetail.getInitialRoi())
+				.edi(sevenDayEdiAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.offerType(offerType)
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getTenure() * 30)
+				.processingFee(processingFee.intValue())
+				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.processingFeeRate(tenureDetail.getProcessingFee())
+				.build();
+		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		eligibleLoanDao.saveAll(eligibleLoanList);
+		eligibleLoanDao.flush();
+		return sevenDayEligibleLoanOffer;
+	}
+
 	public boolean isInternalMerchant(Long merchantId) {
 		return BooleanUtils.toBoolean(lendingCache.contains(INTERNAL_MERCHANTS, merchantId));
 	}
@@ -2054,6 +2107,7 @@ public class LoanUtil {
 			logger.info("skip nach flow is not applicable for BT application {}", lendingApplication.getId());
 			return false;
 		}
+
 		String finalLender = enachServiceLenderMapper(lender);
 		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
 			return false;
@@ -2077,6 +2131,12 @@ public class LoanUtil {
 		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), finalLender);
 
 		if (ObjectUtils.isEmpty(approvedNachDetails)) {
+			if(skipNachForNachIneligible(lendingApplication, lender)){
+				logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+				logger.info("Nach is not eligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+				setIsNachSkip(lendingApplication);
+				return Boolean.TRUE;
+			}
 			return Boolean.FALSE;
 		}
 
@@ -2094,6 +2154,24 @@ public class LoanUtil {
 			return Boolean.TRUE;
 		}
 
+		if(skipNachForNachIneligible(lendingApplication, lender)){
+			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+			logger.info("Nach is not eligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+			setIsNachSkip(lendingApplication);
+			return Boolean.TRUE;
+		}
+
+		return Boolean.FALSE;
+	}
+
+	private boolean skipNachForNachIneligible(LendingApplication lendingApplication, String lender) {
+		logger.info("Checking if Nach is ineligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		if(isMandateSwitchEnabled(lendingApplication) && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()){
+			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+			logger.info("Nach is not eligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+			return Boolean.TRUE;
+		}
 		return Boolean.FALSE;
 	}
 
@@ -2909,7 +2987,14 @@ public class LoanUtil {
 		if ( lendingApplication.getLender() == null || lendingApplication.getId() == null)  {
 			return true;
 		}
-		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		if (lendingRiskVariablesSnapshot == null) {
+			logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
+		}
+
+		String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
         logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
 	}
@@ -3012,6 +3097,27 @@ public class LoanUtil {
 		eligibleLoanDao.save(eligibleLoan);
 	}
 
+	public void setEligibleLoanV2(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender){
+		eligibleLoan.setRateOfInterest(interestRate);
+		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
+		double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		if(!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)){
+			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.floor(ediAmount);
+		}else{
+			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.ceil(ediAmount);
+		}
+		Double repayment = ediAmount * eligibleLoan.getEdiCount();
+		eligibleLoan.setProcessingFee(processingFee.intValue());
+		eligibleLoan.setRepayment(repayment.intValue());
+		eligibleLoan.setEdi((int) ediAmount);
+		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
+		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
+		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
+		eligibleLoanDao.save(eligibleLoan);
+	}
+
 
 	public static boolean isRolledOutByPercentage(String value, List<Integer> validDigits) {
 		// Extract the last digit of the number
@@ -3060,7 +3166,15 @@ public class LoanUtil {
 		if (!checkIfUPIAutoPayIsActive(lendingApplication.getMerchantId(), lendingApplication.getLender(), lendingApplication.getId())) {
 			return false;
 		}
-		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		if (lendingRiskVariablesSnapshot == null) {
+			logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
+		}
+
+		String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
 
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayNachRequired());
 	}
@@ -3291,11 +3405,195 @@ public class LoanUtil {
 		return LendingViewStates.ENACH_PAGE;
 	}
 
+	public LendingViewStates getNextLendingViewStateForTopup(LendingApplicationDetails lendingApplicationDetails, LendingApplication lendingApplication) {
+		logger.info("Deciding next lending view state for topup for applicationId: {} with lendingApplication Details: {}", lendingApplication.getId(), lendingApplicationDetails);
+		if(isMandateSwitchEnabled(lendingApplication)) {
+			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+
+			updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
+			logger.info("Updated LendingApplicationDetails for applicationId: {}: {}", lendingApplication.getId(), lendingApplicationDetails);
+
+			LendingViewStates nextLendingViewStateForTopup;
+			if (lendingApplicationDetails.isAutoPayUpiEligible()) {
+				logger.info("Autopay UPI is eligible for applicationId: {}", lendingApplication.getId());
+				if(isEligibleForUpiAutopayTopupDedicatedScreen(lendingApplication)){
+					logger.info("UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
+					nextLendingViewStateForTopup = LendingViewStates.UPI_AUTOPAY_PAGE;
+				}
+				else if (lendingApplicationDetails.isNachEligible()) {
+					logger.info("UPI Autopay dedicated screen is not applicable, but NACH is eligible for applicationId: {}", lendingApplication.getId());
+                    nextLendingViewStateForTopup = LendingViewStates.ENACH_PAGE;
+                } else {
+					logger.info("Neither UPI Autopay dedicated screen nor NACH is eligible for applicationId: {}", lendingApplication.getId());
+                    nextLendingViewStateForTopup = LendingViewStates.AGREEMENT_PAGE;
+                }
+			} else if (lendingApplicationDetails.isNachEligible()) {
+				logger.info("NACH is eligible for applicationId: {}", lendingApplication.getId());
+				nextLendingViewStateForTopup = LendingViewStates.ENACH_PAGE;
+			} else {
+				logger.info("Neither UPI Autopay nor NACH is eligible for applicationId: {}", lendingApplication.getId());
+				nextLendingViewStateForTopup = LendingViewStates.AGREEMENT_PAGE;
+			}
+			logger.info("Next lending view state for topup for applicationId: {} is {}", lendingApplication.getId(), nextLendingViewStateForTopup);
+			return nextLendingViewStateForTopup;
+		}
+		else	return getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
+	}
+
+	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount) {
+		return getMandatesRequiredForApplication(lender, loanAmount, null);
+	}
+
+	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount, String loanSegment) {
+		logger.info("checking for mandates required for lender : {}, loanAmount : {}", lender, loanAmount);
+		if ( StringUtils.isEmpty(lender) || loanAmount <= 0)  {
+			return NACH;
+		}
+		try {
+			List<NachMandateEligibilityConfig> nachMandateEligibilityConfigList = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigByLender(lender);
+
+			for(NachMandateEligibilityConfig mandateEligibilityConfig: nachMandateEligibilityConfigList) {
+				boolean amountInRange = checkIfAmountInRange(mandateEligibilityConfig, loanAmount);
+				boolean loanSegmentValid = checkIfLoanSegmentValid(mandateEligibilityConfig, loanSegment);
+
+				logger.info("amountInRange: {} loanSegmentValid: {}, lender: {}, loanAmount: {}, loanSegment: {}, mandateEligibilityConfig: {}",
+						amountInRange, loanSegmentValid, lender, loanAmount, loanSegment, mandateEligibilityConfig);
+
+				// If both amount is in range and loan segment is valid, we have a match
+				if (amountInRange && loanSegmentValid) {
+					logger.info("Valid mandateEligibilityConfig found: {} for lender: {}, loanAmount: {}, loanSegment: {}",
+							mandateEligibilityConfig, lender, loanAmount, loanSegment);
+					if (mandateEligibilityConfig.getUpiAutopayRequired() && mandateEligibilityConfig.getNachRequired()) {
+						return NACH_UPIAUTOPAY;
+					} else if (mandateEligibilityConfig.getUpiAutopayRequired()) {
+						return UPIAUTOPAY;
+					}
+					break;
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Error while fetching nach mandate eligibility config for lender: {}, loanAmount: {}, msg: {}, Stack: {}",
+					lender, loanAmount, e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+
+		return NACH;
+	}
+
+	private boolean checkIfLoanSegmentValid(NachMandateEligibilityConfig mandateEligibilityConfig, String loanSegment) {
+		try {
+			if (mandateEligibilityConfig == null)  return false; // If mandateEligibilityConfig is null, return false
+
+			String segments = mandateEligibilityConfig.getLoanSegment();
+			if (StringUtils.isEmpty(segments)) {
+				logger.warn("No segments defined for mandateEligibilityConfig: {}", mandateEligibilityConfig);
+				return true; // If no segments defined means valid for all segments, return true
+			}
+			logger.info("Checking if loanSegment: {} is valid for segments: {}", loanSegment, segments);
+			if (StringUtils.isEmpty(loanSegment)) {
+				logger.warn("Loan segment is empty, returning false for mandateEligibilityConfig: {}", mandateEligibilityConfig);
+				return false; // If loanSegment is empty, but eligibility has segments, return false
+			}
+			//possibilities - FRESH TOPUP REPEAT
+			return segments.trim().toLowerCase().contains(loanSegment.trim().toLowerCase());
+		} catch (Exception e) {
+			logger.error("Error while checking if loan segment is valid for mandateEligibilityConfig: {}, loanSegment: {}, msg: {}, Stack: {}",
+					mandateEligibilityConfig, loanSegment, e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+		return false;
+	}
+
+	private boolean checkIfAmountInRange(NachMandateEligibilityConfig mandateEligibilityConfig, double loanAmount) {
+		try {
+			if (mandateEligibilityConfig != null) {
+				Double minAmount = mandateEligibilityConfig.getMinTotalPayableAmount();
+				Double maxAmount = mandateEligibilityConfig.getMaxTotalPayableAmount();
+				if (minAmount == null || maxAmount == null) {
+					logger.warn("Min or Max amount is null for mandateEligibilityConfig: {}", mandateEligibilityConfig);
+				}
+				if (minAmount == null) minAmount = 0.0; // Default to 0 if min is not set
+				if (maxAmount == null) maxAmount = 0.0; // Default to 0 if is not set
+				logger.info("Checking if loanAmount: {} is in range: {} - {}", loanAmount, minAmount, maxAmount);
+				return loanAmount >= minAmount && loanAmount <= maxAmount;
+			}
+		} catch (Exception e) {
+			logger.error("Error while checking if amount is in range for mandateEligibilityConfig: {}, loanAmount: {}, msg: {}, Stack: {}",
+					mandateEligibilityConfig, loanAmount, e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+		return false; // If mandateEligibilityConfig is null, return false
+	}
+
+	public void updateMandateColumnsInLAD(LendingApplicationDetails lendingApplicationDetails, String lender, Double loanAmount) {
+		try {
+			logger.info("Updating mandate columns in LendingApplicationDetails");
+			if ( StringUtils.isEmpty(lender) || Objects.isNull(loanAmount) || loanAmount <= 0
+					|| Objects.isNull(lendingApplicationDetails)) {
+				return;
+			}
+
+			if (Objects.nonNull(lendingApplicationDetails.getMandateFlagsToggledOn())) {
+				logger.info("Mandate flags already toggled on for applicationId: {}, skipping update", lendingApplicationDetails.getApplicationId());
+				return;
+			}
+
+			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplicationDetails.getApplicationId());
+			if (lendingRiskVariablesSnapshot == null) {
+				logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplicationDetails.getApplicationId());
+			}
+			String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+			MandatesInJourney mandatesInJourney = getMandatesRequiredForApplication(lender, loanAmount, loanSegment);
+
+			if (NACH_UPIAUTOPAY.equals(mandatesInJourney)) {
+				lendingApplicationDetails.setAutoPayUpiEligible(true);
+				lendingApplicationDetails.setNachEligible(true);
+			} else if (UPIAUTOPAY.equals(mandatesInJourney)) {
+				lendingApplicationDetails.setAutoPayUpiEligible(true);
+				lendingApplicationDetails.setNachEligible(false);
+			} else if (NACH.equals(mandatesInJourney)) {
+				lendingApplicationDetails.setAutoPayUpiEligible(false);
+				lendingApplicationDetails.setNachEligible(true);
+			}
+
+			lendingApplicationDetails.setMandateFlagsToggledOn(new Date());
+			logger.info("Mandate flags toggled on for applicationId: {}, setting autoPayUpiEligible: {}, nachEligible: {}",
+					lendingApplicationDetails.getApplicationId(), lendingApplicationDetails.isAutoPayUpiEligible(), lendingApplicationDetails.isNachEligible());
+			lendingApplicationDetailsDao.save(lendingApplicationDetails);
+			logger.info("Successfully updated mandate columns in LendingApplicationDetails: {}", lendingApplicationDetails);
+		} catch (Exception e) {
+			logger.error("Error while updating mandate columns in LendingApplicationDetails: {}, Stack: {}",
+					e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+	}
+
+	public void updateNachDetailsIfNachIneligible(LendingApplication lendingApplication) {
+		if(StringUtils.isEmpty(lendingApplication.getNachType())) {
+			logger.info("Nach Type is empty, means UPI Autopay is not done, setting Nach Type to ENACH even though Nach is not eligible for applicationId: {}", lendingApplication.getId());
+			lendingApplication.setNachType("ENACH");
+		}
+		lendingApplication.setNachLender(enachServiceLenderMapper(lendingApplication.getLender()));
+		lendingApplication.setNachReferenceNumber(null);
+		lendingApplication.setNachStatus("APPROVED");
+
+		lendingApplicationDao.save(lendingApplication);
+	}
+
+	public boolean isLendingApplicationIneligibleForNach(LendingApplication lendingApplication){
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		if(!ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()) {
+			logger.info("Lending Application is ineligible for Nach, applicationId: {}", lendingApplication.getId());
+			return true;
+		}
+		return false;
+	}
+
 	public boolean isUpiDedicatedScreenEligible(LendingApplication lendingApplication){
 		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
 			return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
 		}
 		return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent);
+	}
+
+	public boolean isMandateSwitchEnabled(LendingApplication lendingApplication){
+		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent);
 	}
 }
 

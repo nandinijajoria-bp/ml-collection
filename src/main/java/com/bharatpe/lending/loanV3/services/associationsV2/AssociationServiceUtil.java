@@ -23,8 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 @Component
 public class AssociationServiceUtil {
     @Autowired
@@ -192,6 +190,7 @@ public class AssociationServiceUtil {
     TLTopupUndoApproveService tlTopupUndoApproveService;
 
     @Autowired
+    @Lazy
     TLTopupDataService tlTopupDataService;
 
     @Autowired
