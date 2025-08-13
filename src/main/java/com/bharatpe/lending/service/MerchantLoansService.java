@@ -1747,15 +1747,6 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
-                if (PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
-                    LendingApplicationLenderDetailsSlave lendingApplicationLenderDetails = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingPaymentSchedule.getNbfc());
-                    if (!payUKycService.invokeKycValidity(lendingApplication.getId(), lendingApplicationLenderDetails.getLeadId())) {
-                        addRejectionReason(eligiblity, "Payu parent application kyc is not valid for this merchant");
-                        log.info("Payu parent application kyc is not valid for this merchantId: {}", lendingPaymentSchedule.getMerchantId());
-                        return eligiblity;
-                    }
-                }
-
                 Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
                 if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, settlementAmount);
@@ -2525,6 +2516,14 @@ public class MerchantLoansService {
                      log.info("BRE for liquiloans balance transfer application {} already failed with reason {} for merchantId {}", prevApplication.getId(), lendingApplicationLenderDetailsSlave.getBreRejectionReason(), lendingPaymentSchedule.getMerchantId());
                      return true;
                  }
+            }
+        }
+
+        if (PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+            LendingApplicationLenderDetailsSlave lendingApplicationLenderDetails = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingPaymentSchedule.getNbfc());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || !payUKycService.invokeKycValidity(lendingApplication.getId(), lendingApplicationLenderDetails.getLeadId())) {
+                log.info("Payu parent application kyc is not valid for this merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                return true;
             }
         }
         return false;
