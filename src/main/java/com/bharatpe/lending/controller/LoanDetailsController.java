@@ -2,6 +2,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.common.entity.LenderMetricsHistory;
 import com.bharatpe.lending.common.entity.OfferRankingConfig;
 import com.bharatpe.lending.common.enums.RankingType;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -9,7 +10,6 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LenderMetricsHistory;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.TopupEligibilityResponseData;
