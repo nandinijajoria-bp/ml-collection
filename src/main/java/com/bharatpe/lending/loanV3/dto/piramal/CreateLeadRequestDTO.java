@@ -1,12 +1,10 @@
 package com.bharatpe.lending.loanV3.dto.piramal;
 
-import com.bharatpe.lending.enums.Lender;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.joda.time.DateTime;
 
 import java.util.Date;
 import java.util.List;
@@ -121,6 +119,8 @@ public class CreateLeadRequestDTO {
                  String businessType;
                  Double monthlyIncome;
                  Double annualIncome;
+                 Double monthlyObligations;
+
                  Applicant.Address businessAddress;
                  String industry;
                  String subIndustry;
@@ -211,6 +211,7 @@ public class CreateLeadRequestDTO {
             Integer existingLoanCurrentDpd;
             String loanDetailsDate;
             PartnerVerificationDetails partnerVerificationDetails;
+            String customerSegment;
 
         }
 
