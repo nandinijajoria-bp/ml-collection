@@ -258,7 +258,7 @@ public class BreRequestKafka {
                             .modifyLender(false)
                             .manageState(true)
                             .build();
-                    log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForecosureThreshodAmountCheckABFL,lendingApplication.get().getId());
+                    log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForeclosureThreshodAmountCheckABFL,lendingApplication.get().getId());
                     existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
                     existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
