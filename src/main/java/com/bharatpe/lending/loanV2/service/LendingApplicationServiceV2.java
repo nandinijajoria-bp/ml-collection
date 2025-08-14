@@ -66,6 +66,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
@@ -425,6 +426,12 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     HTMLEditor htmlEditor;
+
+    @Autowired
+    LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
+
+    @Autowired
+    LendingApplicationServiceV3Base lendingApplicationServiceV3Base;
 
     @Autowired
     LendingEligibleLoanAuditDao eligibleLoanAuditDao;
@@ -958,6 +965,11 @@ public class LendingApplicationServiceV2 {
                 //ADD assign lender logic here to save the updated lender details
                 //lenderAssignService.assignLender(lendingApplication.getId(), merchant, applicationRequest);
 
+                Map<String, Object> response = assignLender(lendingApplication.getId(), merchant, applicationRequest);
+                if (Objects.nonNull(response) && response.containsKey("success") && response.get("success").equals(true)){
+                    updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
+                    AsyncLoggerUtil.logInfo(log, "lender assigned successfully", response);
+                }
                 updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 AddressValidationDto addressValidationDto = null;
                 if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {
@@ -985,13 +997,13 @@ public class LendingApplicationServiceV2 {
         String oldLender = lendingApplication.getLender();
         lendingApplication.setLender(createApplicationRequest.getEligibleLoanUpdateRequestDTO().getLender());
         lendingApplicationDao.save(lendingApplication);
-        updateOfferDetails(lendingApplication, lender.name());
-        log.info("assigning lender:{} for application:{}", lender, lendingApplication.getId());
-        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(lender.name());
+        //updateOfferDetails(lendingApplication, lender.name());
+        log.info("assigning lender:{} for application:{}", createApplicationRequest.getEligibleLoanDTO().getLender(), lendingApplication.getId());
+        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(createApplicationRequest.getEligibleLoanDTO().getLender());
         if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
-            updateLenderLimits(lendingLenderQuota, lendingApplication);
+            lenderAssignService.updateLenderLimits(lendingLenderQuota, lendingApplication);
         }
-        saveLenderChangeAudit(lendingApplication, lender.name(), oldLender);
+        lenderAssignService.saveLenderChangeAudit(lendingApplication, createApplicationRequest.getEligibleLoanDTO().getLender() , oldLender);
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingApplicationDetails)){
             lendingApplicationDetails = new LendingApplicationDetails();
