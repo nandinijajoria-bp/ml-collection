@@ -689,6 +689,7 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setApr(eligibleLoanDTO.getApr() != null ? eligibleLoanDTO.getApr() : null);
             eligibleLoan.setIrr(eligibleLoanDTO.getIrr() != null ? eligibleLoanDTO.getIrr() : null);
             eligibleLoan.setUpdatedAt(new Date());
+            eligibleLoan.setOfferType("CUSTOM");
 
             LendingEligibleLoan savedLoan = eligibleLoanDao.save(eligibleLoan);
             AsyncLoggerUtil.logInfo(log, "Eligible loan updated for merchantId: {}, data: {}", merchantId, savedLoan);

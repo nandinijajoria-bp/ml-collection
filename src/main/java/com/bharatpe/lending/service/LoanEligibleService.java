@@ -506,11 +506,10 @@ public class LoanEligibleService {
             if (openApplication != null) {
                 AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
                 List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(openApplication.getId());
-                int tenure = openApplication.getTenureInMonths();
                 AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
 
                 for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
-                    if (loan.getTenureInMonths() != null && loan.getTenureInMonths().equals(tenure) && loan.getEligibleLenders() != null) {
+                    if (loan.getEligibleLenders() != null) {
                         loan.getEligibleLenders().removeAll(alreadyAssignedLender);
                     }
                 }
@@ -524,6 +523,7 @@ public class LoanEligibleService {
                         List<EligibleOffersResponseDTO.LenderData> lenderDataForLoan = getLenderData(
                                 loan.getEligibleLenders(), loan, lendingRiskVariables, merchantId);
 
+                        //modify this
                         List<String> rejectedLenders = activeLenders.stream()
                                 .filter(lender -> !loan.getEligibleLenders().contains(lender))
                                 .collect(Collectors.toList());
@@ -536,8 +536,11 @@ public class LoanEligibleService {
 
                         List<LenderMetricsHistory> lenderMetricsHistoryList = lenderMetricsHistoryDao.findByLenderInAndIsLenderSwitchedOffFalse(lenderNames);
 
+                        //check with rule Engine
+
                         List<OfferRankingConfig> initialOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
-                        List<OfferRankingConfig> fallbackOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
+                        //optimise this only call if initialOfferRankingConfigs size is 0.
+                        List<OfferRankingConfig> fallbackOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.FALLBACK);
 
 
                         List<String> initialLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,initialOfferRankingConfigs, RankingType.INITIAL, initalLendersLimit,merchantId, loan.getTenureInMonths() );
@@ -602,10 +605,6 @@ public class LoanEligibleService {
         final String METHOD = "lenderAssignmentHandlerV1";
         AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Processing {} eligible loans for merchantId: {}", METHOD, eligibleLoans.size(), merchantId);
 
-       /* List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
-        log.info("Already assigned lenders for applicationId : {} {}", application.get().getId(), alreadyAssignedLender);
-        List<String> availableLenders = initialEligibleLenders.stream().filter(lender -> !alreadyAssignedLender.contains(lender)).collect(Collectors.toCollection(ArrayList::new));
-*/
         try {
             // Fetch risk variables for merchant
             LendingRiskVariables lendingRiskVariables;
