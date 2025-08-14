@@ -51,7 +51,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null)){
-            lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_AGGREGATION);
+            lendingStateDTO.setLendingViewStates(LendingViewStates.OFFER_EVALUATION_PAGE);
         } else if(lendingStateDTO.getData().getIsPreapprovedRepeatLoan()){
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
         } else{
@@ -122,7 +122,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     private void trackFunnelEvent(String merchantId, FunnelEnums.StageEvent stageEvent) {
         try {
-            funnelService.submitEventV3(Long.valueOf(merchantId),null, null,  FunnelEnums.StageId.OFFER_EVALUATION, stageEvent , null, null);
+            funnelService.submitEventV3(Long.valueOf(merchantId),null, null,  FunnelEnums.StageId.OFFER_EVALUATION_PAGE, stageEvent , null, null);
         } catch (Exception e) {
             log.error("Error tracking funnel event for merchant {}: {}", merchantId, e.getMessage());
         }
@@ -144,7 +144,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
         lendingApplicationDao.save(lendingApplication);
 
-        funnelService.submitEventV3(Long.valueOf(merchantId),null, null, FunnelEnums.StageId.OFFER_EVALUATION,
+        funnelService.submitEventV3(Long.valueOf(merchantId),null, null, FunnelEnums.StageId.OFFER_EVALUATION_PAGE,
                 FunnelEnums.StageEvent.REJECTED, null, null);
     }
 

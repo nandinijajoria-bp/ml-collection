@@ -38,5 +38,6 @@ public class EligibleLoanDTO {
     private Double processingFeeRate;
     private Double apr;
     private Double irr;
+    private String lender;
     private List<String> eligibleLenders;
 }

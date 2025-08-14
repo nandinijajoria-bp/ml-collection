@@ -40,6 +40,7 @@ import com.bharatpe.lending.constant.PaymentConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exceptions.DowngradeConfigNotFoundException;
@@ -650,47 +651,45 @@ public class LendingApplicationServiceV2 {
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
     }
 
-    public void updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO eligibleLoanUpdateRequestDTO) {
+    public void updateEligibleLoan(Long merchantId, EligibleLoanDTO eligibleLoanDTO) {
         log.info("Updating eligible loan for merchantId: {}", merchantId);
 
         try {
-            if (Objects.isNull(merchantId) || Objects.isNull(eligibleLoanUpdateRequestDTO)) {
-                AsyncLoggerUtil.logError(log,"MerchantId or EligibleLoanUpdateRequestDTO is null for merchantId: {}", merchantId);
+            if (Objects.isNull(merchantId) || Objects.isNull(eligibleLoanDTO)) {
+                AsyncLoggerUtil.logError(log, "MerchantId or EligibleLoanDTO is null for merchantId: {}", merchantId);
+                return;
             }
 
-            // Find existing eligible loan or create new one
-            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, "CUSTOM");;
+            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, eligibleLoanDTO.getOfferType());
             if (eligibleLoan == null) {
                 eligibleLoan = new LendingEligibleLoan();
                 eligibleLoan.setMerchantId(merchantId);
                 eligibleLoan.setCreatedAt(new Date());
             }
 
-            // Map fields from DTO to entity
-            eligibleLoan.setCategory(eligibleLoanUpdateRequestDTO.getCategory());
-            eligibleLoan.setAmount(eligibleLoanUpdateRequestDTO.getAmount());
-            eligibleLoan.setTenure(String.valueOf(eligibleLoanUpdateRequestDTO.getTenure()));
-            eligibleLoan.setEdi(eligibleLoanUpdateRequestDTO.getEdi());
-            eligibleLoan.setIoEdi(eligibleLoanUpdateRequestDTO.getIoEdi());
-            eligibleLoan.setIoEdiDays(eligibleLoanUpdateRequestDTO.getIoEdiDays());
-            eligibleLoan.setEdiFreeDays(eligibleLoanUpdateRequestDTO.getEdiFreeDays());
-            eligibleLoan.setRepayment(eligibleLoanUpdateRequestDTO.getRepayment());
-            eligibleLoan.setEdiCount(eligibleLoanUpdateRequestDTO.getEdiDays());
-
-            // Set additional properties
-            eligibleLoan.setOfferType("CUSTOM");
+            eligibleLoan.setCategory(eligibleLoanDTO.getCategory() != null ? eligibleLoanDTO.getCategory() : null);
+            eligibleLoan.setAmount(eligibleLoanDTO.getAmount() != null ? eligibleLoanDTO.getAmount() : null);
+            eligibleLoan.setTenure(eligibleLoanDTO.getTenure() != null ? String.valueOf(eligibleLoanDTO.getTenure()) : null);
+            eligibleLoan.setEdi(eligibleLoanDTO.getEdi() != null ? eligibleLoanDTO.getEdi() : null);
+            eligibleLoan.setIoEdi(eligibleLoanDTO.getIoEdi() != null ? eligibleLoanDTO.getIoEdi() : null);
+            eligibleLoan.setIoEdiDays(eligibleLoanDTO.getIoEdiDays() != null ? eligibleLoanDTO.getIoEdiDays() : null);
+            eligibleLoan.setEdiFreeDays(eligibleLoanDTO.getEdiFreeDays() != null ? eligibleLoanDTO.getEdiFreeDays() : null);
+            eligibleLoan.setRepayment(eligibleLoanDTO.getRepayment() != null ? eligibleLoanDTO.getRepayment() : null);
+            eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount() != null ? eligibleLoanDTO.getEdiCount() : null);
+            eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType() != null ? eligibleLoanDTO.getOfferType() : null);
+            eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest() != null ? eligibleLoanDTO.getRateOfInterest() : null);
+            eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee() != null ? eligibleLoanDTO.getProcessingFee() : null);
+            eligibleLoan.setApr(eligibleLoanDTO.getApr() != null ? eligibleLoanDTO.getApr() : null);
+            eligibleLoan.setIrr(eligibleLoanDTO.getIrr() != null ? eligibleLoanDTO.getIrr() : null);
             eligibleLoan.setUpdatedAt(new Date());
 
-            // Save the entity
             LendingEligibleLoan savedLoan = eligibleLoanDao.save(eligibleLoan);
-            AsyncLoggerUtil.logInfo(log,"Eligible loan custom offer saved for merchantId: {}, data: {}", merchantId, savedLoan);
+            AsyncLoggerUtil.logInfo(log, "Eligible loan updated for merchantId: {}, data: {}", merchantId, savedLoan);
 
-            // Save audit entry
             eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(savedLoan));
 
         } catch (Exception e) {
-            AsyncLoggerUtil.logError(log,"Error occurred while creating custom offer for merchantId: {}, error: {}",
-                    merchantId, Arrays.toString(e.getStackTrace()), e);
+            AsyncLoggerUtil.logError(log, "Exception while updating eligible loan for merchantId: {} {}", merchantId, e.getMessage());
         }
     }
 
@@ -712,17 +711,16 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
+        boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
         if (applicationRequest.getApplicationId() == null) {
             if(isApplicableForAggregationFlow) {
-                updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanUpdateRequestDTO());
+                updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 return createNewApplicationV2(merchant, applicationRequest);
             }
             else
                 return createNewApplication(merchant, applicationRequest);
         } else {
             if (isApplicableForAggregationFlow) {
-                updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanUpdateRequestDTO());
                 return updateApplicationV2(merchant, applicationRequest);
             } else {
                 return updateApplication(merchant, applicationRequest);
@@ -923,7 +921,7 @@ public class LendingApplicationServiceV2 {
         try {
             LendingApplication lendingApplication =
                     lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationRequest.getApplicationId(), merchant.getId(),
-                            "draft");
+                            ApplicationStatus.DRAFT.name());
             if (lendingApplication == null) {
                 LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationRequest.getApplicationId());
                 if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
@@ -956,20 +954,62 @@ public class LendingApplicationServiceV2 {
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
                 return new ApiResponse<>(false, "Draft application not found");
             }
-            AddressValidationDto addressValidationDto = null;
-            if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {
-                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
-                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
-                    log.info("address quality score less than 20");
-                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+            else {
+                //ADD assign lender logic here to save the updated lender details
+                //lenderAssignService.assignLender(lendingApplication.getId(), merchant, applicationRequest);
+
+                updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
+                AddressValidationDto addressValidationDto = null;
+                if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {
+                    addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
+                    if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                        log.info("address quality score less than 20");
+                        return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+                    }
                 }
+                updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
+                return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
             }
-            updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
-            return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
             log.error("Exception in updateApplication for merchant:{} {}", merchant.getId(), e.getMessage());
             return new ApiResponse<>(false, "Something went wrong");
         }
+    }
+
+    public Map<String, Object> assignLender(Long applicationId, BasicDetailsDto merchantDetails, CreateApplicationRequest createApplicationRequest) {
+        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantDetails.getId());
+        if(ObjectUtils.isEmpty(lendingApplication)){
+            log.error("application not found with id :{}", applicationId);
+
+        }
+        String oldLender = lendingApplication.getLender();
+        lendingApplication.setLender(createApplicationRequest.getEligibleLoanUpdateRequestDTO().getLender());
+        lendingApplicationDao.save(lendingApplication);
+        updateOfferDetails(lendingApplication, lender.name());
+        log.info("assigning lender:{} for application:{}", lender, lendingApplication.getId());
+        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(lender.name());
+        if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
+            updateLenderLimits(lendingLenderQuota, lendingApplication);
+        }
+        saveLenderChangeAudit(lendingApplication, lender.name(), oldLender);
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+            lendingApplicationDetails = new LendingApplicationDetails();
+            lendingApplicationDetails.setApplicationId(lendingApplicationDetails.getId());
+        }
+        lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
+        lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
+        lendingApplicationDetailsDao.save(lendingApplicationDetails);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", !ObjectUtils.isEmpty(lendingApplication));
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication);
+        LendingApplicationKycDetails lendingApplicationKycDetails = null;
+        if(bpKycRequired){
+            lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), oldLender);
+        }
+        response.put("bpKycRequired", !ObjectUtils.isEmpty(lendingApplicationKycDetails));
+        return response;
     }
 
 
@@ -1001,7 +1041,7 @@ public class LendingApplicationServiceV2 {
         }
 
         lendingApplication.setMerchantName(merchantBasicDetails.getBeneficiaryName());
-        lendingApplication.setLender(lendingApplicationRequest.getEligibleLoanUpdateRequestDTO().getLender());
+        lendingApplication.setLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));

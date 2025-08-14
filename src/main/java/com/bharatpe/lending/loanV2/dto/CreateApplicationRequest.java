@@ -21,5 +21,6 @@ public class CreateApplicationRequest {
     private String businessName;
     private Boolean currentAddressSameAsPermanentAddress;
     private String ip;
+    private EligibleLoanDTO eligibleLoanDTO;
     private EligibleLoanUpdateRequestDTO eligibleLoanUpdateRequestDTO;
 }

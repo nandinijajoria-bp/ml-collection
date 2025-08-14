@@ -36,6 +36,7 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.*;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -267,6 +268,9 @@ public class LoanEligibleService {
     LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
 
     @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
     @Autowired
@@ -496,6 +500,21 @@ public class LoanEligibleService {
             }
 
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders = new ArrayList<>();
+
+            LendingApplication openApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.DRAFT.name());
+
+            if (openApplication != null) {
+                AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
+                List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(openApplication.getId());
+                int tenure = openApplication.getTenureInMonths();
+                AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
+
+                for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
+                    if (loan.getTenureInMonths() != null && loan.getTenureInMonths().equals(tenure) && loan.getEligibleLenders() != null) {
+                        loan.getEligibleLenders().removeAll(alreadyAssignedLender);
+                    }
+                }
+            }
 
             // Process each eligible loan
             for (EligibleLoanDTO loan : eligibleOffersWithLenders) {

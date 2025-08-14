@@ -3418,7 +3418,7 @@ public class LoanUtil {
 				.createdAt(new Date())
 				.updatedAt(new Date())
 				.source("LENDING")
-				.remarks("Audit trail created for SHOP_DETAILS")
+				.remarks("Audit trail created for CreateApplication")
 				.build();
 		saveLendingAuditTrailToBQ(lendingAuditTrailDTO);
 	}
