@@ -622,7 +622,7 @@ public class LoanEligibleService {
                                     rejectedLenders
                             );
                             tenureWithLenders.add(tenureWithLender);
-                            AsyncLoggerUtil.logDebug(logger, "Added tenure option: {} months with {} lenders for merchantId: {}",
+                            AsyncLoggerUtil.logInfo(logger, "Added tenure option: {} months with {} lenders for merchantId: {}",
                                     loan.getTenureInMonths(), lenderDataForLoan.size(), merchantId);
                         }
                     } catch (Exception e) {
@@ -668,7 +668,7 @@ public class LoanEligibleService {
 
             // Convert to DTO for processing
             RiskVariablesDTO baseRiskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
-            AsyncLoggerUtil.logDebug(logger, "{} - Base risk variables obtained for merchantId {}", METHOD, merchantId);
+            AsyncLoggerUtil.logInfo(logger, "{} - Base risk variables obtained for merchantId {}", METHOD, merchantId);
 
             // Process each loan to assign eligible lenders
             for (EligibleLoanDTO loan : eligibleLoans) {
@@ -678,6 +678,9 @@ public class LoanEligibleService {
 
                     // Prepare risk variables for this specific loan
                     RiskVariablesDTO loanRiskVariables = prepareLoanRiskVariables(merchantId, loan, lendingRiskVariables, baseRiskVariables);
+
+                    AsyncLoggerUtil.logInfo(logger, "{} - Prepared risk variables for loan with tenure {} months for merchantId: {}",
+                            METHOD, loan.getTenureInMonths(), merchantId);
 
                     // Fetch applicable lender assignment rules
                     List<LenderAssignmentRules> ruleList = fetchApplicableRules(merchantId, loan, lendingRiskVariables, loanRiskVariables);
@@ -757,7 +760,7 @@ public class LoanEligibleService {
 
             if (experiment != null) {
                 loanRiskVariables.setPricingExperimentMap(Collections.singletonMap(merchantId, experiment));
-                AsyncLoggerUtil.logDebug(logger,"Applied pricing experiment for merchantId {}", merchantId);
+                AsyncLoggerUtil.logInfo(logger,"Applied pricing experiment for merchantId {}", merchantId);
                 return loanRiskVariables;
             }
         }
@@ -781,14 +784,15 @@ public class LoanEligibleService {
     private List<LenderAssignmentRules> fetchApplicableRules(Long merchantId, EligibleLoanDTO loan,
                                                              LendingRiskVariables lendingRiskVariables, RiskVariablesDTO loanRiskVariables) {
 
-        double bureauScore = loanRiskVariables.getBureauScore();
-        String riskSegment = loanRiskVariables.getRiskSegment();
-        String riskGroupLike = loanRiskVariables.getRiskGroupLike();
+        AsyncLoggerUtil.logInfo(logger,"Fetching applicable rules for merchantId: {}, riskVariables: {}", merchantId, loanRiskVariables);
+        double bureauScore = lendingRiskVariables.getBureauScore();
+        String riskSegment = lendingRiskVariables.getRiskSegment();
+        String riskGroupLike = lendingRiskVariables.getRiskGroup();
         String pincodeColor = lendingRiskVariables.getPincodeColor() != null ?
                 "%" + lendingRiskVariables.getPincodeColor().name() + "%" : "";
         String tenure = "%" + loan.getTenureInMonths() + "%";
 
-        AsyncLoggerUtil.logDebug(logger,"Fetching rules: bureau={}, segment={}, tenure={}, amount={}, riskGroup={}, pincodeColor={}",
+        AsyncLoggerUtil.logInfo(logger,"Fetching rules: bureau={}, segment={}, tenure={}, amount={}, riskGroup={}, pincodeColor={}",
                 bureauScore, riskSegment, tenure, loan.getAmount(), riskGroupLike, pincodeColor);
 
         if (loanUtil.isInternalMerchant(merchantId)) {
@@ -1372,6 +1376,7 @@ public class LoanEligibleService {
                 lenderData.setIrr(irr);
                 lenderData.setEdi(edi);
                 lenderData.setProcessingFee(processingFee);
+                lenderData.setRepaymentAmount((int) (edi * eligibleLoanDTO.getEdiCount()));
                 //lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
                 //lenderData.setApprovalRate(getPropensityMatrix(valueOf(lender)));
                 lenderData.setForeClosureDetails(getForeclosureAmount(valueOf(lender)));
