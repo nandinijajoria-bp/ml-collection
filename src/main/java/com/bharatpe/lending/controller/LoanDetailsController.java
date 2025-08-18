@@ -239,6 +239,20 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
 
+	@PostMapping (value = "/topup_eligible_offers", consumes = "application/json", produces = "application/json")
+	public ResponseEntity<TopUpOfferResponseDto> getTopupEligibleOfferDetails(
+			@RequestAttribute BasicDetailsDto merchant,
+			@RequestBody TopUpOfferRequestDto topUpOfferRequestDto) throws BureauCallMaskedApiException {
+		long startTime = System.currentTimeMillis();
+		logger.info("Topup EligibleLendingOffers request with merchant_id: {}, topUpOfferRequestDto: {}", merchant.getId(), topUpOfferRequestDto);
+		TopUpOfferResponseDto resp = loanEligibleService.getTopupEligibilityDetails(merchant.getId(), topUpOfferRequestDto);
+		long endTime = System.currentTimeMillis();
+		long duration = endTime - startTime;
+		logger.info("Topup EligibleLendingOffers response: {}, merchant_id: {}, timeTakenMs: {}",
+				resp, merchant.getId(), duration);
+		return new ResponseEntity<>(resp, HttpStatus.OK);
+	}
+
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute BasicDetailsDto merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
 		logger.info("updateEligibleLoanAmount request with merchant_id: {}, with body: {}", merchant.getId(), requestDTO);
@@ -289,7 +303,7 @@ public class LoanDetailsController {
 			@RequestHeader(value = "token", required = false) String token,
 			@RequestParam(required = false) Long merchantId,
 			@RequestParam(required = false) String clientIdentifier
-	) {
+	) throws Exception {
 		if (Objects.nonNull(merchant)){
 			merchantId = merchant.getId();
 		}
