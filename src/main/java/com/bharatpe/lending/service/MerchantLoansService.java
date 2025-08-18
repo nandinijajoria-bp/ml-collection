@@ -1764,8 +1764,7 @@ public class MerchantLoansService {
                 }
                 double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
                 if (qrPaidRatio <= topupMinQrPaidRatio) {
-                    if(lendingApplication.getTenureInMonths() >= 12 && TRILLIONLOANS.name()
-                            .equalsIgnoreCase(lendingApplication.getLender())) {
+                    if(lendingApplication.getTenureInMonths() >= 12 && (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()))) {
                         logger.info("Skipping QR rejection due to tenure >= 12 and lender is TRILLIONLOANS" +
                                         " for merchant: {}", lendingPaymentSchedule.getMerchantId());
                     } else {
