@@ -1,9 +1,11 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -11,6 +13,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,11 +44,23 @@ public class RiskDecisionSyncService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    private LoanUtil loanUtil;
+
+    @Autowired
+    private LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Value("${topup.foreclosure.threshold.amount.check:10000}")
+    private Double topupForecosureThreshodAmountCheck;
+
     @Value("${piramal.offer.downgrade.threshold:25.0}")
     private Double offerDowngradeThreshold;
 
     @Value("${piramal.bypass.offer.modification:false}")
     private Boolean bypassOfferModification;
+
+    @Value("${topup.foreclosure.threshold.rollout:false}")
+    private Boolean topupForecosureThreshodRollout;
 
     @Autowired
     LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
@@ -79,6 +94,19 @@ public class RiskDecisionSyncService {
 
                 double requestedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount();
                 double approvedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt();
+
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType()) && topupForecosureThreshodRollout){
+                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lenderAssociationDetailsRequestDto.getMerchantId(), "ACTIVE");
+                    double foreclosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+                    double newAmount = approvedLoanAmount - foreclosureAmount;
+                    if(newAmount <= topupForecosureThreshodAmountCheck){
+                        log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForecosureThreshodAmountCheck, lenderAssociationDetailsRequestDto.getLendingApplication().getId());
+                        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
+                        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                        commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
+                    }
+                    return false;
+                }
 
                 // If approved loan amount is less than requested loan amount, proceed with downgrade checks
                 if (approvedLoanAmount < requestedLoanAmount) {

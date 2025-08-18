@@ -3,6 +3,7 @@ package com.bharatpe.lending.constant;
 import com.bharatpe.lending.enums.ReferenceRelation;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -229,6 +230,9 @@ public interface LendingConstants {
 		put("spouse", HUSBAND_WIFE);
 		put("wife", HUSBAND_WIFE);
 	}};
+
+	List<String> TPV_500_IDENTIFIERS = Collections.unmodifiableList(Arrays.asList("Inactive_lowTPV_SMS","Active_lowTPV_SMS"));
+
 }
 
 

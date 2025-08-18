@@ -20,6 +20,8 @@ import com.bharatpe.lending.dto.vkyc.response.VKycInitiateResponseDto;
 import com.bharatpe.lending.dto.vkyc.response.VkycEligibilityResponseDto;
 import com.bharatpe.lending.dto.vkyc.response.VkycStatusResponseDto;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.lendingplatform.lending.service.VkycServiceV2;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -31,6 +33,8 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -38,6 +42,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
+
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.CREDITSAISON;
 
 @Slf4j
 @Service
@@ -53,6 +59,12 @@ public class VKycService {
     private final EasyLoanUtil easyLoanUtil;
     private final LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
     private final LoanDetailsV3Service loanDetailsV3Service;
+    private final RolloutUtil rolloutUtil;
+
+    @Autowired
+    @Lazy
+    private VkycServiceV2 vkycServiceV2;
+
 
     private static final String LENDING = "LENDING";
 
@@ -102,6 +114,16 @@ public class VKycService {
                 log.info("No vkyc details found or vkyc not eligible for given lender {} and applicationId {} for initiate vkyc", lendingApplication.getLender(), applicationId);
                 return new ApiResponse<>(false, null, "No vkyc details found or vkyc not eligible for given lender");
             }
+
+// Handles vKYC initiation specifically for Credit Saison when vKYC is enabled for the merchant
+            if (CREDITSAISON.name().equalsIgnoreCase(lender)) {
+                if (rolloutUtil.isEligibleForCreditSaisonVkyc(merchantId)) {
+                    return vkycServiceV2.processVKycInitiation(lendingApplication, lenderDetails, vkycDetails, isRetry);
+                }
+                log.error("CreditSaison vkyc is not enabled after intiate vkyc Call for merchantId: {}, applicationId: {}, lender: {}", merchantId, applicationId, lender);
+                return new ApiResponse<>(false, null, "CreditSaison vkyc is not enabled for this merchant");
+            }
+
             if (isDisableInitiateVkycSession(vkycDetails)) {
                 log.info("Initiate vkyc session is disabled for given lender {} and applicationId {}", lendingApplication.getLender(), applicationId);
                 return new ApiResponse<>(false, null, "Initiate vkyc session is disabled for this application id");
@@ -327,10 +349,22 @@ public class VKycService {
     }
 
     public Boolean isVkycEnabled(Long merchantId, String lender, Boolean topup) {
-        boolean isEnabled = false;
-        if (!ObjectUtils.isEmpty(merchantId) && !ObjectUtils.isEmpty(lender)) {
-            isEnabled = !topup && vkycConfig.getEnabledLenders().contains(lender) && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
+        if (ObjectUtils.isEmpty(merchantId) || ObjectUtils.isEmpty(lender)) {
+            log.info("Reason: merchantId or lender is empty | vkyc enabled: {} | merchantId: {} | lender: {}", false, merchantId, lender);
+            return false;
         }
+
+        // Special handling for CreditSaison
+        if (CREDITSAISON.name().equalsIgnoreCase(lender)) {
+            log.info("CreditSaison checking vkyc eligibility for merchantId {}", merchantId);
+            boolean isEnabled = rolloutUtil.isEligibleForCreditSaisonVkyc(merchantId);
+            log.info("CreditSaison vkyc enabled {} for merchantId {}", isEnabled, merchantId);
+            return isEnabled;
+        }
+
+        boolean isEnabled = !topup && vkycConfig.getEnabledLenders().contains(lender)
+                && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
+
         log.info("vkyc enabled {} for merchantId {} and lender {}", isEnabled, merchantId, lender);
         return isEnabled;
     }
@@ -377,6 +411,11 @@ public class VKycService {
     }
 
     public Boolean rejectApplicationIfRequired(LendingApplication lendingApplication, LendingApplicationVkycDetails vkycDetails, LendingApplicationLenderDetails lenderDetails) {
+        // Need to add checks for CS and applied for if UID or App version is not permitted then we disbursed the loan .
+        if (CREDITSAISON.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            return vkycServiceV2.rejectApplicationIfRequired(lendingApplication, vkycDetails, lenderDetails);
+        }
+
         if (isDisableInitiateVkycSession(vkycDetails) && !ObjectUtils.isEmpty(vkycDetails.getDkycEligible()) && !vkycDetails.getDkycEligible()) {
             log.info("vkyc session status is {} for applicationId {} and no dkyc option available, rejecting application", vkycDetails.getSessionStatus(), lendingApplication.getId());
             vkycDetails.setStatus(VkycStatus.VKYC_HARD_FAILED);

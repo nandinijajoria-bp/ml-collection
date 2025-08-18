@@ -25,6 +25,8 @@ import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
+import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
 import com.bharatpe.lending.lendingplatform.lms.service.LoanDisplayService;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
@@ -319,6 +321,12 @@ public class MerchantLoansService {
 
     @Autowired
     PayUKycService payUKycService;
+
+    @Autowired
+    private LmsLoanDetailsService lmsLoanDetailsService;
+
+    @Autowired
+    private LmsPaymentDetailsDao lmsPaymentDetailsDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -1747,15 +1755,6 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
-                if (PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
-                    LendingApplicationLenderDetailsSlave lendingApplicationLenderDetails = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingPaymentSchedule.getNbfc());
-                    if (!payUKycService.invokeKycValidity(lendingApplication.getId(), lendingApplicationLenderDetails.getLeadId())) {
-                        addRejectionReason(eligiblity, "Payu parent application kyc is not valid for this merchant");
-                        log.info("Payu parent application kyc is not valid for this merchantId: {}", lendingPaymentSchedule.getMerchantId());
-                        return eligiblity;
-                    }
-                }
-
                 Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
                 if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, settlementAmount);
@@ -2192,6 +2191,10 @@ public class MerchantLoansService {
         List<LendingPaymentScheduleSlave> activeLoans = fetchLendingPaymentScheduleSlave(basicDetailsDto.getId(), merchantStoreId, "ACTIVE");
         if (!activeLoans.isEmpty()) {
             for (LendingPaymentScheduleSlave activeLoan : activeLoans) {
+                if (ONE_LMS.equalsIgnoreCase(activeLoan.getLmsSource())) {
+                    dueAmount += getDueAmountFor1LMSLoan(activeLoan);
+                    continue;
+                }
                 dueAmount += activeLoan.getDueAmount();
                 dueAmount += Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0d;
             }
@@ -2207,6 +2210,36 @@ public class MerchantLoansService {
         responseMap.put("due_amount", dueAmount);
         cacheDueAmtData(dueAmount,dueAmountCacheKey, dueAmountCachingWindow);
         return new CommonResponse(responseMap);
+    }
+
+    private double getDueAmountFor1LMSLoan(LendingPaymentScheduleSlave activeLoan) {
+        double dueAmount = 0d;
+        LoanDetailsResponse loanDetailsResponse;
+        try {
+            loanDetailsResponse = lmsLoanDetailsService.getLoanSummaryFromOneLms(activeLoan.getLoanApplication().getExternalLoanId());
+            if (!ObjectUtils.isEmpty(loanDetailsResponse)
+                    && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary())) {
+                if (!ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount())) {
+                    dueAmount += loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount().doubleValue();
+                }
+                if (!ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary().getOverdueOtherCharges())) {
+                    dueAmount += loanDetailsResponse.getLoanSummary().getOverdueOtherCharges().doubleValue();
+                }
+            }
+            double pendingSettlement = fetchPendingAmountForSettlement(activeLoan.getLoanApplication().getExternalLoanId());
+            dueAmount -= pendingSettlement;
+        } catch (Exception e) {
+            log.error("Unable to fetch Due amount of 1LMS loan: {}, error:{}", activeLoan.getApplicationId(), e.getMessage(), e);
+        }
+        return dueAmount;
+    }
+
+    private double fetchPendingAmountForSettlement(String externalLoanId) {
+        List<BigDecimal> lmsPendingSettlement =
+                lmsPaymentDetailsDao.getAmountForBpLoanIdByStatus(
+                        Arrays.asList(LMSPaymentStatus.INIT.name(), LMSPaymentStatus.PENDING.name(), LMSPaymentStatus.FAILED.name()),
+                        externalLoanId);
+        return lmsPendingSettlement.stream().mapToDouble(BigDecimal::doubleValue).sum();
     }
 
     private void cacheDueAmtData(Double dueAmt, String key, int ttl) {
@@ -2525,6 +2558,14 @@ public class MerchantLoansService {
                      log.info("BRE for liquiloans balance transfer application {} already failed with reason {} for merchantId {}", prevApplication.getId(), lendingApplicationLenderDetailsSlave.getBreRejectionReason(), lendingPaymentSchedule.getMerchantId());
                      return true;
                  }
+            }
+        }
+
+        if (PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+            LendingApplicationLenderDetailsSlave lendingApplicationLenderDetails = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingPaymentSchedule.getNbfc());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || !payUKycService.invokeKycValidity(lendingApplication.getId(), lendingApplicationLenderDetails.getLeadId())) {
+                log.info("Payu parent application kyc is not valid for this merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                return true;
             }
         }
         return false;

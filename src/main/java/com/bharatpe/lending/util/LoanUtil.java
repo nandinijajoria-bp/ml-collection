@@ -128,6 +128,7 @@ public class LoanUtil {
 	LendingCovidCitiesDao lendingCovidCitiesDao;
 
 	@Autowired
+	@Lazy
 	LoanDetailsServiceV2 loanDetailsServiceV2;
 
 	@Autowired
@@ -458,6 +459,9 @@ public class LoanUtil {
 
 	private Map<String, Double> nachBounceAmountConfig;
 
+	@Value("#{${upi.autopay.tpv.check.rollout:{\"TRILLIONLOANS\": 100}}}")
+	private Map<String, Integer> upiAutopayTpvCheckRollout;
+
 	@PostConstruct
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
@@ -534,27 +538,6 @@ public class LoanUtil {
 
 		rteEligibleMerchants = readCsvFile(filePath);
 		return rteEligibleMerchants;
-	}
-
-	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
-		Map<String, Object> selectedLoan = new LinkedHashMap<>();
-
-		selectedLoan.put("amount", application.getLoanAmount().intValue());
-		selectedLoan.put("category", application.getCategory());
-		selectedLoan.put("construct", application.getLoanConstruct());
-		selectedLoan.put("tenure", application.getTenure());
-		selectedLoan.put("id", application.getId());
-		selectedLoan.put("finance_charge", application.getProcessingFee().intValue());
-		selectedLoan.put("edi", application.getEdi());
-		selectedLoan.put("edi_duration", application.getPayableDays());
-		selectedLoan.put("interest_rate", application.getInterestRate());
-		selectedLoan.put("repayment", application.getRepayment().intValue());
-		selectedLoan.put("disbursement_amount", application.getLoanAmount().intValue() - application.getProcessingFee().intValue());
-		selectedLoan.put("interest_amount", application.getRepayment().intValue() - application.getLoanAmount().intValue());
-		//selectedLoan.put("installment_details", prepareLabels(application, lendingCategories != null ? lendingCategories.getIoTenureMonths().intValue() : 0));
-		selectedLoan.put("installment_details", new ArrayList<>());
-		selectedLoan.put("lender", application.getLender());
-		return selectedLoan;
 	}
 
 	public boolean isTimeBasedTopupDisabled(String lender) {
@@ -3062,6 +3045,14 @@ public class LoanUtil {
 			logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
 		}
 
+		//Autopay required if a particular identifier is set for the pilot
+		MandatesInJourney overrideMandate = forceSetMandatesForPilotIdentifier(lendingRiskVariablesSnapshot,
+				lendingApplication.getLender(), lendingApplication.getLoanAmount());
+		if (!ObjectUtils.isEmpty(overrideMandate)) {
+			logger.warn("UPI autopay is required for applicationId: {} as overrideMandate is set to {}", lendingApplication.getId(), overrideMandate);
+			return false;
+		}
+
 		String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
 		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
         logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
@@ -3548,6 +3539,24 @@ public class LoanUtil {
 		return NACH;
 	}
 
+	private MandatesInJourney forceSetMandatesForPilotIdentifier(LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot, String lender, Double loanAmount) {
+		// Business rule: Exclude TOPUP loan segments from TPV-based autopay logic.
+		// TOPUP loans are not eligible for UPI Autopay via TPV as per product requirements.
+		if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot) || LoanSegment.TOPUP.name().equals(lendingRiskVariablesSnapshot.getLoanSegment())
+				|| StringUtils.isEmpty(lendingRiskVariablesSnapshot.getPilotIdentifier())) {
+			return null;
+		}
+		String pilotIdentifier = lendingRiskVariablesSnapshot.getPilotIdentifier();
+		Long merchantId = lendingRiskVariablesSnapshot.getMerchantId();
+		boolean hasTpvIdentifier = LendingConstants.TPV_500_IDENTIFIERS.stream()
+				.anyMatch(pilotIdentifier::contains);
+		if (hasTpvIdentifier && easyLoanUtil.percentScaleUp(merchantId, upiAutopayTpvCheckRollout.getOrDefault(lender, 0))) {
+			logger.info("Setting UPI Autopay as TPV flag found for merchantId: {}, lender: {}, loanAmount: {}", merchantId, lender, loanAmount);
+			return UPIAUTOPAY;
+		}
+		return null;
+	}
+
 	private boolean checkIfLoanSegmentValid(NachMandateEligibilityConfig mandateEligibilityConfig, String loanSegment) {
 		try {
 			if (mandateEligibilityConfig == null)  return false; // If mandateEligibilityConfig is null, return false
@@ -3609,7 +3618,13 @@ public class LoanUtil {
 				logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplicationDetails.getApplicationId());
 			}
 			String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
-			MandatesInJourney mandatesInJourney = getMandatesRequiredForApplication(lender, loanAmount, loanSegment);
+			MandatesInJourney mandatesInJourney = forceSetMandatesForPilotIdentifier(lendingRiskVariablesSnapshot, lender, loanAmount);
+			if (ObjectUtils.isEmpty(mandatesInJourney)) {
+				mandatesInJourney = getMandatesRequiredForApplication(lender, loanAmount, loanSegment);
+			} else {
+				logger.info("Using forced mandatesInJourney: {} for applicationId: {}, lender: {}, loanAmount: {}",
+						mandatesInJourney, lendingApplicationDetails.getApplicationId(), lender, loanAmount);
+			}
 
 			if (NACH_UPIAUTOPAY.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(true);

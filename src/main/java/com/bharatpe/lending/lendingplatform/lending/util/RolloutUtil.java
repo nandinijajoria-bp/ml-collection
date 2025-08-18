@@ -25,10 +25,7 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.CREDITSAISON;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.OXYZO;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.TRILLIONLOANS;
+import java.util.Objects;
 
 
 @Component
@@ -38,28 +35,23 @@ public class RolloutUtil {
 
 	private List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 
-	@Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS,OXYZO}")
-	private List<String> eligibleLenders;
-	@Value("${lending.platform.nbfc.eligible.merchants:20000100}")
-	private List<Long> eligibleMerchants;
-	@Value("${lending.platform.nbfc.enable:false}")
-	private boolean nbfcFlowEnable;
-	@Value("${lending.platform.underwriting.flow.enabled:false}")
+    // --- Feature: NBFC Flow ---
+    @Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS,OXYZO}")
+    private List<String> eligibleLenders;
+    @Value("${lending.platform.nbfc.eligible.merchants:20000100}")
+    private List<Long> eligibleMerchants;
+    @Value("${lending.platform.nbfc.enable:false}")
+    private boolean nbfcFlowEnable;
+
+    // --- Feature: Underwriting Flow ---
+    @Value("${lending.platform.underwriting.flow.enabled:false}")
     private boolean isNewUnderwritingFlowEnabled;
     @Value("${lending.platform.underwriting.flow.eligible.merchants:20000100}")
     private List<Long> eligibleUnderwritingMerchants;
     @Value("${lending.platform.underwriting.flow.merchant.rollout:0}")
     private int eligibleUnderwritingMerchantRollout;
-    // CreditSaison specific configurations
-    @Value("${lending.platform.cs.nbfc.merchant.rollout:0}")
-    private int eligibleLendingPlatformCsNbfcMerchantRollout;
 
-    @Value("${lending.platform.cs.nbfc.application.limit:2}")
-    private int lendingPlatformCsNbfcApplicationLimit;
-
-    @Value("${lending.platform.cs.nbfc.enable:false}")
-    private boolean csNbfcFlowEnable;
-
+    // --- Feature: OneLMS Flow ---
     @Value("${new.flow.eligible.lenders.onelms:TRILLIONLOANS}")
     private List<String> eligibleLendersForOneLms;
     @Value("${lending.platform.lms.eligible.merchants:20000100}")
@@ -68,23 +60,10 @@ public class RolloutUtil {
     private int lendingPlatformLmsApplicationLimit;
     @Value("${lending.platform.lms.merchant.rollout:0}")
     private int eligibleLendingPlatformLmsMerchantRollout;
-
     @Value("${new.oneLms.flow.enable:false}")
     private boolean oneLmsFlowEnable;
-    @Value("${lending.platform.oxyzo.enable:false}")
-    private boolean lendingPlatformOxyzoEnable;
-    @Value("${lending.platform.oxyzo.merchant.rollout:0}")
-    private int eligibleLendingPlatformOxyzoMerchantRollout;
-    @Value("${lending.platform.oxyzo.application.limit:0}")
-    private int lendingPlatformOxyzoApplicationLimit;
-    @Value("${lending.platform.trillion.enable:false}")
-    private boolean lendingPlatformTrillionloansEnable;
-    @Value("${lending.platform.trillion.merchant.rollout:0}")
-    private int eligibleLendingPlatformTrillionloansMerchantRollout;
-    @Value("${lending.platform.trillion.application.limit:0}")
-    private int lendingPlatformTrillionloansApplicationLimit;
 
-
+    // --- Feature: Autopay ---
     @Value("${lending.platform.autopay.enable:false}")
     private boolean isAutoPayEnabled;
     @Value("${lending.platform.lms.autopay.upi.eligible.merchants:}")
@@ -94,11 +73,39 @@ public class RolloutUtil {
     @Value("${lending.platform.lms.autopay.upi.application.limit:0}")
     private int lmsAutoPayApplicationLimit;
 
+    // --- Lender: CreditSaison ---
+    @Value("${lending.platform.cs.nbfc.enable:false}")
+    private boolean lendingPlatformCsNbfcFlowEnable;
+    @Value("${lending.platform.cs.nbfc.merchant.rollout:0}")
+    private int eligibleLendingPlatformCsNbfcMerchantRollout;
+    @Value("${lending.platform.cs.nbfc.application.limit:2}")
+    private int lendingPlatformCsNbfcApplicationLimit;
+    @Value("${lending.platform.cs.vkyc.application.percent:1}")
+    private int lendingPlatformCsVkycApplicationPercent;
+    @Value("${lending.platform.cs.vkyc.eligible.merchants:20000100}")
+    private List<Long> eligibleMerchantsForVkyc;
+    @Value("${lending.platform.cs.vkyc.enable:false}")
+    private boolean lendingPlatformCsVkycFlowEnable;
+
+    // --- Lender: Oxyzo ---
+    @Value("${lending.platform.oxyzo.enable:false}")
+    private boolean lendingPlatformOxyzoEnable;
+    @Value("${lending.platform.oxyzo.merchant.rollout:0}")
+    private int eligibleLendingPlatformOxyzoMerchantRollout;
+    @Value("${lending.platform.oxyzo.application.limit:0}")
+    private int lendingPlatformOxyzoApplicationLimit;
+
+    // --- Lender: Trillionloans ---
+    @Value("${lending.platform.trillion.enable:false}")
+    private boolean lendingPlatformTrillionloansEnable;
+    @Value("${lending.platform.trillion.merchant.rollout:0}")
+    private int eligibleLendingPlatformTrillionloansMerchantRollout;
+    @Value("${lending.platform.trillion.application.limit:0}")
+    private int lendingPlatformTrillionloansApplicationLimit;
+
 
     private final LmsLoanStatusDao lmsLoanStatusDao;
-
-
-	private final LendingApplicationLenderDetailsDao laldDao;
+    private final LendingApplicationLenderDetailsDao laldDao;
     private final LendingApplicationDao lendingApplicationDao;
     private final KycUtils kycUtils;
     private final AutoPayUPIDao autoPayUPIDao;
@@ -236,7 +243,7 @@ public class RolloutUtil {
 
     private boolean isEligibleForCreditSaison(LendingApplication lendingApplication, Long merchantId) {
 
-        if (!csNbfcFlowEnable) {
+        if (!lendingPlatformCsNbfcFlowEnable) {
             log.info("Merchant not eligible for new flow due to cs flag config, application: {}", lendingApplication.getId());
             return false;
         }
@@ -328,4 +335,33 @@ public class RolloutUtil {
         return false;
     }
 
+    public boolean isEligibleForCreditSaisonVkyc(Long merchantId) {
+        log.info("CreditSaison vKYC: Checking eligibility for merchantId: {}", merchantId);
+
+        if (!lendingPlatformCsVkycFlowEnable) {
+            log.info("CreditSaison vKYC: is disabled completely");
+            return false;
+        }
+
+        if (!lendingPlatformNbfcFlowApplicable(merchantId)) {
+            log.info("CreditSaison vKYC: MerchantId {} is not eligible for vKYC as new NBFC flow is not applicable", merchantId);
+            return false;
+        }
+
+        // Level 2: VKYC rollout check (independent of level 1's % logic)
+        boolean isEligibleForVkyc = isEligibleByHashedRollout(merchantId, lendingPlatformCsVkycApplicationPercent, "CS_VKYC");
+
+        log.info("CreditSaison vKYC: MerchantId {} VKYC rollout result: {}", merchantId, isEligibleForVkyc);
+        return isEligibleForVkyc;
+    }
+
+    private boolean isEligibleByHashedRollout(Long merchantId, int percent, String rolloutKey) {
+        if (percent <= 0) return false;
+        if (percent >= 100) return true;
+
+        int hash = Math.abs(Objects.hash(merchantId, rolloutKey));
+        int bucket = hash % 100;
+
+        return bucket < percent;
+    }
 }
