@@ -306,6 +306,9 @@ public class MerchantLoansService {
     @Value("${merchant.loan.v2.enabled:0}")
     private Integer merchantLoanV2Enabled;
 
+    @Value("${topup.skip.pos.check.lenders:PIRAMAL,TRILLIONLOANS}")
+    private List<String> LENDER_TO_SKIP_POS_CHECK;
+
     private static final List<String> TOPUP_REJECTION_ENABLED_LENDERS = Arrays.asList(
             LIQUILOANS_P2P.name(),LIQUILOANS_P2P_OF.name(), ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name(), PAYU.name());
 
@@ -1150,7 +1153,7 @@ public class MerchantLoansService {
                 }
 
                 if (lendingApplication.getTenureInMonths() >= 12) {
-                    if (TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D)) {
+                    if (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D)) {
                         log.info("topup tenure {} months of merchantId: {}", lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                         return AdditionalTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, clientIdentifier);
                     } else {
@@ -1795,7 +1798,7 @@ public class MerchantLoansService {
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, settlementAmount);
                 }
                 if (lendingApplication.getTenureInMonths() >= 12 &&
-                        (TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D))) {
+                        (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D))) {
                     logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
