@@ -502,7 +502,7 @@ public class LoanEligibleService {
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders = new ArrayList<>();
 
             LendingApplication openApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.DRAFT.name());
-/
+
             List<LenderMetricsHistory> switchedOffLenders = lenderMetricsHistoryDao.findByIsLenderSwitchedOff(Boolean.TRUE);
 
             List<String> switchedOffLenderNames = switchedOffLenders.stream()
