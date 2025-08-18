@@ -1153,7 +1153,7 @@ public class MerchantLoansService {
                 }
 
                 if (lendingApplication.getTenureInMonths() >= 12) {
-                    if (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D)) {
+                    if (LENDER_TO_SKIP_POS_CHECK.stream().anyMatch(l -> l.equalsIgnoreCase(lendingApplication.getLender())) || (paidRatio > 0.75D && paidRatio <= 0.95D)) {
                         log.info("topup tenure {} months of merchantId: {}", lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                         return AdditionalTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, clientIdentifier);
                     } else {
@@ -1764,9 +1764,9 @@ public class MerchantLoansService {
                 }
                 double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
                 if (qrPaidRatio <= topupMinQrPaidRatio) {
-                    if(lendingApplication.getTenureInMonths() >= 12 && (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()))) {
-                        logger.info("Skipping QR rejection due to tenure >= 12 and lender is TRILLIONLOANS" +
-                                        " for merchant: {}", lendingPaymentSchedule.getMerchantId());
+                    if(lendingApplication.getTenureInMonths() >= 12 && LENDER_TO_SKIP_POS_CHECK.stream().anyMatch(l -> l.equalsIgnoreCase(lendingApplication.getLender()))) {
+                        logger.info("Skipping QR rejection due to tenure >= 12 and lender is {} for merchant: {}",
+                                lendingApplication.getLender(), lendingPaymentSchedule.getMerchantId());
                     } else {
                         addRejectionReason(eligiblity, "QR payment less than 40%");
                         logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio,
@@ -1775,7 +1775,7 @@ public class MerchantLoansService {
                     }
                 }
 
-                if(lendingApplication.getTenureInMonths() >= 12 && (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()))) {
+                if(lendingApplication.getTenureInMonths() >= 12 &&  LENDER_TO_SKIP_POS_CHECK.stream().anyMatch(l -> l.equalsIgnoreCase(lendingApplication.getLender()))) {
                     int ediPaidDays = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
                     if(ediPaidDays <= 120) {
                         addRejectionReason(eligiblity, "Edi paid days is less than 120");
@@ -1796,7 +1796,7 @@ public class MerchantLoansService {
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, settlementAmount);
                 }
                 if (lendingApplication.getTenureInMonths() >= 12 &&
-                        (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D))) {
+                        ((LENDER_TO_SKIP_POS_CHECK.stream().anyMatch(l -> l.equalsIgnoreCase(lendingApplication.getLender()))) || (paidRatio > 0.75D && paidRatio <= 0.95D))) {
                     logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
