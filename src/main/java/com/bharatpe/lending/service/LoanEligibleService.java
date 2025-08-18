@@ -537,14 +537,34 @@ public class LoanEligibleService {
                         List<LenderMetricsHistory> lenderMetricsHistoryList = lenderMetricsHistoryDao.findByLenderInAndIsLenderSwitchedOffFalse(lenderNames);
 
                         //check with rule Engine
-
                         List<OfferRankingConfig> initialOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
-                        //optimise this only call if initialOfferRankingConfigs size is 0.
+
+
+                        List<String> initialLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,initialOfferRankingConfigs, RankingType.INITIAL, initalLendersLimit, merchantId, loan.getTenureInMonths());
+
+                        createAndSaveLendingAuditTrial(
+                                merchantId,
+                                null, // oldStatus, if not applicable
+                                "INITIAL_LENDERS",
+                                "Initial lenders: " + String.join(",", initialLendersList)
+                        );
+
+                        AsyncLoggerUtil.logInfo(logger, "Initial lenders for loan with tenure {} months: {} for merchantId: {}",
+                                loan.getTenureInMonths(), initialLendersList, merchantId);
+
+
                         List<OfferRankingConfig> fallbackOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.FALLBACK);
 
-
-                        List<String> initialLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,initialOfferRankingConfigs, RankingType.INITIAL, initalLendersLimit,merchantId, loan.getTenureInMonths() );
                         List<String> fallbackLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,fallbackOfferRankingConfigs, RankingType.FALLBACK, fallbackLendersLimit, merchantId, loan.getTenureInMonths());
+                        createAndSaveLendingAuditTrial(
+                                merchantId,
+                                null, // oldStatus, if not applicable
+                                "FALLBACK_LENDERS",
+                                "Fallback lenders: " + String.join(",", fallbackLendersList)
+                        );
+
+                        AsyncLoggerUtil.logInfo(logger, "Fallback lenders for loan with tenure {} months: {} for merchantId: {}",
+                                loan.getTenureInMonths(), fallbackLendersList, merchantId);
 
                         Map<String, EligibleOffersResponseDTO.LenderData> lenderDataMap = lenderDataForLoan.stream()
                                 .collect(Collectors.toMap(EligibleOffersResponseDTO.LenderData::getLenderName, Function.identity()));
