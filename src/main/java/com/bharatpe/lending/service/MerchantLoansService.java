@@ -312,7 +312,7 @@ public class MerchantLoansService {
     @Value("${topup.v2.flow.enabled:1}")
     private Integer topupV2FlowEnabled;
 
-    @Value("${topup.v2.flow.lenders:TRILLIONLOANS}")
+    @Value("${topup.v2.flow.lenders:PIRAMAL}")
     private String topupV2FlowLenders;
 
     private static final List<String> TOPUP_REJECTION_ENABLED_LENDERS = Arrays.asList(
@@ -2050,6 +2050,17 @@ public class MerchantLoansService {
                     return ExistingTopupRuleEngineV3(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
 
+                if(lendingApplication.getTenureInMonths() >= 12 &&  LENDER_TO_SKIP_POS_CHECK.stream().anyMatch(l -> l.equalsIgnoreCase(lendingApplication.getLender().trim()))) {
+                    int ediPaidDays = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+                    if(ediPaidDays <= 120) {
+                        addRejectionReason(eligiblity, "Edi paid days is less than 120");
+                        logger.info("Edi paid days is less than {} for tenure {} for merchant: {} and lender: {}", 120,
+                                lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId(),
+                                lendingApplication.getLender());
+                        return eligiblity;
+                    }
+                }
+
                 double paidRatio = 0d;
                 if (lendingPaymentSchedule.getPaidPrinciple() != null && lendingPaymentSchedule.getLoanAmount() != null) {
                     paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
@@ -2068,7 +2079,7 @@ public class MerchantLoansService {
                 }
 
                 if (lendingApplication.getTenureInMonths() >= 12) {
-                    if (TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D)) {
+                    if ((LENDER_TO_SKIP_POS_CHECK.stream().anyMatch(l -> l.equalsIgnoreCase(lendingApplication.getLender().trim()))) || (paidRatio > 0.75D && paidRatio <= 0.95D)) {
                         log.info("topup tenure {} months of merchantId: {}", lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                         return AdditionalTopupRuleEngineV3(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                     } else {
