@@ -1776,8 +1776,7 @@ public class MerchantLoansService {
                     }
                 }
 
-                if(lendingApplication.getTenureInMonths() >= 12 && TRILLIONLOANS.name()
-                        .equalsIgnoreCase(lendingApplication.getLender())) {
+                if(lendingApplication.getTenureInMonths() >= 12 && (LENDER_TO_SKIP_POS_CHECK.contains(lendingApplication.getLender()))) {
                     int ediPaidDays = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
                     if(ediPaidDays <= 120) {
                         addRejectionReason(eligiblity, "Edi paid days is less than 120");
