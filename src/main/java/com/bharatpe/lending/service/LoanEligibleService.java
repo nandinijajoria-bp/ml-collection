@@ -502,6 +502,27 @@ public class LoanEligibleService {
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders = new ArrayList<>();
 
             LendingApplication openApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.DRAFT.name());
+/
+            List<LenderMetricsHistory> switchedOffLenders = lenderMetricsHistoryDao.findByIsLenderSwitchedOff(Boolean.TRUE);
+
+            List<String> switchedOffLenderNames = switchedOffLenders.stream()
+                    .map(LenderMetricsHistory::getLender)
+                    .collect(Collectors.toList());
+
+            AsyncLoggerUtil.logInfo(logger, "Lenders switched off in the system: {} for merchantId: {}", switchedOffLenderNames, merchantId);
+
+            if (!switchedOffLenderNames.isEmpty()) {
+                for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
+                    if (loan.getEligibleLenders() != null) {
+                        loan.getEligibleLenders().removeAll(switchedOffLenderNames);
+                        AsyncLoggerUtil.logInfo(logger, "Filtered out switched off lenders for tenure {} months, remaining lenders: {}",
+                                loan.getTenureInMonths(), loan.getEligibleLenders());
+                    }
+                }
+            } else {
+                AsyncLoggerUtil.logInfo(logger, "No lenders are switched off, skipping filtering step");
+            }
+
 
             if (openApplication != null) {
                 AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
@@ -512,6 +533,7 @@ public class LoanEligibleService {
                     if (loan.getEligibleLenders() != null) {
                         loan.getEligibleLenders().removeAll(alreadyAssignedLender);
                     }
+
                 }
             }
 
@@ -542,12 +564,14 @@ public class LoanEligibleService {
 
                         List<String> initialLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,initialOfferRankingConfigs, RankingType.INITIAL, initalLendersLimit, merchantId, loan.getTenureInMonths());
 
-                        createAndSaveLendingAuditTrial(
-                                merchantId,
-                                null, // oldStatus, if not applicable
-                                "INITIAL_LENDERS",
-                                "Initial lenders: " + String.join(",", initialLendersList)
-                        );
+                        if(openApplication == null) {
+                            createAndSaveLendingAuditTrial(
+                                    merchantId,
+                                    null,
+                                    "INITIAL_LENDERS",
+                                    "Initial lenders: " + String.join(",", initialLendersList)
+                            );
+                        }
 
                         AsyncLoggerUtil.logInfo(logger, "Initial lenders for loan with tenure {} months: {} for merchantId: {}",
                                 loan.getTenureInMonths(), initialLendersList, merchantId);
@@ -556,12 +580,15 @@ public class LoanEligibleService {
                         List<OfferRankingConfig> fallbackOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.FALLBACK);
 
                         List<String> fallbackLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,fallbackOfferRankingConfigs, RankingType.FALLBACK, fallbackLendersLimit, merchantId, loan.getTenureInMonths());
-                        createAndSaveLendingAuditTrial(
-                                merchantId,
-                                null, // oldStatus, if not applicable
-                                "FALLBACK_LENDERS",
-                                "Fallback lenders: " + String.join(",", fallbackLendersList)
-                        );
+
+                        if(openApplication == null) {
+                            createAndSaveLendingAuditTrial(
+                                    merchantId,
+                                    null,
+                                    "FALLBACK_LENDERS",
+                                    "Fallback lenders: " + String.join(",", fallbackLendersList)
+                            );
+                        }
 
                         AsyncLoggerUtil.logInfo(logger, "Fallback lenders for loan with tenure {} months: {} for merchantId: {}",
                                 loan.getTenureInMonths(), fallbackLendersList, merchantId);
