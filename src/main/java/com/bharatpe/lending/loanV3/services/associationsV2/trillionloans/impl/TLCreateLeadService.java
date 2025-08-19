@@ -141,10 +141,12 @@ public class TLCreateLeadService {
                     .loanIdToClose(null)
                     .isTopup(Boolean.FALSE)
                     .build();
-            LendingApplication parentApplication = loanUtil.fetchParentApplication(lendingApplication.getId());
-            if (loanUtil.isTLToTLTopup(lendingApplication) && !ObjectUtils.isEmpty(parentApplication)) {
-                createLeadRequest.setIsTopup(Boolean.TRUE);
-                createLeadRequest.setLoanIdToClose(new Long[]{Long.valueOf(parentApplication.getNbfcId())});
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                LendingApplication parentApplication = loanUtil.fetchParentApplication(lendingApplication.getId());
+                if (loanUtil.isTLToTLTopup(lendingApplication) && !ObjectUtils.isEmpty(parentApplication)) {
+                    createLeadRequest.setIsTopup(Boolean.TRUE);
+                    createLeadRequest.setLoanIdToClose(new Long[]{Long.valueOf(parentApplication.getNbfcId())});
+                }
             }
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
