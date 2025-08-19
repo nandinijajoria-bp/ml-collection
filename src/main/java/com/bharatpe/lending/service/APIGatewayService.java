@@ -1670,25 +1670,7 @@ public class APIGatewayService {
 //        return 0D;
 //    }
 
-    public GlobalLimitResponse getGlobalLimitV2(Long merchantId, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
-        Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimitV2(merchantId, null, null, clubV2, null, null, null, null, false, null, null,null, null, false,offerCheckedBy);
-    }
 
-
-    public GlobalLimitResponse getGlobalLimitV2(Long merchantId, String source, Integer appVersion, Boolean clubV2,
-                                                String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
-                                                Boolean skipMaskedMobileException, String sessionId, String offerType, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException  {
-        logger.info("Get global limit for merchant:{}", merchantId);
-        boolean isPincodeChanged = false;
-        if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
-            isPincodeChanged = eligibilityStateDTO.isPincodeChanged();
-        }
-        boolean finalIsPincodeChanged = isPincodeChanged;
-
-        return getScenapticTopUpOffer(merchantId, source, appVersion, clubV2, finalIsPincodeChanged, sessionId, flagForUwToSkipCache,offerCheckedBy);
-
-    }
     public GlobalLimitResponse getScenapticTopUpOffer(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {
         logger.info("Get scienaptic TopUp offer for merchant:{}", merchantId);
 
@@ -1785,11 +1767,15 @@ public class APIGatewayService {
         return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null, false,offerCheckedBy);
     }
 
+    public GlobalLimitResponse getGlobalLimitV2(Long merchantId, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
+        Boolean clubV2 = checkClubV2(merchantId);
+        return getGlobalLimitV2(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null, false,offerCheckedBy);
+    }
+
     public GlobalLimitResponse getGlobalLimit(Long merchantId, Boolean clubV2, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
         return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null, false,offerCheckedBy);
     }
 
-    //    @Async
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2,
                                               String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
                                               Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException  {
@@ -1800,6 +1786,7 @@ public class APIGatewayService {
         }
         boolean finalIsPincodeChanged = isPincodeChanged;
 
+        //not used
         if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent) && !finalIsPincodeChanged) {
             try {
                 Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId, globalApiCacheTtl);
@@ -1824,6 +1811,7 @@ public class APIGatewayService {
 
 
 
+        //optimise
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
             put("source", source);
@@ -1882,21 +1870,21 @@ public class APIGatewayService {
         HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
         logger.info("Get Global Limit request:{} for merchant:{}, Url :{}", request, merchantId, url);
         try {
-        ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, GlobalLimitResponse.class);
-        logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
-        if (Objects.nonNull(responseEntity.getBody()) && Objects.nonNull(responseEntity.getBody().getData()) &&
-            ExperianConstants.AUTHORIZED_TO_CALL_MASK_MOBILE_API.equalsIgnoreCase(responseEntity.getBody().getData().getErrorString())) {
-            GlobalLimitResponse.Data globalLimitResponse = responseEntity.getBody().getData();
-            if(!ObjectUtils.isEmpty(loanDetailsResponse) && globalLimitResponse != null) {
-                loanDetailsResponse.setErrorString(globalLimitResponse.getErrorString());
-                eligibilityStateDTO.setErrorString(globalLimitResponse.getErrorString());
-                loanDetailsResponse.setStageOneHitId(globalLimitResponse.getStageOneId_());
-                eligibilityStateDTO.setStageOneHitId(globalLimitResponse.getStageOneId_());
-                loanDetailsResponse.setStageTwoHitId(globalLimitResponse.getStageTwoId_());
-                eligibilityStateDTO.setStageTwoHitId(globalLimitResponse.getStageTwoId_());
+            ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, GlobalLimitResponse.class);
+            logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
+            if (Objects.nonNull(responseEntity.getBody()) && Objects.nonNull(responseEntity.getBody().getData()) &&
+                    ExperianConstants.AUTHORIZED_TO_CALL_MASK_MOBILE_API.equalsIgnoreCase(responseEntity.getBody().getData().getErrorString())) {
+                GlobalLimitResponse.Data globalLimitResponse = responseEntity.getBody().getData();
+                if(!ObjectUtils.isEmpty(loanDetailsResponse) && globalLimitResponse != null) {
+                    loanDetailsResponse.setErrorString(globalLimitResponse.getErrorString());
+                    eligibilityStateDTO.setErrorString(globalLimitResponse.getErrorString());
+                    loanDetailsResponse.setStageOneHitId(globalLimitResponse.getStageOneId_());
+                    eligibilityStateDTO.setStageOneHitId(globalLimitResponse.getStageOneId_());
+                    loanDetailsResponse.setStageTwoHitId(globalLimitResponse.getStageTwoId_());
+                    eligibilityStateDTO.setStageTwoHitId(globalLimitResponse.getStageTwoId_());
+                }
+                throw new BureauCallMaskedApiException("Call Experian Masked Mobile API", loanDetailsResponse);
             }
-            throw new BureauCallMaskedApiException("Call Experian Masked Mobile API", loanDetailsResponse);
-        }
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
                 if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
                     globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
@@ -1905,11 +1893,27 @@ public class APIGatewayService {
         } catch (BureauCallMaskedApiException e) {
             throw (e);
         }catch (ResourceAccessException ex) {
-        logger.info("Global Limit Api timed out for merchantId: {} {}", merchantId, ex);
+            logger.info("Global Limit Api timed out for merchantId: {} {}", merchantId, ex);
         } catch (Exception e) {
-        logger.error("Error occurred while getting global limit for merchant:{} {} {}", merchantId, e.getMessage(), e);
+            logger.error("Error occurred while getting global limit for merchant:{} {} {}", merchantId, e.getMessage(), e);
         }
         return null;
+    }
+
+
+    //    @Async
+    public GlobalLimitResponse getGlobalLimitV2(Long merchantId, String source, Integer appVersion, Boolean clubV2,
+                                              String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
+                                              Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException  {
+        logger.info("Get global limit for merchant:{}", merchantId);
+        boolean isPincodeChanged = false;
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
+            isPincodeChanged = eligibilityStateDTO.isPincodeChanged();
+        }
+        boolean finalIsPincodeChanged = isPincodeChanged;
+
+        return getScenapticTopUpOffer(merchantId, source, appVersion, clubV2, finalIsPincodeChanged, sessionId, flagForUwToSkipCache,offerCheckedBy);
+
     }
 
     public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {

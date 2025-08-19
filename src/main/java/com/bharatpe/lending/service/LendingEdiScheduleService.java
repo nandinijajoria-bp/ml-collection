@@ -353,7 +353,7 @@ public class LendingEdiScheduleService {
         return new CommonResponse(false, "Something went wrong in V3 edi schedule");
     }
 
-    public CommonResponse getEdiScheduleForEdi(long applicationId, Double edi , LoanApplicationDetailsDto loanApplicationDetailsDto) {
+    public CommonResponse getEdiScheduleForEdi(Long applicationId, Double edi , LoanApplicationDetailsDto loanApplicationDetailsDto) {
         logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
         try {
             if (loanApplicationDetailsDto == null) {

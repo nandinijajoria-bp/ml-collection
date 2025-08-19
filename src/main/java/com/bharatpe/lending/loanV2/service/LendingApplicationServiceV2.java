@@ -1377,8 +1377,6 @@ public class LendingApplicationServiceV2 {
                 shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
                 shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
                 LoanDetailsV3Response loanDetailsV3Response = new LoanDetailsV3Response();
-                log.info("Skipping shop picture at replication for lender: {} and merchant: {}",
-                        lendingApplication.getLender(), lendingApplication.getMerchantId());
                 if (Boolean.TRUE.equals(loanDetailsV3Service.processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication))) {
                     log.info("Shop picture skipped for lender: {} and merchant: {}",
                             lendingApplication.getLender(), lendingApplication.getMerchantId());
@@ -1396,10 +1394,12 @@ public class LendingApplicationServiceV2 {
                             .flatMap(docs -> docs.stream().limit(1))
                             .collect(Collectors.toList());
                     if (!filteredDocuments.isEmpty() && filteredDocuments.size() >= 2) {
+                        List<LendingShopDocuments> replicatedDocuments = new ArrayList<>();
                         for (LendingShopDocuments shopDocuments : filteredDocuments) {
                             LendingShopDocuments replicateShopDocument = getReplicateShopDocument(lendingApplication, shopDocuments);
-                            lendingShopDocumentsDao.save(replicateShopDocument);
+                            replicatedDocuments.add(replicateShopDocument);
                         }
+                        lendingShopDocumentsDao.saveAll(replicatedDocuments);
                     }
                 }
                 lendingApplication.setEmail(prevApplication.getEmail());
@@ -3670,7 +3670,7 @@ public class LendingApplicationServiceV2 {
      */
     public Double getAprForBaseChecks(LoanApplicationDetailsDto loanApplicationDetailsDto, Double amountToCalculateAprOn, Integer ediModel, String lender, double interestRate){
         try{
-            long applicationId = loanApplicationDetailsDto.getId();
+            Long applicationId = loanApplicationDetailsDto.getId();
 
             log.info("calculating APR using Lender Pricing for applicationId : {}", applicationId);
             Double guess = 0.01;

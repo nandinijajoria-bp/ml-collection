@@ -238,7 +238,6 @@ public class EligibleLendingOffersResponseDTO {
     public void setEligibleOfferDetails(EligibleOfferDetails eligibleOfferDetails) {
         this.eligibleOfferDetails = eligibleOfferDetails;
     }
-
     @Override
     public String toString() {
         return "EligibleLendingOffersResponseDTO{" + " success='" + isSuccess() + "'" + ", message='" + getMessage()
