@@ -9,10 +9,10 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
-import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,8 +47,9 @@ public class InvokeSanctionWrapperService {
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
+    @Lazy
     @Autowired
-    LoanUtilV3 loanUtilV3;
+    LoanUtil loanUtil;
 
     @Async("lenderPoolTaskExecutor")
     public void invokeSanctionFlow(Map<String, String> request, Map<String, Object> args) {
@@ -138,7 +139,7 @@ public class InvokeSanctionWrapperService {
         }
         switch (lendingApplication.get().getLender()) {
             case "TRILLIONLOANS": {
-                if (loanUtilV3.isNonTLToTLTopup(lendingApplication.get()))
+                if (loanUtil.isNonTLToTLTopup(lendingApplication.get()))
                     return Arrays.asList(LenderAssociationStages.TOPUP_UNDO_APPROVE.name(), LenderAssociationStages.TOPUP_DATA.name(),
                             LenderAssociationStages.ADD_CHARGE.name(), LenderAssociationStages.TOPUP_APPROVE.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
                 else
