@@ -141,7 +141,7 @@ public class TLCreateLeadService {
                     .loanIdToClose(null)
                     .isTopup(Boolean.FALSE)
                     .build();
-            LendingApplication parentApplication = loanUtil.fetchParentApplication(lendingApplication.getMerchantId());
+            LendingApplication parentApplication = loanUtil.fetchParentApplication(lendingApplication.getId());
             if (loanUtil.isTLToTLTopup(lendingApplication) && !ObjectUtils.isEmpty(parentApplication)) {
                 createLeadRequest.setIsTopup(Boolean.TRUE);
                 createLeadRequest.setLoanIdToClose(new Long[]{Long.valueOf(parentApplication.getNbfcId())});
