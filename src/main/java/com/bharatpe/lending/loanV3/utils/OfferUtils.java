@@ -1,12 +1,15 @@
 package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.lending.common.enums.EdiModel;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class OfferUtils {
 
     public static int getEdiDays(int tenure, EdiModel ediModel) {
+        log.info("tenure : {}, EdiModel : {}", tenure, ediModel);
         switch (tenure) {
             case 0:
                 return 0;

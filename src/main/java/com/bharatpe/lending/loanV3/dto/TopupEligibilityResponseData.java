@@ -19,5 +19,9 @@ public class TopupEligibilityResponseData {
     private String rejectionReason;
     private Boolean isRejected;
     private String topupLender;
+    private Double minimumAllowedAmount;
+    private Double maximumAllowedAmount;
+    private List<String> tenures;
+    private boolean isTopupV2FlowEnabled = false;
 
 }

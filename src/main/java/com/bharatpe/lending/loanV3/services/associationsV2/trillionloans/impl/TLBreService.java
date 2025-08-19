@@ -92,6 +92,12 @@ public class TLBreService {
     @Value("${trillion.bre.retry.intervals:}")
     List<Integer> trillionBreRetryIntervals;
 
+    @Value("${topup.foreclosure.threshold.amount.check:10000}")
+    private Double topupForecosureThreshodAmountCheck;
+
+    @Value("${topup.foreclosure.threshold.rollout:false}")
+    private Boolean topupForecosureThreshodRollout;
+
     @Autowired
     TrillionLoansConfig trillionLoansConfig;
 
@@ -173,6 +179,7 @@ public class TLBreService {
                 log.info("Application not in correct state for BRE callback for applicationId {}", lendingApplication.getId());
                 return false;
             }
+
             LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
                     .applicationId(lendingApplication.getId())
                     .lendingApplication(lendingApplication)
@@ -187,6 +194,18 @@ public class TLBreService {
                 if (!ObjectUtils.isEmpty(breCallbackResponseDto) && breCallbackResponseDto.getSuccess() && breCallbackResponseDto.getAction().equalsIgnoreCase("Eligible")) {
                     if(!ObjectUtils.isEmpty(breCallbackResponseDto.getLimit()) && Double.parseDouble(breCallbackResponseDto.getLimit()) < lendingApplication.getLoanAmount()){
                         log.info("offer downgraded for application:{}", lendingApplication.getId());
+                        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && topupForecosureThreshodRollout){
+                            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                            double foreclosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+                            double newAmount = Double.parseDouble(breCallbackResponseDto.getLimit()) - foreclosureAmount;
+                            if(newAmount <= topupForecosureThreshodAmountCheck){
+                                log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForecosureThreshodAmountCheck, lendingApplication.getId());
+                                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
+                                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                                commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
+                            }
+                            return false;
+                        }
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setNbfcApprovedLoanOfferAmt(Double.parseDouble(breCallbackResponseDto.getLimit()));
                         LendingApplication lendingApplication1 = commonService.createDuplicateApplication(lendingApplication, lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
                         // APR & IRR Checks
