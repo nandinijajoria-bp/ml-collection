@@ -175,6 +175,48 @@ public class KycUtils {
         return cKycResponseDto;
     }
 
+    public CKycResponseDto getPanAndAadhaarData(Long merchantId) {
+        CKycResponseDto cKycResponseDto = new CKycResponseDto();
+        try{
+            List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, true, "PAN_NO,POA");
+            if (ObjectUtils.isEmpty(kycDocs)){
+                return cKycResponseDto;
+            }
+
+            for (KycDoc doc : kycDocs) {
+                if ("POA".equalsIgnoreCase(doc.getDocType().name())) {
+                    cKycResponseDto.setAddress(doc.getAddress());
+                    cKycResponseDto.setCity(doc.getCity());
+                    cKycResponseDto.setGender(doc.getGender());
+                    cKycResponseDto.setPincode(doc.getPincode());
+                    cKycResponseDto.setState(doc.getState());
+                    cKycResponseDto.setPoAXml(Objects.isNull(doc.getXml()) ? null: ConverterUtils.convertXmlToBase64String(doc.getXml()));
+                    cKycResponseDto.setPoAXml(ObjectUtils.isEmpty(cKycResponseDto.getPoAXml()) ? ConverterUtils.convertXmlToBase64String(doc.getDigioXml()) : cKycResponseDto.getPoAXml());
+                    cKycResponseDto.setName(doc.getName());
+                    cKycResponseDto.setDob(doc.getDob());
+                    cKycResponseDto.setAadharNumber(doc.getDocIdentifier());
+                    cKycResponseDto.setPoaString(Objects.isNull(doc.getXml()) ? null : ConverterUtils.convertXmlToString(doc.getXml()));
+                    cKycResponseDto.setPoaString(ObjectUtils.isEmpty(cKycResponseDto.getPoaString()) ? ConverterUtils.convertXmlToString(doc.getDigioXml()) : cKycResponseDto.getPoAXml());
+                    cKycResponseDto.setAadhaarPanNameMatchPer(doc.getNameMatchPer());
+
+                }else if ("PAN_NO".equalsIgnoreCase(doc.getDocType().name())) {
+                    cKycResponseDto.setPanNumber(doc.getDocIdentifier());
+                    cKycResponseDto.setFirstName(doc.getFirstName());
+                    cKycResponseDto.setMiddleName(doc.getMiddleName());
+                    cKycResponseDto.setLastName(doc.getLastName());
+                    cKycResponseDto.setPanDob(doc.getDob());
+                    cKycResponseDto.setPanName(doc.getName());
+                    cKycResponseDto.setBankBenePanNameMatchPer(doc.getNameMatchPer());
+                }
+            }
+        }catch (Exception e){
+            log.info("error in processing poa doc {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+
+        log.info("ckyc poa response {}", cKycResponseDto);
+        return cKycResponseDto;
+    }
+
     public String getFirstName(CKycResponseDto cKycResponseDto) {
         String name = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
         String firstName = !ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
