@@ -247,6 +247,7 @@ public class PayULeadService {
                 requestDTO.setIdentifier(additionalData);
                 requestDTO.setTopup(true);
             }
+            return requestDTO;
 
         } catch (Exception e) {
             log.info("exception occurred while creating request payload for updateLead of PayU for applicationId: {}, {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
