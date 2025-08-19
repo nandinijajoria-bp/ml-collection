@@ -4,7 +4,6 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
@@ -13,15 +12,16 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLCreateLeadRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLCreateLeadResponseDto;
-import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations.TLPayloadValidation;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -48,11 +48,9 @@ public class TLCreateLeadService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Lazy
     @Autowired
-    LendingApplicationDao lendingApplicationDao;
-
-    @Autowired
-    LoanUtilV3 loanUtilV3;
+    LoanUtil loanUtil;
 
     @Autowired
     TrillionLoansConfig trillionLoansConfig;
@@ -143,10 +141,10 @@ public class TLCreateLeadService {
                     .loanIdToClose(null)
                     .isTopup(Boolean.FALSE)
                     .build();
-            LendingApplication previousDisbursedApplication = lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchantId());
-            if (loanUtilV3.isTLToTLTopup(lendingApplication) && !ObjectUtils.isEmpty(previousDisbursedApplication)) {
+            LendingApplication parentApplication = loanUtil.fetchParentApplication(lendingApplication.getMerchantId());
+            if (loanUtil.isTLToTLTopup(lendingApplication) && !ObjectUtils.isEmpty(parentApplication)) {
                 createLeadRequest.setIsTopup(Boolean.TRUE);
-                createLeadRequest.setLoanIdToClose(new Long[]{Long.valueOf(previousDisbursedApplication.getNbfcId())});
+                createLeadRequest.setLoanIdToClose(new Long[]{Long.valueOf(parentApplication.getNbfcId())});
             }
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
