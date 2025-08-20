@@ -195,8 +195,6 @@ public class LoanEligibleService {
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
-    private final DecimalFormat df = new DecimalFormat("#.##");
-
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
@@ -211,9 +209,6 @@ public class LoanEligibleService {
 
     @Autowired
     BureauHandler bureauHandler;
-
-    @Autowired
-    LendingEdiScheduleService lendingEdiScheduleService;
 
     @Autowired
     LendingMetricHistoryCustomDao lenderMetricsHistoryDao;
@@ -246,6 +241,7 @@ public class LoanEligibleService {
     String aadhaarSeedingStatusCheckLenders;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
+
     @Autowired
     MerchantService merchantService;
 
@@ -261,6 +257,7 @@ public class LoanEligibleService {
     @Autowired
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
     @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
 
