@@ -204,9 +204,6 @@ public class LoanEligibleService {
     boolean pricingExpEnabled;
 
     @Autowired
-    PricingExperimentDao pricingExperimentDao;
-
-    @Autowired
     DateTimeUtil dateTimeUtil;
 
     @Autowired
@@ -232,9 +229,6 @@ public class LoanEligibleService {
 
     @Value("${new.eligibility.refresh.window:1}")
     int newEligibilityRefreshWindow;
-
-    @Value("${pricing.experiment.enable:false}")
-    boolean pricingExpEnabled;
 
     @Value("${inital.lenders.limit:3}")
     int initalLendersLimit;
@@ -1051,9 +1045,8 @@ public class LoanEligibleService {
         double bureauScore = lendingRiskVariables.getBureauScore();
         String riskSegment = lendingRiskVariables.getRiskSegment();
         String riskGroupLike = lendingRiskVariables.getRiskGroup();
-        String pincodeColor = lendingRiskVariables.getPincodeColor() != null ?
-                "%" + lendingRiskVariables.getPincodeColor().name() + "%" : "";
-        String tenure = "%" + loan.getTenureInMonths() + "%";
+        String pincodeColor = lendingRiskVariables.getPincodeColor() != null ? lendingRiskVariables.getPincodeColor().name() : "";
+        String tenure = String.valueOf(loan.getTenureInMonths());
 
         AsyncLoggerUtil.logInfo(logger,"Fetching rules: bureau={}, segment={}, tenure={}, amount={}, riskGroup={}, pincodeColor={}",
                 bureauScore, riskSegment, tenure, loan.getAmount(), riskGroupLike, pincodeColor);
