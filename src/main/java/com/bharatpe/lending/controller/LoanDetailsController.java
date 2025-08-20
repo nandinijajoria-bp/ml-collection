@@ -386,6 +386,7 @@ public class LoanDetailsController {
 		);
 	}
 */
+/*
 
 	@Data
 	public static class RankingRequest {
@@ -394,6 +395,7 @@ public class LoanDetailsController {
 		private RankingType rankingType;
 		private int limit;
 	}
+*/
 
 	/**
 	 * Endpoint to check topup eligibility for a merchant.
