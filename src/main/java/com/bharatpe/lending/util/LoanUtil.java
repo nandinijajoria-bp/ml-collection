@@ -3028,7 +3028,7 @@ public class LoanUtil {
 					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 					lendingAuditTrial.setApplicationId(applicationId);
 					lendingAuditTrial.setMerchantId(merchantId);
-					lendingAuditTrial.setType(LendingViewStates.LENDER_AGGREGATION.name());
+					lendingAuditTrial.setType(LendingViewStates.OFFER_EVALUATION_PAGE.name());
 					lendingAuditTrial.setLoanId("BPL"+applicationId);
 					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
 					lendingAuditTrialDao.save(lendingAuditTrial);
@@ -3052,7 +3052,7 @@ public class LoanUtil {
 					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 					lendingAuditTrial.setApplicationId(applicationId);
 					lendingAuditTrial.setMerchantId(merchantId);
-					lendingAuditTrial.setType(LendingViewStates.LENDER_AGGREGATION.name());
+					lendingAuditTrial.setType(LendingViewStates.OFFER_EVALUATION_PAGE.name());
 					lendingAuditTrial.setLoanId("BPL"+applicationId);
 					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
 					lendingAuditTrialDao.save(lendingAuditTrial);
@@ -3068,7 +3068,7 @@ public class LoanUtil {
 
 	public String getLenderAggregationScreen(Long applicationId){
 		try{
-			LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.LENDER_AGGREGATION.name());
+			LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.OFFER_EVALUATION_PAGE.name());
 			if(!ObjectUtils.isEmpty(lendingAuditTrial)){
 				return lendingAuditTrial.getOldStatus();
 			}

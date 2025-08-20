@@ -73,7 +73,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
     @Override
     public LendingStateDTO<ShopPicturesStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ShopPicturesStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if (LendingViewStates.LENDER_AGGREGATION.equals(lendingStateDTO.getLendingViewStates())){
+        if (LendingViewStates.OFFER_EVALUATION_PAGE.equals(lendingStateDTO.getLendingViewStates())){
             return lendingStateDTO;
         }
 
@@ -134,7 +134,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                     log.info("both shop image for merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
                     if (LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()))) {
                         log.info("LENDER_CHANGE, merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
-                        return new LendingStateDTO<>(shopPicturesStateDTO, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.SHOP_PICTURES_PAGE);
+                        return new LendingStateDTO<>(shopPicturesStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
                     }
                     if (blTaggingEnabled && blEligibleLendersList.contains(lendingApplication.getLender()) && !lendingApplicationDetails.getIsDocSkip()) {
                         log.info("blTaggingEnabled & BL_DOC_UPLOAD_PAGE, merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());

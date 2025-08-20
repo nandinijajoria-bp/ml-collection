@@ -1119,7 +1119,7 @@ public class LendingApplicationServiceV2 {
         }
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
-        loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
+        loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
 
         if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
             rejectApplicationForIncorrectLender(lendingApplication);
