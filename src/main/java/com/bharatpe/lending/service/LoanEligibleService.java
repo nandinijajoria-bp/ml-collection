@@ -1038,7 +1038,13 @@ public class LoanEligibleService {
     private List<LenderAssignmentRules> fetchApplicableRules(Long merchantId, EligibleLoanDTO loan,
                                                              LendingRiskVariables lendingRiskVariables, RiskVariablesDTO loanRiskVariables) {
 
-        AsyncLoggerUtil.logInfo(logger,"Fetching applicable rules for merchantId: {}, riskVariables: {}", merchantId, loanRiskVariables);
+        // Instead of logging the entire object:
+        AsyncLoggerUtil.logInfo(logger, "Fetching applicable rules for merchantId: {}, key risk variables: bureau={}, segment={}, riskGroup={}, pincodeColor={}",
+                merchantId,
+                lendingRiskVariables.getBureauScore(),
+                lendingRiskVariables.getRiskSegment(),
+                lendingRiskVariables.getRiskGroup(),
+                lendingRiskVariables.getPincodeColor());
         double bureauScore = lendingRiskVariables.getBureauScore();
         String riskSegment = lendingRiskVariables.getRiskSegment();
         String riskGroupLike = lendingRiskVariables.getRiskGroup();
