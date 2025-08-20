@@ -415,7 +415,8 @@ public class LoanEligibleService {
                                 findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus
                                         (lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                                                 eligibleLoan.getTenureInMonths(), topUpOfferRequestDto.getTopupLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
-                        riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricing));
+                        logger.info("LendingLenderPricing found: {}", lenderPricing);
+                        riskVariables.setLenderPricingMap(Collections.singletonMap(topUpOfferRequestDto.getTopupLender(), lenderPricing));
                     }
 
                     if (lenderPricing == null && pricingExperiment == null) {
@@ -423,9 +424,6 @@ public class LoanEligibleService {
                                 merchantId, eligibleLoan.getAmount(), eligibleLoan.getTenureInMonths(), lendingApplication.getLender());
                         continue;
                     }
-
-                    logger.info("LendingLenderPricing found: {}", lenderPricing);
-                    riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricing));
 
                     //This is to create eligible loan for checking apr/irr. Values will be overridden with correct values in calculateProcessingFeeForTopup method
                     GlobalLimitResponse.OfferDetail offerDetail = new GlobalLimitResponse.OfferDetail();

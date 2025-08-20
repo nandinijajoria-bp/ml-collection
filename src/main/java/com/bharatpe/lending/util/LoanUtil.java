@@ -3723,5 +3723,36 @@ public class LoanUtil {
 	public boolean isMandateSwitchEnabled(LendingApplication lendingApplication){
 		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent);
 	}
+
+	/**
+	 * returns {@code true} if top-up is from non trillion to trillion using current lending application , otherwise {@code false}.
+	 *
+	 * @param currentLendingApplication  current application of merchant
+	 *
+	 * @return {@code true} if previous loan is non TL and lending application is for top-up, otherwise {@code false}
+	 */
+	public boolean isNonTLToTLTopup(LendingApplication currentLendingApplication) {
+		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
+		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& !ObjectUtils.isEmpty(previousLendingApplication)
+				&& !Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+	}
+
+
+	/**
+	 * returns {@code true} if top-up is from trillion to trillion using current and previous lending application, otherwise {@code false}.
+	 *
+	 * @param currentLendingApplication  current application of merchant
+	 *
+	 * @return {@code true} if previous loan is TL and lending application is for top-up, otherwise {@code false}
+	 */
+	public boolean isTLToTLTopup(LendingApplication currentLendingApplication) {
+		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
+		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& !ObjectUtils.isEmpty(previousLendingApplication)
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+	}
 }
 

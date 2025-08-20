@@ -111,7 +111,7 @@ public class TLUpdateLeadService {
                         .beneficiaryType("SELF")
                         .build();
             }
-            else if(loanUtil.isMandateSwitchEnabled(lendingApplication) && lendingApplicationDetails.isAutoPayUpiEligible() && !lendingApplicationDetails.isNachEligible()){
+            else if(!ObjectUtils.isEmpty(lendingApplicationDetails.getMandateFlagsToggledOn()) && lendingApplicationDetails.isAutoPayUpiEligible() && !lendingApplicationDetails.isNachEligible()){
                 log.info("Mandate switch is enabled, Updating Payload for Autopay Upi only scenario for applicationId: {}", lendingApplication.getId());
                 Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
                 BankDetailsDto merchantBankDetail = null;
