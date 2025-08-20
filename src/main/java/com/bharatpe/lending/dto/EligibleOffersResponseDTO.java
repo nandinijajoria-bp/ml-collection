@@ -39,7 +39,8 @@ public class EligibleOffersResponseDTO {
         private Integer ediCount;
         private List<LenderData> initialLenders;
         private List<LenderData> fallbackLenders;
-        private List<String> rejectedLenders;
+        private List<LenderData> rejectedLenders;
+        private List<String> ineligibleLenders;
     }
 
     @Data

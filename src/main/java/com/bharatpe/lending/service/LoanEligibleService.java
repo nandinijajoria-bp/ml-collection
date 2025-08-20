@@ -775,11 +775,13 @@ public class LoanEligibleService {
                 AsyncLoggerUtil.logInfo(logger, "No lenders are switched off, skipping filtering step");
             }
 
-
+            List<EligibleOffersResponseDTO.LenderData> rejectedLenders = new ArrayList<>();
             if (openApplication != null) {
                 AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
                 List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(openApplication.getId());
                 AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
+
+                List<LendingApplicationLenderDetails> rejectedLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationId(openApplication.getId());
 
                 for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
                     if (loan.getEligibleLenders() != null) {
@@ -798,11 +800,11 @@ public class LoanEligibleService {
                                 loan.getEligibleLenders(), loan, lendingRiskVariables, merchantId);
 
                         //modify this
-                        List<String> rejectedLenders = activeLenders.stream()
+                        List<String> ineligiblelenders = activeLenders.stream()
                                 .filter(lender -> !loan.getEligibleLenders().contains(lender))
                                 .collect(Collectors.toList());
                         AsyncLoggerUtil.logInfo(logger, "Rejected lenders for loan with tenure {} months: {}",
-                                loan.getTenureInMonths(), rejectedLenders);
+                                loan.getTenureInMonths(), ineligiblelenders);
 
                         List<String> lenderNames = lenderDataForLoan.stream()
                                 .map(EligibleOffersResponseDTO.LenderData::getLenderName)
@@ -871,7 +873,8 @@ public class LoanEligibleService {
                                     loan.getEdiCount(),
                                     initialLenders,
                                     fallbackLenders,
-                                    rejectedLenders
+                                    rejectedLenders,
+                                    ineligiblelenders
                             );
                             tenureWithLenders.add(tenureWithLender);
                             AsyncLoggerUtil.logInfo(logger, "Added tenure option: {} months with {} lenders for merchantId: {}",

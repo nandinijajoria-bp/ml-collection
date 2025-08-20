@@ -100,7 +100,7 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
         }
         shopDetailsStateDTO.setApplicationId(lendingApplication.getId());
         shopDetailsStateDTO.setApplicationStatus(lendingApplication.getStatus().toLowerCase());
-        shopDetailsStateDTO.setIsAggregationFlowApplicable(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId())));
+        shopDetailsStateDTO.setIsAggregationFlowApplicable(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), lendingApplication.getMerchantId())));
 
         return new LendingStateDTO<>(shopDetailsStateDTO , LendingViewStates.SHOP_DETAILS_PAGE, LendingViewStates.SHOP_DETAILS_PAGE);
     }

@@ -128,7 +128,7 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
         responseDto.setLoanType(lendingApplication.getLoanType());
         responseDto.setPreviousLender(lendingApplication.getLender());
         responseDto.setRepeatLoan(loanUtil.isRepeatLoan(lendingApplication.getMerchantId()));
-        responseDto.setScreenType(loanUtil.getLenderAggregationScreen(lendingApplication.getId()));
+        responseDto.setScreenType(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), scopeDataArgs.getMerchant().getId()));
         responseDto.setAttemptCount(prevlenders.size() + 1);
         responseDto.setMessage(getMessage(responseDto.getAttemptCount(), lendingApplication.getLender(), Objects.nonNull(defaultLender) ? defaultLender.getLender() : null));
 

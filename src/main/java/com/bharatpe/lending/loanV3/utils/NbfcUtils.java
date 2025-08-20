@@ -156,7 +156,7 @@ public class NbfcUtils {
         }
         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
 
-        boolean isApplicableForAggregationFlow = !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()));
+        boolean isApplicableForAggregationFlow = !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), lendingApplication.getMerchantId()));
         if (enableLenderChange) {
             log.info("changing lender for the application {}", lendingApplication.getId());
             if(!Arrays.asList(LendingViewStates.SHOP_DETAILS_PAGE.name(), LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
