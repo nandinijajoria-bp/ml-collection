@@ -375,6 +375,7 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
 
+/*
 	@PostMapping (value = "/topup_eligible_offers", consumes = "application/json", produces = "application/json")
 	public List<String> testRanking(@RequestBody RankingRequest request) {
 		return lenderRankingEngine.rankLenders(
@@ -384,6 +385,7 @@ public class LoanDetailsController {
 				request.getLimit(), 20042005l, 12
 		);
 	}
+*/
 
 	@Data
 	public static class RankingRequest {
