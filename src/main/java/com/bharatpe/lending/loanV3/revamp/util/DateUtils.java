@@ -19,7 +19,8 @@ public class DateUtils {
 
     private static SimpleDateFormat DD_MMM_YY = new SimpleDateFormat("dd MMM yy");
     private static SimpleDateFormat HH_mm_a = new SimpleDateFormat("HH:mm a");
-
+    private static final SimpleDateFormat DD_MMM_YYYY_HH_mm_a =
+            new SimpleDateFormat("dd MMM yyyy | hh:mm a");
 
 
     /*
@@ -27,6 +28,10 @@ public class DateUtils {
      */
     public static String formatDate_DD_MMM_YY_HH_mm_a(Date inputDate){
             return DD_MMM_YY.format(inputDate);
+    }
+
+    public static String formatDateTime_DD_MMM_YY_HH_mm_a(Date inputDate){
+        return DD_MMM_YYYY_HH_mm_a.format(inputDate);
     }
 
     public static String formatDate_HH_mm_a(Date inputDate){
