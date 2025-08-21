@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.*;
 
 import java.util.List;
+import java.util.Set;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -39,7 +40,7 @@ public class EligibleOffersResponseDTO {
         private Integer ediCount;
         private List<LenderData> initialLenders;
         private List<LenderData> fallbackLenders;
-        private List<LenderData> rejectedLenders;
+        private List<String> rejectedLenders;
         private List<String> ineligibleLenders;
     }
 

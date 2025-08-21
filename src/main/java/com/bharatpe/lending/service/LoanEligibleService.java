@@ -80,10 +80,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.util.ObjectUtils;
+import org.springframework.util.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -775,13 +772,13 @@ public class LoanEligibleService {
                 AsyncLoggerUtil.logInfo(logger, "No lenders are switched off, skipping filtering step");
             }
 
-            List<EligibleOffersResponseDTO.LenderData> rejectedLenders = new ArrayList<>();
+            List<String> rejectedLenders = new ArrayList<>();
             if (openApplication != null) {
                 AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
                 List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(openApplication.getId());
                 AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
 
-                List<LendingApplicationLenderDetails> rejectedLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationId(openApplication.getId());
+                rejectedLenders = alreadyAssignedLender;
 
                 for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
                     if (loan.getEligibleLenders() != null) {
@@ -800,11 +797,13 @@ public class LoanEligibleService {
                                 loan.getEligibleLenders(), loan, lendingRiskVariables, merchantId);
 
                         //modify this
-                        List<String> ineligiblelenders = activeLenders.stream()
-                                .filter(lender -> !loan.getEligibleLenders().contains(lender))
-                                .collect(Collectors.toList());
-                        AsyncLoggerUtil.logInfo(logger, "Rejected lenders for loan with tenure {} months: {}",
-                                loan.getTenureInMonths(), ineligiblelenders);
+                        List<String> ineligiblelenders = new ArrayList<>();
+                        if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
+                            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
+                            if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
+                                rejectedLendersArray.forEach(l -> ineligiblelenders.add(l.trim()));
+                            }
+                        }
 
                         List<String> lenderNames = lenderDataForLoan.stream()
                                 .map(EligibleOffersResponseDTO.LenderData::getLenderName)
