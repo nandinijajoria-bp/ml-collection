@@ -296,10 +296,14 @@ public class LoanDetailsController {
 
 			ediModel = (ediModel == null) ? lendingEdiModel : ediModel;
 
-			// Simply call the service method and return its response directly
-			// since it already returns ResponseEntity<Map<String, Object>>
-			return loanEligibleService.getEligibilityDetailsV2(
+			// Get the response entity from the service
+			ResponseEntity<Map<String, Object>> serviceResponse = loanEligibleService.getEligibilityDetailsV2(
 					merchant.getId(), queryAmount, ediModel, merchant);
+
+			// Simply return the response from the service since it's already in the right format
+			AsyncLoggerUtil.logInfo(logger, "EXIT {} - Completed processing for merchantId: {}",
+					METHOD, merchant.getId());
+			return serviceResponse;
 
 		} catch (Exception e) {
 			AsyncLoggerUtil.logError(logger, "EXIT {} - Unexpected error for merchantId: {}: {}",

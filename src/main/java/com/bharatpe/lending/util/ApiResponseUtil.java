@@ -2,6 +2,8 @@ package com.bharatpe.lending.util;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import java.util.HashMap;
 import java.util.Map;
 
 public class ApiResponseUtil {
@@ -94,13 +96,13 @@ public class ApiResponseUtil {
    * Creates a standardized response with the given status, data, message and errors
    */
   private static <T> ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, T data, String message, Object errors) {
-    Map<String, Object> responseBody = Map.of(
-            "status", status.value(),
-            "message", message != null ? message : status.getReasonPhrase(),
-            "data", data,
-            "errors", errors
-    );
+    Map<String, Object> responseBody = new HashMap<>();
+    responseBody.put("status", status.value());
+    responseBody.put("message", message != null ? message : status.getReasonPhrase());
+    responseBody.put("data", data);
+    responseBody.put("errors", errors);
 
     return new ResponseEntity<>(responseBody, status);
   }
+
 }
