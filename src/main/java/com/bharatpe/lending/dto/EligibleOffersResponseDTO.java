@@ -18,16 +18,8 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EligibleOffersResponseDTO {
-    private List<OfferDetails> offers;
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class OfferDetails {
-        private Double loanAmount;
-        private List<TenureWithLender> eligibleOffers;
-    }
+    private Double loanAmount;
+    private List<TenureWithLender> eligibleOffers;
 
     @Data
     @Builder
