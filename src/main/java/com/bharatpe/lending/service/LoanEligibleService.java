@@ -796,6 +796,9 @@ public class LoanEligibleService {
                 }
             }
 
+            AsyncLoggerUtil.logInfo(logger, "Lenders after removing rejected lenders due to open application: {} for merchantId: {}", eligibleOffersWithLenders , merchantId);
+
+
             // Process each eligible loan
             for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
                 if (!CollectionUtils.isEmpty(loan.getEligibleLenders())) {
@@ -804,8 +807,14 @@ public class LoanEligibleService {
                         List<EligibleOffersResponseDTO.LenderData> lenderDataForLoan = getLenderData(
                                 loan.getEligibleLenders(), loan, lendingRiskVariables, merchantId);
 
-                        //modify this
+                        AsyncLoggerUtil.logInfo(logger, "Lender data: {},fetched for merchantId: {}", lenderDataForLoan, merchantId);
+
+                        List<String> lenderNames = lenderDataForLoan.stream()
+                                .map(EligibleOffersResponseDTO.LenderData::getLenderName)
+                                .collect(Collectors.toList());
+
                         List<String> ineligiblelenders = new ArrayList<>();
+
                         if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
                             List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
                             if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
@@ -813,17 +822,26 @@ public class LoanEligibleService {
                             }
                         }
 
-                        List<String> lenderNames = lenderDataForLoan.stream()
-                                .map(EligibleOffersResponseDTO.LenderData::getLenderName)
-                                .collect(Collectors.toList());
+                        for (String activeLender : activeLenders) {
+                            if (!lenderNames.contains(activeLender)) {
+                                ineligiblelenders.add(activeLender);
+                            }
+                        }
+
+                        AsyncLoggerUtil.logInfo(logger, "Complete ineligible lenders list: {} for merchantId: {}",
+                                ineligiblelenders, merchantId);
 
                         List<LenderMetricsHistory> lenderMetricsHistoryList = lenderMetricsHistoryDao.findByLenderInAndIsLenderSwitchedOffFalse(lenderNames);
 
-                        //check with rule Engine
+
                         List<OfferRankingConfig> initialOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
-
-
-                        List<String> initialLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,initialOfferRankingConfigs, RankingType.INITIAL, initalLendersLimit, merchantId, loan.getTenureInMonths());
+                        List<String> initialLendersList = lenderRankingEngine.rankLenders(
+                                lenderMetricsHistoryList,
+                                initialOfferRankingConfigs,
+                                RankingType.INITIAL,
+                                initalLendersLimit,
+                                merchantId,
+                                loan.getTenureInMonths());
 
                         if(openApplication == null) {
                             createAndSaveLendingAuditTrial(
@@ -837,10 +855,21 @@ public class LoanEligibleService {
                         AsyncLoggerUtil.logInfo(logger, "Initial lenders for loan with tenure {} months: {} for merchantId: {}",
                                 loan.getTenureInMonths(), initialLendersList, merchantId);
 
+                        List<LenderMetricsHistory> fallbackCandidates = lenderMetricsHistoryList.stream()
+                                .filter(lender -> !initialLendersList.contains(lender.getLender()))
+                                .collect(Collectors.toList());
 
                         List<OfferRankingConfig> fallbackOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.FALLBACK);
 
-                        List<String> fallbackLendersList = lenderRankingEngine.rankLenders(lenderMetricsHistoryList,fallbackOfferRankingConfigs, RankingType.FALLBACK, fallbackLendersLimit, merchantId, loan.getTenureInMonths());
+                        List<String> fallbackLendersList = fallbackCandidates.isEmpty() ?
+                                Collections.emptyList() :
+                                lenderRankingEngine.rankLenders(
+                                        fallbackCandidates,
+                                        fallbackOfferRankingConfigs,
+                                        RankingType.FALLBACK,
+                                        fallbackLendersLimit,
+                                        merchantId,
+                                        loan.getTenureInMonths());
 
                         if(openApplication == null) {
                             createAndSaveLendingAuditTrial(
@@ -1579,12 +1608,12 @@ public class LoanEligibleService {
                 List<LendingLenderQuota> lenderLimits;
                 lenderLimits = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(eligibleLenders, eligibleLoanDTO.getAmount());
                 eligibleLenders.clear();
-                AsyncLoggerUtil.logInfo(logger,"lender limits : {}", lenderLimits);
+                AsyncLoggerUtil.logInfo(logger,"lender limits : {} for merchantId: {}", lenderLimits, merchantId);
                 if (Objects.nonNull(lenderLimits)) {
                     for (LendingLenderQuota lendingLenderQuota : lenderLimits) {
                         eligibleLenders.add(lendingLenderQuota.getLender());
                     }
-                    AsyncLoggerUtil.logInfo(logger,"eligible lenders:{}", eligibleLenders);
+                    AsyncLoggerUtil.logInfo(logger,"eligible lenders: {} for merchantId: {}", eligibleLenders, merchantId);
                 }
             }
             List<EligibleOffersResponseDTO.LenderData> eligibleLenderList = new ArrayList<>();
