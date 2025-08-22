@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.entity.LenderMetricsHistory;
 import com.bharatpe.lending.common.enums.*;
+import org.springframework.http.ResponseEntity;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
@@ -619,7 +620,7 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    public ApiResponse<EligibleOffersResponseDTO> getEligibilityDetailsV2(Long merchantId, Double queryAmount, Integer ediModel, BasicDetailsDto merchantDetails) {
+    public ResponseEntity<Map<String, Object>> getEligibilityDetailsV2(Long merchantId, Double queryAmount, Integer ediModel, BasicDetailsDto merchantDetails) {
         final String METHOD = "getEligibilityDetailsV2";
         AsyncLoggerUtil.logInfo(logger, "ENTRY {} - merchantId: {}, amount: {}, ediModel: {}", METHOD, merchantId, queryAmount, ediModel);
 
@@ -627,7 +628,7 @@ public class LoanEligibleService {
             // Validate input parameters
             if (merchantId == null || queryAmount == null) {
                 AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid request parameters", METHOD);
-                return new ApiResponse<>(false, "Invalid request parameters", null, "400", "INVALID_PARAMS");
+                return ApiResponseUtil.badRequest("Invalid request parameters", "INVALID_PARAMS");
             }
 
             // Generate cache key and check cache
@@ -636,14 +637,13 @@ public class LoanEligibleService {
 
             try {
                 cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
+                if (cachedResponse != null) {
+                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - Cache hit for merchantId: {}", METHOD, merchantId);
+                    return ApiResponseUtil.ok(cachedResponse, "Eligibility details fetched successfully from cache");
+                }
             } catch (Exception e) {
                 AsyncLoggerUtil.logError(logger, "Cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
                 // Continue execution despite cache error
-            }
-
-            if (cachedResponse != null) {
-                AsyncLoggerUtil.logInfo(logger, "EXIT {} - Cache hit for merchantId: {}", METHOD, merchantId);
-                return new ApiResponse<>(true, "Eligibility details fetched successfully", cachedResponse, "200", "SUCCESS");
             }
 
             AsyncLoggerUtil.logInfo(logger, "Cache miss for merchantId: {}, processing eligibility", merchantId);
@@ -652,8 +652,8 @@ public class LoanEligibleService {
             // Get global limit
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
             if (globalLimitResponse == null || globalLimitResponse.getData() == null) {
-                AsyncLoggerUtil.logError(logger, "EXIT {} - Unable to fetch global limit data", METHOD);
-                return new ApiResponse<>(false, "Unable to fetch eligibility data", null, "500", "GLOBAL_LIMIT_ERROR");
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Failed to retrieve global limit for merchantId: {}", METHOD, merchantId);
+                return ApiResponseUtil.notFound("Global limit not available", "GLOBAL_LIMIT_NOT_FOUND");
             }
 
             // Validate loan amount and offer details
@@ -663,15 +663,15 @@ public class LoanEligibleService {
             boolean hasOfferDetails = !ObjectUtils.isEmpty(data.getOfferDetails());
 
             if ((queryAmount < 10000 && !isSmallTicket) || !hasOfferDetails) {
-                AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid loan amount or no offer details", METHOD);
-                return new ApiResponse<>(false, "Invalid loan amount", null, "400", "INVALID_LOAN_AMOUNT");
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid loan amount or no offer details for merchantId: {}", METHOD, merchantId);
+                return ApiResponseUtil.badRequest("Invalid loan amount or no offers available", "INVALID_AMOUNT_OR_NO_OFFERS");
             }
 
             // Adjust amount based on global limit
             Double effectiveQueryAmount = queryAmount;
             if (data.getGlobalLimit() != null && queryAmount > data.getGlobalLimit()) {
-                AsyncLoggerUtil.logInfo(logger, "Adjusting query amount from {} to global limit {}",
-                        queryAmount, data.getGlobalLimit());
+                AsyncLoggerUtil.logInfo(logger, "Adjusting query amount from {} to global limit {} for merchantId: {}",
+                        queryAmount, data.getGlobalLimit(), merchantId);
                 effectiveQueryAmount = data.getGlobalLimit();
             }
 
@@ -681,36 +681,42 @@ public class LoanEligibleService {
                 eligibleLoans = loanDetailsServiceV2.recomputeEligibleOfferLoan(
                         globalLimitResponse, effectiveQueryAmount, merchantId);
 
-                if (CollectionUtils.isEmpty(eligibleLoans)) {
-                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible loans found", METHOD);
-                    return new ApiResponse<>(false, "No eligible loans found", null, "404", "NO_ELIGIBLE_LOANS");
+                if (eligibleLoans.isEmpty()) {
+                    AsyncLoggerUtil.logError(logger, "EXIT {} - No eligible loans found for merchantId: {}", METHOD, merchantId);
+                    return ApiResponseUtil.notFound("No eligible offers available", "NO_ELIGIBLE_OFFERS");
                 }
             } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Error computing eligible loans: {}", e.getMessage(), e);
-                return new ApiResponse<>(false, "Failed to compute eligible loans", null, "500", "ELIGIBILITY_COMPUTATION_ERROR");
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Failed to compute eligible loans for merchantId: {}: {}",
+                        METHOD, merchantId, e.getMessage(), e);
+                return ApiResponseUtil.internalError("Failed to compute eligible offers", e.getMessage());
             }
 
             // Get risk variables
             LendingRiskVariables lendingRiskVariables;
             try {
                 lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+                if (lendingRiskVariables == null) {
+                    AsyncLoggerUtil.logError(logger, "EXIT {} - Risk variables not found for merchantId: {}", METHOD, merchantId);
+                    return ApiResponseUtil.notFound("Risk assessment data not available", "RISK_DATA_NOT_FOUND");
+                }
             } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Error fetching risk variables: {}", e.getMessage(), e);
-                return new ApiResponse<>(false, "Failed to retrieve risk profile", null, "500", "RISK_DATA_ERROR");
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Failed to retrieve risk variables for merchantId: {}: {}",
+                        METHOD, merchantId, e.getMessage(), e);
+                return ApiResponseUtil.internalError("Failed to retrieve risk data", e.getMessage());
             }
 
             // Get eligible lender list
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders;
             try {
                 tenureWithLenders = getEligibleLenderList(merchantId, eligibleLoans, merchantDetails, lendingRiskVariables);
-
-                if (CollectionUtils.isEmpty(tenureWithLenders)) {
-                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible lenders found", METHOD);
-                    return new ApiResponse<>(false, "No eligible offers found", null, "404", "NO_ELIGIBLE_LENDERS");
+                if (tenureWithLenders.isEmpty()) {
+                    AsyncLoggerUtil.logError(logger, "EXIT {} - No eligible lenders found for merchantId: {}", METHOD, merchantId);
+                    return ApiResponseUtil.notFound("No lenders available for the requested amount", "NO_ELIGIBLE_LENDERS");
                 }
             } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Error assigning lenders: {}", e.getMessage(), e);
-                return new ApiResponse<>(false, "Failed to assign lenders", null, "500", "LENDER_ASSIGNMENT_ERROR");
+                AsyncLoggerUtil.logError(logger, "EXIT {} - Failed to get eligible lenders for merchantId: {}: {}",
+                        METHOD, merchantId, e.getMessage(), e);
+                return ApiResponseUtil.internalError("Failed to process lender eligibility", e.getMessage());
             }
 
             // Create offer with tenures
@@ -722,16 +728,18 @@ public class LoanEligibleService {
             try {
                 cacheEligibilityResponse(cacheKey, responseDTO, merchantId);
             } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Failed to cache response: {}", e.getMessage());
+                AsyncLoggerUtil.logError(logger, "Failed to cache response for key: {} - {}", cacheKey, e.getMessage());
                 // Continue despite cache error
             }
 
             AsyncLoggerUtil.logInfo(logger, "EXIT {} - Successfully processed eligibility for merchantId: {}, found {} tenures",
                     METHOD, merchantId, tenureWithLenders.size());
-            return new ApiResponse<>(true, "Eligibility details fetched successfully", responseDTO, "200", "SUCCESS");
+            return ApiResponseUtil.ok(responseDTO, "Eligibility details fetched successfully");
+
         } catch (Exception e) {
-            AsyncLoggerUtil.logError(logger, "Unexpected error in {}: {}", METHOD, e.getMessage(), e);
-            return new ApiResponse<>(false, "An unexpected error occurred", null, "500", "SYSTEM_ERROR");
+            AsyncLoggerUtil.logError(logger, "EXIT {} - Unexpected error for merchantId: {}: {}",
+                    METHOD, merchantId, e.getMessage(), e);
+            return ApiResponseUtil.internalError("An unexpected error occurred", e.getMessage());
         }
     }
 
