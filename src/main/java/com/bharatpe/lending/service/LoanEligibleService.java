@@ -1056,8 +1056,8 @@ public class LoanEligibleService {
         double bureauScore = lendingRiskVariables.getBureauScore();
         String riskSegment = lendingRiskVariables.getRiskSegment();
         String riskGroupLike = lendingRiskVariables.getRiskGroup();
-        String pincodeColor = lendingRiskVariables.getPincodeColor() != null ? lendingRiskVariables.getPincodeColor().name() : "";
-        String tenure = String.valueOf(loan.getTenureInMonths());
+        String pincodeColor = ObjectUtils.isEmpty(lendingRiskVariables.getPincodeColor()) ? "" : "%" + lendingRiskVariables.getPincodeColor().name() + "%";
+        String tenure = "%" + String.valueOf(loan.getTenureInMonths()) + "%";
 
         AsyncLoggerUtil.logInfo(logger,"Fetching rules: bureau={}, segment={}, tenure={}, amount={}, riskGroup={}, pincodeColor={}",
                 bureauScore, riskSegment, tenure, loan.getAmount(), riskGroupLike, pincodeColor);
