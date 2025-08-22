@@ -709,8 +709,8 @@ public class LoanEligibleService {
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders;
             try {
                 tenureWithLenders = getEligibleLenderList(merchantId, eligibleLoans, merchantDetails, lendingRiskVariables);
-                if (tenureWithLenders.isEmpty()) {
-                    AsyncLoggerUtil.logError(logger, "EXIT {} - No eligible lenders found for merchantId: {}", METHOD, merchantId);
+                if (tenureWithLenders == null || tenureWithLenders.isEmpty()) {
+                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible lenders found for merchantId: {}", METHOD, merchantId);
                     return ApiResponseUtil.notFound("No lenders available for the requested amount", "NO_ELIGIBLE_LENDERS");
                 }
             } catch (Exception e) {
