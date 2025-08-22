@@ -1054,10 +1054,10 @@ public class LoanEligibleService {
                 lendingRiskVariables.getRiskGroup(),
                 lendingRiskVariables.getPincodeColor());
         double bureauScore = lendingRiskVariables.getBureauScore();
-        String riskSegment = lendingRiskVariables.getRiskSegment();
-        String riskGroupLike = lendingRiskVariables.getRiskGroup();
+        String riskSegment = "%" + lendingRiskVariables.getRiskSegment() + "%";
+        String riskGroupLike =  "%" + lendingRiskVariables.getRiskGroup() +  "%";
         String pincodeColor = ObjectUtils.isEmpty(lendingRiskVariables.getPincodeColor()) ? "" : "%" + lendingRiskVariables.getPincodeColor().name() + "%";
-        String tenure = "%" + String.valueOf(loan.getTenureInMonths()) + "%";
+        String tenure = "%" + loan.getTenureInMonths() + "%";
 
         AsyncLoggerUtil.logInfo(logger,"Fetching rules: bureau={}, segment={}, tenure={}, amount={}, riskGroup={}, pincodeColor={}",
                 bureauScore, riskSegment, tenure, loan.getAmount(), riskGroupLike, pincodeColor);

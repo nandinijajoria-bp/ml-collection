@@ -1,5 +1,6 @@
 package com.bharatpe.lending.util;
 
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import java.util.concurrent.*;
 
@@ -7,6 +8,7 @@ import java.util.concurrent.*;
  * Utility class for asynchronous logging operations that reduces impact on application threads
  * while ensuring log messages eventually get processed.
  */
+@Slf4j
 public class AsyncLoggerUtil {
 
 	// Configurable properties
@@ -41,7 +43,7 @@ public class AsyncLoggerUtil {
 		monitor.scheduleAtFixedRate(() -> {
 			int queueSize = logExecutor.getQueue().size();
 			if (queueSize > QUEUE_CAPACITY * 0.8) {
-				System.err.println("WARNING: Async logger queue is 80% full: " + queueSize + " items");
+				AsyncLoggerUtil.log.info("WARNING: Async logger queue is 80% full: " + queueSize + " items");
 			}
 		}, 30, 30, TimeUnit.SECONDS);
 
