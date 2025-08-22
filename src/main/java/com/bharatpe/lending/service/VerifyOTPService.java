@@ -928,8 +928,8 @@ public class VerifyOTPService {
         previousLoan.setDueAmount(0D);
         previousLoan.setDuePrinciple(0D);
         previousLoan.setDueInterest(0D);
-        previousLoan.setDuePenalty(duePenalty);
-        previousLoan.setPaidPenalty(0D);
+        previousLoan.setDuePenalty(0D);
+        previousLoan.setPaidPenalty(ObjectUtils.isEmpty(previousLoan.getPaidPenalty()) ? 0D : previousLoan.getPaidPenalty()  + duePenalty);
         lendingPaymentScheduleDao.save(previousLoan);
 
         if (duePenalty > 0) {
