@@ -1130,8 +1130,9 @@ public class LoanEligibleService {
             }
 
             if (!isPincodeEligible(lender, loan, lendingRiskVariables)) {
-                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Pincode not eligible for merchantId: {}",
-                        lender, merchantId);
+                String rejectReason = "Pincode not eligible for merchantId";
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REJECTED", rejectReason);
                 iterator.remove();
                 continue;
             }
@@ -1152,8 +1153,9 @@ public class LoanEligibleService {
                 }
 
                 if (!isPanAadhaarLinked) {
-                    AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - PAN-Aadhaar not linked for merchantId: {}",
-                            lender, merchantId);
+                    String rejectReason = "PAN-Aadhaar not linked for merchantId";
+                    AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
+                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REJECTED", rejectReason);
                     iterator.remove();
                     continue;
                 }
@@ -1161,22 +1163,25 @@ public class LoanEligibleService {
 
             Pair<Boolean, String> checkResponse = runLenderChecksForApplication(loan, lender, riskVariables, merchantId);
             if (!checkResponse.getKey()) {
-                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Failed lender-specific checks: {} for merchantId: {}",
-                        lender, checkResponse.getValue(), merchantId);
+                String rejectReason = "Failed lender-specific checks: " + checkResponse.getValue();
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} for merchantId: {}", lender, rejectReason, merchantId);
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REJECTED", rejectReason);
                 iterator.remove();
                 continue;
             }
 
             if (additionalChecksFailed(merchantId, lender, merchantDetails)) {
-                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Failed additional merchant checks for merchantId: {}",
-                        lender, merchantId);
+                String rejectReason = "Failed additional merchant checks for merchantId";
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REJECTED", rejectReason);
                 iterator.remove();
                 continue;
             }
 
             if (lenderRolloutFailedCheck(lender, merchantId)) {
-                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Failed rollout percentage check for merchantId: {}",
-                        lender, merchantId);
+                String rejectReason = "Failed rollout percentage check for merchantId";
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REJECTED", rejectReason);
                 iterator.remove();
                 continue;
             }
