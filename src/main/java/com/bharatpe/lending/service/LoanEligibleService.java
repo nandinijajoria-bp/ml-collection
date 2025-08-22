@@ -1098,26 +1098,47 @@ public class LoanEligibleService {
     }
 
     private List<String> filterEligibleLenders(Long merchantId, EligibleLoanDTO loan,
-                                               LendingRiskVariables lendingRiskVariables, RiskVariablesDTO riskVariables, List<String> lenders, BasicDetailsDto merchantDetails) {
+                                               LendingRiskVariables lendingRiskVariables,
+                                               RiskVariablesDTO riskVariables,
+                                               List<String> lenders,
+                                               BasicDetailsDto merchantDetails) {
 
+        final String METHOD = "filterEligibleLenders";
+        AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Starting lender filtering for merchantId: {}, loan amount: {}, tenure: {}",
+                METHOD, merchantId, loan.getAmount(), loan.getTenureInMonths());
+        AsyncLoggerUtil.logInfo(logger, "Initial lenders to check: {} for merchantId: {}", lenders, merchantId);
+
+        if (CollectionUtils.isEmpty(lenders)) {
+            AsyncLoggerUtil.logInfo(logger, "EXIT {} - No lenders to filter for merchantId: {}", METHOD, merchantId);
+            return lenders;
+        }
+
+        int initialLenderCount = lenders.size();
         boolean isPanAadhaarLinkedChecked = false;
         boolean isPanAadhaarLinked = false;
 
         Iterator<String> iterator = lenders.iterator();
         while (iterator.hasNext()) {
             String lender = iterator.next().toUpperCase();
+            AsyncLoggerUtil.logDebug(logger, "Evaluating lender: {} for merchantId: {}", lender, merchantId);
 
             if (isRejectedLender(riskVariables, lender, merchantId)) {
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Listed as rejected lender for merchantId: {}",
+                        lender, merchantId);
                 iterator.remove();
                 continue;
             }
 
             if (!isPincodeEligible(lender, loan, lendingRiskVariables)) {
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Pincode not eligible for merchantId: {}",
+                        lender, merchantId);
                 iterator.remove();
                 continue;
             }
 
             if (!lenderBaseChecksCleared(loan, lender, EdiModel.SEVEN_DAY_MODEL, riskVariables, merchantId)) {
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Base checks failed for merchantId: {}",
+                        lender, merchantId);
                 iterator.remove();
                 continue;
             }
@@ -1126,8 +1147,13 @@ public class LoanEligibleService {
                 if (!isPanAadhaarLinkedChecked) {
                     isPanAadhaarLinked = isPanAndAadhaarLinked(merchantId);
                     isPanAadhaarLinkedChecked = true;
+                    AsyncLoggerUtil.logInfo(logger, "PAN-Aadhaar link status checked: {} for merchantId: {}",
+                            isPanAadhaarLinked, merchantId);
                 }
+
                 if (!isPanAadhaarLinked) {
+                    AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - PAN-Aadhaar not linked for merchantId: {}",
+                            lender, merchantId);
                     iterator.remove();
                     continue;
                 }
@@ -1135,18 +1161,37 @@ public class LoanEligibleService {
 
             Pair<Boolean, String> checkResponse = runLenderChecksForApplication(loan, lender, riskVariables, merchantId);
             if (!checkResponse.getKey()) {
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Failed lender-specific checks: {} for merchantId: {}",
+                        lender, checkResponse.getValue(), merchantId);
                 iterator.remove();
                 continue;
             }
 
-            if (additionalChecksFailed(merchantId, lender, merchantDetails) ||
-                    !negativeCategoryAndLoanAmountCheckPassed(loan, lendingRiskVariables.getRiskSegment(), lender, merchantId)) {
+            if (additionalChecksFailed(merchantId, lender, merchantDetails)) {
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Failed additional merchant checks for merchantId: {}",
+                        lender, merchantId);
                 iterator.remove();
+                continue;
             }
+
+            if (lenderRolloutFailedCheck(lender, merchantId)) {
+                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Failed rollout percentage check for merchantId: {}",
+                        lender, merchantId);
+                iterator.remove();
+                continue;
+            }
+
+            AsyncLoggerUtil.logDebug(logger, "Lender: {} passed all eligibility checks for merchantId: {}",
+                    lender, merchantId);
         }
+
+        int filteredCount = initialLenderCount - lenders.size();
+        AsyncLoggerUtil.logInfo(logger, "EXIT {} - Completed filtering for merchantId: {}, filtered out {}/{} lenders",
+                METHOD, merchantId, filteredCount, initialLenderCount);
+        AsyncLoggerUtil.logInfo(logger, "Final eligible lenders: {} for merchantId: {}", lenders, merchantId);
+
         return lenders;
     }
-
 
     private boolean isRejectedLender(RiskVariablesDTO riskVariables, String lender, Long merchantId) {
         if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
