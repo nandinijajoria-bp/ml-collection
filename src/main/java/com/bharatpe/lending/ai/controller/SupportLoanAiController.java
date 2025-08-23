@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SupportLoanAiController {
     private final SupportService supportService;
 
-    @RequestMapping(value="/loan", method = RequestMethod.GET, produces="application/json")
+    @GetMapping(value="/loan", produces="application/json")
     public ResponseEntity<AiSupportLoanResponse> supportLoanDetails(@RequestParam Long merchantId) {
         log.info("Request received to get loan details for merchantId: {}", merchantId);
         SupportResponseDTO supportResponse = supportService.supportLoan(merchantId);
