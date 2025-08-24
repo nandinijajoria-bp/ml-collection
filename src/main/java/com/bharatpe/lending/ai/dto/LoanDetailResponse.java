@@ -9,6 +9,5 @@ import lombok.Data;
 public class LoanDetailResponse {
     private LoanApplicationDetail currentLoan;
     private Eligibility eligibility;
-    private Object stageDetail;
-
+    private StageDetail stageDetail;
 }

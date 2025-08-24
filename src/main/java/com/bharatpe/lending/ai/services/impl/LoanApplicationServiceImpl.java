@@ -3,7 +3,9 @@ package com.bharatpe.lending.ai.services.impl;
 import com.bharatpe.lending.ai.dto.LoanApplicationDetail;
 import com.bharatpe.lending.ai.dto.LoanDetailResponse;
 import com.bharatpe.lending.ai.enums.LoanApplicationStatus;
+import com.bharatpe.lending.ai.services.ILoanStageDetailBuilder;
 import com.bharatpe.lending.ai.services.ILonaApplicationService;
+import com.bharatpe.lending.ai.services.LoanStageDataBuilderFactory;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
@@ -14,15 +16,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class LoanApplicationServiceImpl implements ILonaApplicationService {
 
     private final LendingApplicationDaoSlave lendingApplicationDaoSlave;
     private final LendingApplicationDetailsDao lendingApplicationDetailsDao;
+    private final LoanStageDataBuilderFactory loanStageDataBuilderFactory;
 
     @Override
     public LoanDetailResponse getLoanApplicationDetails(Long merchantId) {
@@ -47,8 +47,9 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
         }
         LendingViewStates stage = LendingViewStates.valueOf(lad.getApplicationViewState());
         loanApplicationDetail.setStage(stage);
-
         response.setCurrentLoan(loanApplicationDetail);
+        ILoanStageDetailBuilder stageDetailBuilder = loanStageDataBuilderFactory.getStageBuilder(stage);
+        stageDetailBuilder.buildStageResponse(lendingApplication, lad);
         return response;
     }
 
