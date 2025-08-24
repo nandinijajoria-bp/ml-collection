@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -10,6 +11,7 @@ import com.bharatpe.lending.dto.ExperimentConfigResponseDTO;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.LaunchLabsHandler;
+import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -76,6 +78,9 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
     @Autowired
     LoanUtilV3 loanUtilV3;
 
+    @Autowired
+    private LendingShopDocumentsDao lendingShopDocumentsDao;
+
     @Override
     public LendingStateDTO<LenderAggregationResponseDto> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), "draft");
@@ -83,14 +88,13 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
             log.info("appplication not found for merchant:{}", scopeDataArgs.getMerchant().getId());
             return new LendingStateDTO<>(null, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.LENDER_AGGREGATION);
         }
-        List<String> prevlenders = lendingApplicationLenderDetailsDao.findPreviousLenders(lendingApplication.getId());
-        if (!ObjectUtils.isEmpty(prevlenders) && prevlenders.size() >= maxLenderAssignThreshold){
-            log.info("rejecting application {} as max attempts to choose lender breached", lendingApplication.getId());
-            lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
-            lendingApplicationDao.save(lendingApplication);
-            lendingApplicationServiceV2.evictCache(scopeDataArgs.getMerchant().getId());
-            return new LendingStateDTO<>(null, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.LENDER_AGGREGATION);
-        }
+//        if (!ObjectUtils.isEmpty(prevlenders) && prevlenders.size() >= maxLenderAssignThreshold){
+//            log.info("rejecting application {} as max attempts to choose lender breached", lendingApplication.getId());
+//            lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
+//            lendingApplicationDao.save(lendingApplication);
+//            lendingApplicationServiceV2.evictCache(scopeDataArgs.getMerchant().getId());
+//            return new LendingStateDTO<>(null, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.LENDER_AGGREGATION);
+//        }
         LendingLenderQuota defaultLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(!ObjectUtils.isEmpty(defaultLender) && defaultLender.getLender().equals(lendingApplication.getLender())){
             log.info("rejecting application {} as default lender rejected the application", lendingApplication.getId());
@@ -100,6 +104,7 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
             return new LendingStateDTO<>(null, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.LENDER_AGGREGATION);
         }
         List<LenderAggregationResponseDto.LenderData> lenderData = new ArrayList<>();
+        List<String> prevlenders = lendingApplicationLenderDetailsDao.findPreviousLenders(lendingApplication.getId());
         log.info("Attempt no.{} to choose lender for lendingApplication:{}", Objects.nonNull(prevlenders) ? prevlenders.size() + 1 : 1, lendingApplication.getId());
         lenderData = lenderAssignService.getEligibleLenderList(lendingApplication, prevlenders);
         if(ObjectUtils.isEmpty(lenderData) || shouldApplicationBeRejected(lenderData)){
@@ -129,7 +134,20 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
 
 
         loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
-        return new LendingStateDTO<>(responseDto, LendingViewStates.SHOP_DETAILS_PAGE, LendingViewStates.LENDER_AGGREGATION);
+        return new LendingStateDTO<>(responseDto, getNextLendingViewState(lendingApplication), LendingViewStates.LENDER_AGGREGATION);
+    }
+
+    private LendingViewStates getNextLendingViewState(LendingApplication lendingApplication) {
+        boolean isAddressPresent = commonUtil.doesApplicationHaveCompleteAddress(lendingApplication);
+        if (!isAddressPresent) {
+            return LendingViewStates.SHOP_DETAILS_PAGE;
+        }
+        boolean hasValidShopPhotos = lendingShopDocumentsDao.hasValidProofTypes(
+                lendingApplication.getMerchantId(),
+                lendingApplication.getId()
+        ) > 0;
+
+        return hasValidShopPhotos ? LendingViewStates.KYC_PAGE : LendingViewStates.SHOP_PICTURES_PAGE;
     }
 
     @Override

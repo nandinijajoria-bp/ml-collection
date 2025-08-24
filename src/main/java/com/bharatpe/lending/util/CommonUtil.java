@@ -203,4 +203,13 @@ public class CommonUtil {
         }
     }
 
+    public boolean doesApplicationHaveCompleteAddress(LendingApplication lendingApplication) {
+        return lendingApplication.getPincode() != null &&
+                lendingApplication.getStreetAddress() != null &&
+                lendingApplication.getShopNumber() != null &&
+                lendingApplication.getArea() != null &&
+                lendingApplication.getCity() != null &&
+                lendingApplication.getState() != null;
+    }
+
 }

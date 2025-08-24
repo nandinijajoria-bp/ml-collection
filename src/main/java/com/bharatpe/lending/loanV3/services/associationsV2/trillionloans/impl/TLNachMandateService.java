@@ -95,7 +95,7 @@ public class TLNachMandateService {
         try {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             TLNachMandateRequestDto mandateDetails = null;
-            if(loanUtil.isMandateSwitchEnabled(lendingApplication) && lendingApplicationDetails.isAutoPayUpiEligible() && !lendingApplicationDetails.isNachEligible()){
+            if(!ObjectUtils.isEmpty(lendingApplicationDetails.getMandateFlagsToggledOn()) && lendingApplicationDetails.isAutoPayUpiEligible() && !lendingApplicationDetails.isNachEligible()){
                 log.info("nach mandate is not eligible for TrillionLoans merchantId {} and application {}, fetching Upi Autopay Details", lendingApplication.getMerchantId(), lendingApplication.getId());
                 mandateDetails = fetchUpiAutopayMandateDetails(lendingApplication, lenderAssociationDetailsRequest, expiryDate);
             }
