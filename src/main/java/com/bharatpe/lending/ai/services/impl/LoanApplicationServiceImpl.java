@@ -2,6 +2,7 @@ package com.bharatpe.lending.ai.services.impl;
 
 import com.bharatpe.lending.ai.dto.LoanApplicationDetail;
 import com.bharatpe.lending.ai.dto.LoanDetailResponse;
+import com.bharatpe.lending.ai.dto.StageDetail;
 import com.bharatpe.lending.ai.enums.LoanApplicationStatus;
 import com.bharatpe.lending.ai.services.ILoanStageDetailBuilder;
 import com.bharatpe.lending.ai.services.ILonaApplicationService;
@@ -49,7 +50,8 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
         loanApplicationDetail.setStage(stage);
         response.setCurrentLoan(loanApplicationDetail);
         ILoanStageDetailBuilder stageDetailBuilder = loanStageDataBuilderFactory.getStageBuilder(stage);
-        stageDetailBuilder.buildStageResponse(lendingApplication, lad);
+        StageDetail stageDetail = stageDetailBuilder.buildStageResponse(lendingApplication, lad);
+        response.setStageDetail(stageDetail);
         return response;
     }
 
