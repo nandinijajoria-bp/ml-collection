@@ -23,10 +23,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -67,10 +64,13 @@ public class PiramalAdditionalDocUploadService {
                 if (!updateLeadStatus) {
                     return;
                 }
-                // TODO: 05/04/23 enable shop photo uploads later
-                List<DocType> docs = Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT,
-                        DocType.SHOP_PHOTO, DocType.SHOP_STOCK
-                );
+                List<DocType> docs = new ArrayList<>(Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT));
+                if (ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) ||
+                        !LenderAssociationStages.SHOP_PHOTO_UPLOAD.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus())) {
+                    log.info("adding shop photo and stock doc in doc upload list for applicationId: {}", applicationId);
+                    docs.add(DocType.SHOP_PHOTO);
+                    docs.add(DocType.SHOP_STOCK);
+                }
                 for (DocType docType : docs) {
                     try {
                         log.info("processing doc {} {}", lendingApplication.getId(), docType);
