@@ -336,7 +336,7 @@ public class LoanEligibleService {
                             newEligibleLoan, lendingPaymentSchedule, lendingApplication,
                             lendingRiskVariables, prevLoanUnpaidAmountBD, topUpOfferRequestDto.getTopupLender());
 
-                    if (performRiskChecks(newEligibleLoan, lendingApplication, riskVariables, merchantId)) {
+                    if (performRiskChecks(newEligibleLoan, topUpOfferRequestDto.getTopupLender(), riskVariables, merchantId)) {
                         eligibleLoanDao.deleteById(newEligibleLoan.getId());
                         continue; // Skip this loan if risk checks fail
                     }
@@ -410,20 +410,20 @@ public class LoanEligibleService {
         }
     }
 
-    private boolean performRiskChecks(LendingEligibleLoan eligibleLoan, LendingApplication lendingApplication,
+    private boolean performRiskChecks(LendingEligibleLoan eligibleLoan, String topupLender,
                                       RiskVariablesDTO riskVariables, Long merchantId) {
         try {
-            EdiModel ediModel = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel();
+            EdiModel ediModel = LenderOffDays.valueOf(topupLender).getEdiModel();
 
             boolean irrCheckFailed = lenderAssignService.maxIrrCheckFailedV2(eligibleLoan, ediModel,
-                    lendingApplication.getLender(), riskVariables);
+                    topupLender, riskVariables);
             boolean aprCheckFailed = lenderAssignService.maxAprCheckFailedV2(eligibleLoan, ediModel,
-                    lendingApplication.getLender(), riskVariables);
+                    topupLender, riskVariables);
 
             if (irrCheckFailed || aprCheckFailed) {
                 logger.info("Risk check failed for merchantId: {}, amount: {}, ediCount: {}, lender: {}, IRR: {}, APR: {}",
                         merchantId, eligibleLoan.getAmount(), eligibleLoan.getEdiCount(),
-                        lendingApplication.getLender(), irrCheckFailed, aprCheckFailed);
+                        topupLender, irrCheckFailed, aprCheckFailed);
                 return true;
             }
 
