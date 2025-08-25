@@ -9,7 +9,6 @@ import lombok.Data;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class LoanApplicationDetail {
     private Long applicationId;
     private LoanApplicationStatus status;
