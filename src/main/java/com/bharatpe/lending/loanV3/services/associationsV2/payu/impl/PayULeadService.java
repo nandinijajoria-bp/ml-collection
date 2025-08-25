@@ -274,7 +274,7 @@ public class PayULeadService {
                 .lastName(nameAndDobDetails.getLastName())
                 .mobileNumber(kycUtils.getMobileFromKycData(cKycResponseDto))
                 .pan(cKycResponseDto.getPanNumber())
-                .dob(LocalDate.parse(nameAndDobDetails.getDob(), inputFormatter).format(outputFormatter))
+                .dob(LocalDate.parse(cKycResponseDto.getDob(), inputFormatter).format(outputFormatter))
                 .gender(getGender(kycUtils.getGender(cKycResponseDto.getGender()))) // TODO check if gender value is from correct db and is required
                 .isMainApplicant(true)
                 .build();
