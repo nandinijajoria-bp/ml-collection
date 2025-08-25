@@ -57,7 +57,7 @@
         <dependency>
             <groupId>com.bharatpe.common</groupId>
             <artifactId>bharatpe-common</artifactId>
-            <version>3.0-lending-SNAPSHOT</version>
+            <version>3.0-LA-lending-SNAPSHOT</version>
         </dependency>
 
         <dependency>

@@ -1129,6 +1129,7 @@ public class LendingApplicationServiceV2 {
         updateApplicationDataV2(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(merchantBasicDetails,lendingApplication);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
+        updateLendingAuditTrial(merchantBasicDetails.getId(), lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));
         executorService.execute(() -> {
@@ -1139,6 +1140,21 @@ public class LendingApplicationServiceV2 {
         });
         loanUtil.createLendingAuditTrailDTO(lendingApplication);
         return lendingApplication;
+    }
+
+    private void updateLendingAuditTrial(Long merchantId, LendingApplication lendingApplication) {
+        try {
+            String evaluationId = merchantId + "_" + lendingApplication.getLoanAmount();
+            List<LendingAuditTrial> lendingAuditTrials = lendingAuditTrialDao.findByMerchantIdAndEvaluationId(merchantId, evaluationId);
+            if (lendingAuditTrials != null && !lendingAuditTrials.isEmpty()) {
+                for (LendingAuditTrial lendingAuditTrial : lendingAuditTrials) {
+                    lendingAuditTrial.setApplicationId(lendingApplication.getId());
+                    lendingAuditTrialDao.save(lendingAuditTrial);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception in updateLendingAuditTrial for application:{} , {} {} {}", lendingApplication.getId(), merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
     }
 
     private void updateApplicationDataV2(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest, AddressValidationDto addressValidationDto) {

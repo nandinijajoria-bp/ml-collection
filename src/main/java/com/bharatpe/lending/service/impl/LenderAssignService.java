@@ -2046,10 +2046,12 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
+
                             if (!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)) {
                                 log.info("skipping {} due to business category check failure for {}", lender, application.getId());
                                 iterator.remove();
                             }
+
                             if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
                                 log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
                                 String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + application.getId();

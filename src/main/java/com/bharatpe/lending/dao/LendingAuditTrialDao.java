@@ -23,4 +23,6 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 			"and type = :type order by id desc limit 1")
 	public String findByApplicationIdAndMerchantIdAndTypeOrderByIdDesc(Long applicationId, Long merchantId, String type);
 
+	List<LendingAuditTrial> findByMerchantIdAndEvaluationId(Long merchantId, String evaluationId);
+
 }
