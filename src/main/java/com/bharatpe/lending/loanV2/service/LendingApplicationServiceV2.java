@@ -1144,7 +1144,7 @@ public class LendingApplicationServiceV2 {
 
     private void updateLendingAuditTrial(Long merchantId, LendingApplication lendingApplication) {
         try {
-            String evaluationId = merchantId + "_" + lendingApplication.getLoanAmount();
+            String evaluationId = merchantId + "_" + lendingApplication.getLoanAmount().intValue();
             List<LendingAuditTrial> lendingAuditTrials = lendingAuditTrialDao.findByMerchantIdAndEvaluationId(merchantId, evaluationId);
             if (lendingAuditTrials != null && !lendingAuditTrials.isEmpty()) {
                 for (LendingAuditTrial lendingAuditTrial : lendingAuditTrials) {

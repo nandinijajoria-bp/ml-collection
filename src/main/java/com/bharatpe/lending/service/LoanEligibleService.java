@@ -705,7 +705,7 @@ public class LoanEligibleService {
                 return ApiResponseUtil.internalError("Failed to retrieve risk data", e.getMessage());
             }
 
-            String evaluationId = merchantId+ "_" + effectiveQueryAmount;
+            String evaluationId = merchantId+ "_" + effectiveQueryAmount.intValue();
 
             // Get eligible lender list
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders;
