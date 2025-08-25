@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("ai/loan-details")
-public class LoanDetailsController {
+public class LoanDetailsAiController {
 
     @GetMapping(value = "/latest",produces = "application/json")
     public ResponseEntity<Object> getApplicationDetail(@RequestParam Long merchantId) {
