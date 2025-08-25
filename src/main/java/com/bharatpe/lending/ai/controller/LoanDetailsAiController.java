@@ -30,6 +30,10 @@ public class LoanDetailsAiController {
         }
         log.info("Request received to get loan application details for merchantId: {}", merchantId);
         LoanDetailResponse loanDetailResponse = lonaApplicationService.getLoanApplicationDetails(merchantId);
+        if(loanDetailResponse==null){
+            log.info("No loan application details found for merchantId: {}", merchantId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "no loan application found"));
+        }
         log.info("Fetched loan application details for merchantId: {}, details are: {}", merchantId, loanDetailResponse);
         return ResponseEntity.ok(new ApiResponse<>(loanDetailResponse));
     }

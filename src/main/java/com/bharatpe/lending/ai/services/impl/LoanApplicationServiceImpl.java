@@ -30,7 +30,7 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
         LoanDetailResponse response = new LoanDetailResponse();
         if(lendingApplication==null){
             // check for eligibility and build response
-            return response;
+            return null;
         }
         LoanApplicationDetail loanApplicationDetail = new LoanApplicationDetail();
         loanApplicationDetail.setApplicationId(lendingApplication.getId());
