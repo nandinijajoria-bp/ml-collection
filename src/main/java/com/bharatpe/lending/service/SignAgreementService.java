@@ -170,6 +170,12 @@ public class SignAgreementService {
 	@Value("${clone.contact.references.for.topup.enabled:false}")
 	Boolean cloneContactReferenceForTopupEnabled;
 
+	@Value("${topup.v2.flow.enabled:1}")
+	private Integer topupV2FlowEnabled;
+
+	@Value("${topup.v2.flow.lenders:PIRAMAL}")
+	private String topupV2FlowLenders;
+
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
 		if (!ObjectUtils.isEmpty(merchantBasicDetails.getId())) {
@@ -983,16 +989,32 @@ public class SignAgreementService {
 
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
-		List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
-		List<LoanEligibilityDTO> loans1 = loans.stream()
-				.filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+		List<LoanEligibilityDTO> loans;
+		if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc())) {
+			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, true);
+		} else {
+			loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
+		}
+		List<LoanEligibilityDTO> validLoans = loans.stream()
+				.filter(loan ->  loan.getIsRejected() == null || !Boolean.TRUE.equals(loan.getIsRejected()))
 				.collect(Collectors.toList());
-		logger.info("latest eligibility for {} : {}", merchantId, loans1);
-		if(loans1.isEmpty()){
+		logger.info("latest eligibility for {} : {}", merchantId, validLoans);
+
+		if(validLoans.isEmpty()){
 			logger.info("no eligible loan offer available at topup application creation for {}", merchantId);
 			return false;
 		}
-		LoanEligibilityDTO loanEligibilityDTO = loans1.get(0);
+
+		LoanEligibilityDTO loanEligibilityDTO;
+		if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc())) {
+			loanEligibilityDTO = validLoans.stream()
+					.filter(dto -> dto.getTenure().equals(eligibleLoan.getTenure())
+							&& dto.getAmount().compareTo(eligibleLoan.getAmount().intValue()) == 0)
+					.findFirst()
+					.orElse(null);
+		} else {
+			loanEligibilityDTO = validLoans.get(0);
+		}
 		if(ObjectUtils.isEmpty(loanEligibilityDTO) || ObjectUtils.isEmpty(loanEligibilityDTO.getId())){
 			logger.info("no eligible loan entry found at topup application creation for {}", merchantId);
 			return false;
