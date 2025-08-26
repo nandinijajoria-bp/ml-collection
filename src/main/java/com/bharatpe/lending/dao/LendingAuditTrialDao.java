@@ -25,4 +25,8 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 
 	List<LendingAuditTrial> findByMerchantIdAndEvaluationId(Long merchantId, String evaluationId);
 
+	List<LendingAuditTrial> findByMerchantIdAndEvaluationIdAndTypeOrderByIdDesc(Long merchantId, String evaluationId, String type);
+
+
+
 }

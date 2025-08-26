@@ -80,7 +80,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
         }
         else{
             if(loanUtil.isApplicableForAggregationFlow(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId())) {
-                if (LendingViewStates.OFFER_EVALUATION_PAGE.equals(lendingStateDTO.getLendingViewStates())) {
+                if (LendingViewStates.LENDER_AGGREGATION.equals(lendingStateDTO.getLendingViewStates())) {
                     return lendingStateDTO;
                 }
             }
