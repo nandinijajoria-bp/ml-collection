@@ -99,4 +99,27 @@ public class UgroForeclosureService {
         }
         return null;
     }
+
+    public Double getForeclosurePrincipalOutstandingDetails(Long applicationId) {
+        LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, Status.ACTIVE.name(), Lender.UGRO.name());
+        if (ObjectUtils.isEmpty(lendingApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            log.error("UGRO: lending application / LALD not found for {}", applicationId);
+            return 0D;
+        }
+        try {
+            NBFCRequestDTO<?> nbfcRequestDto = NBFCRequestDTO.builder().productName("LENDING").lender(Lender.UGRO.name()).applicationId(applicationId).payload(UgroClosureBreakupRequest.builder().leadId(lendingApplicationLenderDetails.getLeadId()).loanId(lendingApplication.getNbfcId()).closureDate(String.valueOf(Instant.now().toEpochMilli())).build()).build();
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH);
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                UgroClosureBreakupResponse response = objectMapper.convertValue(nbfcResponseDto.getData(), UgroClosureBreakupResponse.class);
+                if (!ObjectUtils.isEmpty(response.getBreakup()) && !ObjectUtils.isEmpty(response.getBreakup().getTotal())) {
+                    return response.getBreakup().getPo();
+                }
+            }
+        } catch (Exception e) {
+            log.info("UGRO: exception occurred while parsing response data of foreclosure details for {} {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return 0D;
+    }
+
 }
