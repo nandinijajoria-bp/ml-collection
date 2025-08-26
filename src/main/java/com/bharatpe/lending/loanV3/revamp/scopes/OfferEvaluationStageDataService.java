@@ -14,6 +14,8 @@ import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.OfferEvaluationRequestDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
+import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +45,12 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     @Autowired
     FunnelService funnelService;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
+
+    @Autowired
+    EligibilityV3Service eligibilityV3Service;
 
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,CAPRI,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
@@ -78,6 +86,21 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             }
 
             EligibilityStateDTO eligibilityStateDTO = mapToEligibilityState(requestData);
+            eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
+            //set merchant Id
+            eligibilityStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
+            eligibilityStateDTO.setAccountDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
+            Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
+            if (experian != null) {
+                eligibilityStateDTO.setPancard(experian.getPancardNumber());
+                eligibilityStateDTO.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
+                eligibilityStateDTO.setHasExperian(true);
+                eligibilityStateDTO.setExperian(experian);
+            }
+            eligibilityStateDTO.setKycPanStatus(kycHandler.getPanStatus(scopeDataArgs.getMerchant().getId()));
+
+            eligibilityStateDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(scopeDataArgs.getMerchant().getId()));
+            eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
 
             trackFunnelEvent(String.valueOf(scopeDataArgs.getMerchant().getId()), FunnelEnums.StageEvent.COMPLETED);
 
