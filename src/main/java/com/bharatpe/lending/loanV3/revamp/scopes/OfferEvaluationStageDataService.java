@@ -75,16 +75,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             OfferEvaluationRequestDTO requestData = collectRequestData(scopeDataArgs);
 
-            if (requestData.getLendingApplication() == null) {
-                log.info("Application not found for merchant: {}", scopeDataArgs.getMerchant().getId());
-                return new LendingStateDTO<>(null, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
-            }
-
-            if (isMaxLenderAttemptsReached(requestData)) {
-                handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(scopeDataArgs.getMerchant().getId()));
-                return new LendingStateDTO<>(null, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
-            }
-
             EligibilityStateDTO eligibilityStateDTO = mapToEligibilityState(requestData);
             eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
             //set merchant Id
@@ -101,6 +91,12 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             eligibilityStateDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(scopeDataArgs.getMerchant().getId()));
             eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
+
+
+            if (isMaxLenderAttemptsReached(requestData)) {
+                handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(scopeDataArgs.getMerchant().getId()));
+                return new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
+            }
 
             trackFunnelEvent(String.valueOf(scopeDataArgs.getMerchant().getId()), FunnelEnums.StageEvent.COMPLETED);
 
