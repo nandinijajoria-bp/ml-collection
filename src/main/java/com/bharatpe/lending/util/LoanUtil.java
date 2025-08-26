@@ -114,9 +114,9 @@ public class LoanUtil {
 	public static final int COOL_OFF_PERIOD_DAYS = 3;
 	public static final String CLOSURE = "ANY";
 	private static final String RECEIVABLE = "RECEIVABLE";
-	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), PIRAMAL.name()));
+	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
 	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), PIRAMAL.name()));
-	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
+	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
 
 	@Autowired
 	MongoLogPublisher mongoLogPublisher;
@@ -446,6 +446,9 @@ public class LoanUtil {
 
 	@Value("${mandate.switch.rollout.percent:10}")
 	Integer mandateSwitchRolloutPercent;
+
+	@Value("${fore.closure.charges.rollout.date.ugro:2026-02-20 00:00:00}")
+	String ugroForeClosureChargesRolloutDate;
 
 	@Autowired
 	PricingExperimentDao pricingExperimentDao;
@@ -2756,6 +2759,9 @@ public class LoanUtil {
 					break;
 				case "ABFL":
 					date = abflForeClosureChargesRolloutDate;
+					break;
+				case "UGRO":
+					date = ugroForeClosureChargesRolloutDate;
 					break;
 				default:
 					break;
