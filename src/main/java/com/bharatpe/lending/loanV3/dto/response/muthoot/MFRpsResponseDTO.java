@@ -31,22 +31,13 @@ public class MFRpsResponseDTO {
     @NoArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class LoanDetails {
-        private Double annualPercentageRate;
         private String applicationID;
-        private Double disbursedAmount;
-        private Double ediAmount;
-        private Double interestAmount;
+        private Object closureDate;
         private Double interestRate;
         private String interestRateType;
-        private Double loanAmount;
         private String loanID;
-        private Double monthlyInterestRate;
-        private Integer processingFeeAmount;
-        private Double processingFeeRate;
-        private Integer status;
-        private Integer tenureInDays;
-        private Integer tenureInMonths;
-        private Double totalPayableAmount;
+        private String startDate;
+        private String status;
     }
 
     @Data
