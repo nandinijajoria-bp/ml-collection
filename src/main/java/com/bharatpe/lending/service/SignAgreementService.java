@@ -991,7 +991,7 @@ public class SignAgreementService {
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 		List<LoanEligibilityDTO> loans;
 		if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc())) {
-			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, true);
+			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
 		} else {
 			loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
 		}
