@@ -818,10 +818,26 @@ public class LoanEligibleService {
                         List<String> ineligiblelenders = new ArrayList<>();
 
                         if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-                            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
-                            if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
-                                rejectedLendersArray.forEach(l -> ineligiblelenders.add(l.trim()));
+                            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","))
+                                    .stream()
+                                    .map(String::trim)
+                                    .collect(Collectors.toList());
+
+                            // Process each lender to see if it's rejected
+                            List<String> lendersToRemove = new ArrayList<>();
+                            for (String lender : lenderNames) {
+                                if (rejectedLendersArray.contains(loanUtil.getLenderRejectedMapping(lender.toUpperCase()))) {
+                                    AsyncLoggerUtil.logInfo(logger, "Skipping {} due to lender in rejected lender list for merchant: {}",
+                                            lender, merchantId);
+                                    String remarks = "Skipping " + lender + " due to lender in rejected lender list in lending risk variables";
+                                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
+                                    lendersToRemove.add(lender);
+                                    ineligiblelenders.add(lender);
+                                }
                             }
+
+                            // Remove rejected lenders from the eligible list
+                            lenderNames.removeAll(lendersToRemove);
                         }
 
                         //fetch from lender removed from lending audit trial
