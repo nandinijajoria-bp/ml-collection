@@ -1826,7 +1826,7 @@ public class LoanEligibleService {
 
     List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender, Long merchantId, String evaluationId) {
         AsyncLoggerUtil.logInfo(logger,"Assigned Lender: {}  EdiModel: {}", assignedLender, ediModel );
-        List<String> eligibleLenders = new ArrayList<>();
+        Set<String> eligibleLendersSet = new LinkedHashSet<>();
         AsyncLoggerUtil.logInfo(logger,"lender assignment rules: {}", lenderAssignmentRules);
         AsyncLoggerUtil.logInfo(logger,"is internal merchant {}", loanUtil.isInternalMerchant(merchantId));
         for(LenderAssignmentRules rule:lenderAssignmentRules){
@@ -1847,9 +1847,10 @@ public class LoanEligibleService {
                 if(lenderRolloutFailedCheck(lender, merchantId)) {
                     continue;
                 }
-                eligibleLenders.add(lender);
+                eligibleLendersSet.add(lender);
             }
         }
+        List<String> eligibleLenders = new ArrayList<>(eligibleLendersSet);
         AsyncLoggerUtil.logInfo(logger,"Eligible Lenders: {}", eligibleLenders);
         return eligibleLenders;
     }
