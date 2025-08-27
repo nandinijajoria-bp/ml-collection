@@ -207,6 +207,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.eligible.lenders.for.modify:2}")
     Integer maxEligibleLendersCountForModify;
 
+    @Value("${min.eligible.lenders.before.fallback:3}")
+    Integer minEligibleLendersCountBeforeFallback;
+
     @Autowired
     LendingApplicationServiceV3Base lendingApplicationServiceV3Base;
 
@@ -1034,10 +1037,10 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("Already assigned lenders for applicationId : {} {}", application.get().getId(), alreadyAssignedLender);
             List<String> availableLenders = initialEligibleLenders.stream().filter(lender -> !alreadyAssignedLender.contains(lender)).collect(Collectors.toCollection(ArrayList::new));
             log.info("Available lenders {} from initial eligible lenders for applicationId : {} ", availableLenders, application.get().getId());
-            if(availableLenders.size() > 0 && alreadyAssignedLender.size() < maxEligibleLendersCountForModify) {
+            if(!availableLenders.isEmpty() && alreadyAssignedLender.size() < maxEligibleLendersCountForModify && alreadyAssignedLender.size() != minEligibleLendersCountBeforeFallback) {
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 String decidedLender = getLender(application.get(), availableLenders, EdiModel.valueOf(ediDetails.getEdiModel()), false, null);
-                if(!ObjectUtils.isEmpty(decidedLender)) {
+                if (!ObjectUtils.isEmpty(decidedLender)) {
                     log.info("assigning lender {} from available lenders {} for applicationId {} with old lender {}", decidedLender, availableLenders, applicationId, application.get().getLender());
                     EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
                     String oldLender = application.get().getLender();
@@ -1091,8 +1094,8 @@ public class LenderAssignService implements ILenderAssignService {
                 updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
                 return valueOf(newLender);
             } else {
-                log.info("Fallback lender already assigned for applicationId : {}", application.get().getId());
-                return null;
+            log.info("Fallback lender already assigned for applicationId : {}", application.get().getId());
+            return null;
             }
         }
         log.info("Application with id:{} not found.", applicationId);
