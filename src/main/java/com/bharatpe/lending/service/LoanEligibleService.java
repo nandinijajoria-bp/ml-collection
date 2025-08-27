@@ -310,7 +310,7 @@ public class LoanEligibleService {
     @Autowired
     CreditSaisonConfig creditSaisonConfig;
 
-    @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,CAPRI,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
+    @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
 
     @Autowired
