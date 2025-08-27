@@ -59,10 +59,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null)){
-            lendingStateDTO.setLendingViewStates(LendingViewStates.OFFER_EVALUATION_PAGE);
-        } else if(lendingStateDTO.getData().getIsPreapprovedRepeatLoan()){
-            lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
-        } else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
         }
         return lendingStateDTO;
