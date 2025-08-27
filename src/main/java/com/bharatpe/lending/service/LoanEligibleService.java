@@ -1202,7 +1202,7 @@ public class LoanEligibleService {
                 continue;
             }
 
-            if (lenderRolloutFailedCheck(lender, merchantId)) {
+            if (lenderRolloutFailedCheck(lender, merchantId, evaluationId)) {
                 String rejectReason = "Failed rollout percentage check for merchantId";
                 AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
                 createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, evaluationId);
@@ -1844,7 +1844,7 @@ public class LoanEligibleService {
                     createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
                     continue;
                 }
-                if(lenderRolloutFailedCheck(lender, merchantId)) {
+                if(lenderRolloutFailedCheck(lender, merchantId, evaluationId)) {
                     continue;
                 }
                 eligibleLendersSet.add(lender);
@@ -1872,7 +1872,7 @@ public class LoanEligibleService {
     }
 
 
-    private boolean lenderRolloutFailedCheck(String lender, Long merchantId) {
+    private boolean lenderRolloutFailedCheck(String lender, Long merchantId, String evaluationId) {
         List<Lender> skipRolloutCheckForLenders = Arrays.asList(LDC, MAMTA, HINDON, LIQUILOANS, LIQUILOANS_NBFC, LIQUILOANS_P2P, LIQUILOANS_P2P_OF, MAMTA0, MAMTA1, MAMTA2, ABFL,PIRAMAL);
         if(skipRolloutCheckForLenders.contains(valueOf(lender))) {
             return false;
@@ -1911,6 +1911,8 @@ public class LoanEligibleService {
         }
         if(!loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, rolloutPercent)) {
             AsyncLoggerUtil.logInfo(logger,"removing {} from eligible lender list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, rolloutPercent);
+            String remarks = "removing " + lender + " from eligible list for merchantId : " + merchantId + " due to not in rollout percentage " + rolloutPercent;
+            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
             return true;
         }
         return false;
