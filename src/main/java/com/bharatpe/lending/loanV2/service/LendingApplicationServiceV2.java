@@ -5817,4 +5817,156 @@ public class LendingApplicationServiceV2 {
         return CREDITSAISON.name().equalsIgnoreCase(lendingApplication.getLender())
                 && VKYC_SKIPPED.equals(vkycDetails.getStatus());
     }
+
+    public ApiResponse<?> getKfsDetailsOnOfferPage(OfferPageKfsDetailsRequest request, BasicDetailsDto merchant) {
+
+        Double loanAmount = request.getLoanAmount();
+        Double processingFee =  request.getProcessingFee();
+
+        Double disbursalAmount = loanAmount - processingFee;
+        Double processingFeePercentage = processingFee * 100D / loanAmount;
+
+        Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (processingFee * 100D / (100D + GST_PERCENTAGE)) / (loanAmount) * 100));
+
+        Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (loanAmount * processingFeePercentageWithoutGst) / 100D ));
+
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+
+        String lenderCorporateName = "";
+        String lenderBusinessAddress = "";
+        String lenderContactName = "";
+        String lenderContactEmail = "";
+        String lenderContactNumber = "";
+        String colenderCorporateName = "";
+        String colenderBusinessAddress = "";
+        String lenderGrievanceTime = "";
+
+        if(request.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || request.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LIQUILOANS;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LIQUILOANS;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LIQUILOANS;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LIQUILOANS;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LIQUILOANS;
+            lenderGrievanceTime = LENDER_GRIEVANCE_TIME_LIQUILOANS;
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString()) ||
+                request.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LL_NBFC;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LL_NBFC;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LL_NBFC;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LL_NBFC;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LL_NBFC;
+            lenderGrievanceTime = LENDER_GRIEVANCE_TIME_LL_NBFC;
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.LDC.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LDC;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LDC;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LDC;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LDC;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LDC;
+            lenderGrievanceTime = LENDER_GRIEVANCE_TIME_LDC;
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.ABFL.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_ABFL;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_ABFL;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_ABFL;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_ABFL;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_ABFL;
+            lenderGrievanceTime = KfsConstants.LENDER_GRIEVANCE_TIME_ABFL;
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.PIRAMAL.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_PIRAMAL;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_PIRAMAL;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_PIRAMAL;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_PIRAMAL;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_PIRAMAL;
+        } else if(request.getLender().equalsIgnoreCase(Lender.CAPRI.name())) {
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_CAPRI;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_CAPRI;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_CAPRI;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_CAPRI;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_CAPRI;
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.MUTHOOT.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_MUTHOOT;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_MUTHOOT;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MUTHOOT;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_MUTHOOT;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_MUTHOOT;
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.PAYU.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_PAYU;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_PAYU;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_PAYU;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_PAYU;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_PAYU;
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.CREDITSAISON.toString())){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_CREDITSAISON;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_CREDITSAISON;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_CREDITSAISON;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_CREDITSAISON;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_CREDITSAISON;
+        }
+        else if (request.getLender().equalsIgnoreCase(Lender.SMFG.toString())) {
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_SMFG;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_SMFG;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_SMFG;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_SMFG;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_SMFG;
+        } else if (request.getLender().equalsIgnoreCase(Lender.UGRO.toString())) {
+            lenderCorporateName = ugroConfig.getCorporateName();
+            lenderBusinessAddress = ugroConfig.getBusinessAddress();
+            lenderContactName = ugroConfig.getContactName();
+            lenderContactEmail = ugroConfig.getContactEmail();
+            lenderContactNumber = ugroConfig.getContactNumber();
+            lenderGrievanceTime = ugroConfig.getGrievanceTIme();
+        } else if (request.getLender().equalsIgnoreCase(Lender.OXYZO.toString())) {
+            lenderCorporateName = oxyzoConfig.getCorporateName();
+            lenderBusinessAddress = oxyzoConfig.getBusinessAddress();
+            lenderContactName = oxyzoConfig.getContactName();
+            lenderContactEmail = oxyzoConfig.getContactEmail();
+            lenderContactNumber = oxyzoConfig.getContactNumber();
+            lenderGrievanceTime = oxyzoConfig.getGrievanceTIme();
+        }
+        else if(request.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
+                || request.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
+                || request.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
+                || request.getLender().equalsIgnoreCase(Lender.MAMTA2.toString()) ){
+            lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_MAMTA;
+            lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_MAMTA;
+            lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MAMTA;
+            lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_MAMTA;
+            lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_MAMTA;
+        }
+        if(request.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
+            colenderCorporateName = KfsConstants.COLENDER_CORPORATE_NAME_MAMTA1;
+            colenderBusinessAddress = KfsConstants.COLENDER_BUSINESS_ADDRESS_MAMTA1;
+        } else if(request.getLender().equalsIgnoreCase(Lender.MAMTA2.toString())){
+            colenderCorporateName = KfsConstants.COLENDER_CORPORATE_NAME_MAMTA2;
+            colenderBusinessAddress = KfsConstants.COLENDER_BUSINESS_ADDRESS_MAMTA2;
+        }
+
+        KfsDetailsDto kfsDetailsDto = KfsDetailsDto.builder()
+                .lenderCorporateName(lenderCorporateName)
+                .lenderBusinessAddress(lenderBusinessAddress)
+                .lenderContactName(lenderContactName)
+                .lenderContactEmail(lenderContactEmail)
+                .lenderContactNumber(lenderContactNumber)
+                .colenderCorporateName(colenderCorporateName)
+                .colenderBusinessAddress(colenderBusinessAddress)
+                .lenderGrievanceTime(lenderGrievanceTime)
+                .processingFeePercentage(processingFeePercentage)
+                .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
+                .processingFeeWithoutGst(processingFeeWithoutGst)
+                .coolingOffDays(COOLING_OFF_DAYS)
+                .disbursalAmount(disbursalAmount)
+                .annualTurnover(Optional.ofNullable(lendingRiskVariables.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
+                .build();
+
+        return new ApiResponse<>(kfsDetailsDto);
+
+    }
+
+
 }
