@@ -260,6 +260,9 @@ public class VerifyOTPService {
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
+    @Value("${constant.pf.for.topup.enabled.lender:}")
+    String constantProcessingFeeForTopupEnabledLender;
+
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         if (Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -866,7 +869,10 @@ public class VerifyOTPService {
             double processingFee = Math.ceil(finalDisbursalAmountWithoutProcessingFee * processingFeeRate);
 
             // skipping updating pf for trillion as the details is already sent to them
-            if(!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) || LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) lendingApplication.setProcessingFee(processingFee);
+            if(!constantProcessingFeeForTopupEnabledLender.contains(lendingApplication.getLender()) || LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) {
+                logger.info("Updating processing fee for application: {} from {} to {}", lendingApplication.getId(), lendingApplication.getProcessingFee(), processingFee);
+                lendingApplication.setProcessingFee(processingFee);
+            }
             lendingApplication.setDisbursalAmount(finalDisbursalAmountWithoutProcessingFee - processingFee);
 
             lendingApplicationDao.save(lendingApplication);
