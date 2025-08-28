@@ -15,8 +15,8 @@ public class OfferPageKfsDetailsRequest {
     private String lender;
 
     @Positive(message = "Loan amount must be greater than 0")
-    private double loanAmount;
+    private Double loanAmount;
 
     @Min(value = 0, message = "Processing fee cannot be negative")
-    private double processingFee;
+    private Double processingFee;
 }
