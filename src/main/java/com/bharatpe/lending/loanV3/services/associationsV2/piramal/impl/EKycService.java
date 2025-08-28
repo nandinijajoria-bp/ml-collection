@@ -12,6 +12,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
+import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
@@ -26,8 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.util.Arrays;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -65,6 +65,9 @@ public class EKycService {
 
     @Value("${piramal.ekyc.retry.count:2}")
     Integer piramalEKycRetryCount;
+
+    @Value("${piramal.shop.photo.pre.bre.threshold:500000}")
+    Integer piramalShopPhotoPreBreThreshold;
 
     @Transactional
     public boolean invokeEKyc(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -187,7 +190,14 @@ public class EKycService {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycRetryCount(0);
                     commonService.manageApplicationState(lenderAssociationDetailsRequest);
                     log.info("invoking selfie upload to piramal after EKyc success for applicationId {}", lendingApplication.getId());
-                    if(piramalDocumentUploadService.invokeDocUpload(lenderAssociationDetailsRequest, LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD.name())) {
+                    List<String> stagesToBeInvokedInOrder = new ArrayList<>(Collections.singletonList(LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD.name()));
+                    if(lendingApplication.getLoanAmount() >= piramalShopPhotoPreBreThreshold) {
+                        stagesToBeInvokedInOrder.add(DocType.SHOP_STOCK.name());
+                        stagesToBeInvokedInOrder.add(DocType.SHOP_PHOTO.name());
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStages.SHOP_PHOTO_UPLOAD.name());
+                    }
+                    Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !piramalDocumentUploadService.invokeDocUpload(lenderAssociationDetailsRequest, stage)).findFirst();
+                    if (!failureStage.isPresent()) {
                         String currStage =  lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage();
                         LenderAssociationStages nextStage =
                                 LenderAssociationStageFactory.getNextStage(Lender.valueOf(lenderAssociationDetailsRequest.getLendingApplication().getLender()),
