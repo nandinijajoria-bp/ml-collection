@@ -213,7 +213,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 lendingApplication.getMerchantId(),
                 lendingApplication.getId()
         ) > 0;
-        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication)
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication);
         if(bpKycRequired)
         {
             return LendingViewStates.LENDER_EVALUATION_PAGE;
