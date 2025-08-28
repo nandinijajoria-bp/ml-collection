@@ -3,8 +3,10 @@ package com.bharatpe.lending.dao;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -24,4 +26,10 @@ public interface LenderDisbursalLimitsDao extends JpaRepository<LendingLenderQuo
     LendingLenderQuota findByLender(String lender);
 
     LendingLenderQuota findByEdiModelIsNull();
+
+    @Query(value = "SELECT * FROM lending_lender_quota " +
+            "WHERE updated_at BETWEEN :startDate AND :endDate",
+            nativeQuery = true)
+    List<LendingLenderQuota> findByUpdatedAtBetween(@Param("startDate") LocalDateTime startDate,
+                                                    @Param("endDate") LocalDateTime endDate);
 }
