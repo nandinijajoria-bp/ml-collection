@@ -279,7 +279,7 @@ public class LoanDetailsController {
 			consumes = MediaType.APPLICATION_JSON_VALUE,
 			produces = MediaType.APPLICATION_JSON_VALUE
 	)
-	public ResponseEntity<Map<String, Object>> getEligibleOfferDetailsV2(
+	public ResponseEntity<ApiResponseDTOV2<EligibleOffersResponseDTO>> getEligibleOfferDetailsV2(
 			@RequestAttribute BasicDetailsDto merchant,
 			@RequestParam(name = "query_amount", required = true) Double queryAmount,
 			@RequestParam(name = "edi_model", required = false) Integer ediModel) {
@@ -289,18 +289,19 @@ public class LoanDetailsController {
 				METHOD, merchant.getId(), queryAmount, ediModel);
 
 		try {
+			// Validate input parameters
 			if (queryAmount == null || queryAmount <= 0) {
 				AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid query amount: {}", METHOD, queryAmount);
 				return ApiResponseUtil.badRequest("Invalid query amount", "INVALID_PARAMETERS");
 			}
 
-			ediModel = (ediModel == null) ? lendingEdiModel : ediModel;
+			// Use default ediModel if not provided
+			Integer finalEdiModel = (ediModel == null) ? lendingEdiModel : ediModel;
 
-			// Get the response entity from the service
-			ResponseEntity<Map<String, Object>> serviceResponse = loanEligibleService.getEligibilityDetailsV2(
-					merchant.getId(), queryAmount, ediModel, merchant);
+			// Get eligible offers from service
+			ResponseEntity<ApiResponseDTOV2<EligibleOffersResponseDTO>> serviceResponse =
+					loanEligibleService.getEligibilityDetailsV2(merchant.getId(), queryAmount, finalEdiModel, merchant);
 
-			// Simply return the response from the service since it's already in the right format
 			AsyncLoggerUtil.logInfo(logger, "EXIT {} - Completed processing for merchantId: {}",
 					METHOD, merchant.getId());
 			return serviceResponse;

@@ -620,7 +620,7 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    public ResponseEntity<Map<String, Object>> getEligibilityDetailsV2(Long merchantId, Double queryAmount, Integer ediModel, BasicDetailsDto merchantDetails) {
+    public ResponseEntity<ApiResponseDTOV2<EligibleOffersResponseDTO>> getEligibilityDetailsV2(Long merchantId, Double queryAmount, Integer ediModel, BasicDetailsDto merchantDetails) {
         final String METHOD = "getEligibilityDetailsV2";
         AsyncLoggerUtil.logInfo(logger, "ENTRY {} - merchantId: {}, amount: {}, ediModel: {}", METHOD, merchantId, queryAmount, ediModel);
 
