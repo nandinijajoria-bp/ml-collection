@@ -132,6 +132,9 @@ public class PiramalDocumentUploadService {
                 return LenderAssociationStages.PiramalAssociationStages.AADHAR_UPLOAD;
             case "SELFIE":
                 return LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD;
+            case "SHOP_PHOTO":
+            case "SHOP_STOCK":
+                return LenderAssociationStages.PiramalAssociationStages.DOC_UPLOAD;
             default:
                 return null;
         }
