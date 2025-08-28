@@ -2,11 +2,15 @@ package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dao.LmsFieldValuesDao;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.entity.LmsFieldValues;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -16,16 +20,16 @@ import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.BureauDataResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
-import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
-import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
-import com.bharatpe.lending.loanV3.dto.PoaXmlDTO;
-import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.dto.*;
+import com.bharatpe.lending.loanV3.enums.KycMode;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -115,6 +119,12 @@ public class KycUtils {
     @Autowired
     @Lazy
     LoanUtilV3 loanUtilV3;
+
+    @Value("${skip.kyc.enabled.lenders:}")
+    String skipKycEnabledLenders;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     public CKycResponseDto getKycData(Long merchantId) {
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
@@ -407,7 +417,7 @@ public class KycUtils {
         return cKycResponseDto;
     }
 
-    public CKycResponseDto parsePoaXML(String poaXml, Long merchantId, CKycResponseDto cKycResponseDto, Long applicationId) {
+    public CKycResponseDto parsePoaXML(String poaXml, Long merchantId, CKycResponseDto cKycResponseDto) {
         try {
             if (!ObjectUtils.isEmpty(poaXml)) {
                 log.info("poaXml {}", poaXml);
@@ -438,7 +448,6 @@ public class KycUtils {
                         cKycResponseDto.setPo(poa.getPo());
                         cKycResponseDto.setSubdist(poa.getSubdist());
                         cKycResponseDto.setDist(poa.getDist());
-                        savePoaDetailsForLenderKyc(applicationId, cKycResponseDto);
                     }
                 }
             }
@@ -457,25 +466,37 @@ public class KycUtils {
         return address;
     }
 
-    public void savePoaDetailsForLenderKyc(Long applicationId, CKycResponseDto cKycResponseDto) {
-        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+    public void savePoaDetailsForKyc(LendingApplication application, String kycMode, CKycResponseDto cKycResponseDto) {
+        LendingApplicationKycDetails prevKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndConsentDateNotNull(application.getId());
+        LendingApplicationKycDetails lendingApplicationKycDetails = Optional.ofNullable(lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderAndKycModeOrderByIdDesc(application.getId(), application.getLender(), kycMode)).orElse(new LendingApplicationKycDetails());
         if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+            lendingApplicationKycDetails.setApplicationId(application.getId());
+            lendingApplicationKycDetails.setLender(application.getLender());
+            lendingApplicationKycDetails.setMerchantId(application.getMerchantId());
+            lendingApplicationKycDetails.setKycMode(kycMode);
             lendingApplicationKycDetails.setAadharAddress(cKycResponseDto.getAddress());
-            lendingApplicationKycDetails.setAadharApprovedAt(new Date());
             lendingApplicationKycDetails.setAadharName(cKycResponseDto.getName());
             lendingApplicationKycDetails.setFatherName(getFatherName(cKycResponseDto.getCareOf() + ","));
             lendingApplicationKycDetails.setDob(cKycResponseDto.getDob());
             lendingApplicationKycDetails.setAadharIdentifier(cKycResponseDto.getAadharNumber());
-//            lendingApplicationKycDetails.setAadharXml(cKycResponseDto.getPoaString());
             lendingApplicationKycDetails.setGender(cKycResponseDto.getGender());
             lendingApplicationKycDetails.setAadharState(cKycResponseDto.getState());
             lendingApplicationKycDetails.setAadharCity(cKycResponseDto.getCity());
             lendingApplicationKycDetails.setAadharPinCode(cKycResponseDto.getPincode());
+            lendingApplicationKycDetails.setAadharApprovedAt(!KycMode.SKIP_KYC.name().equalsIgnoreCase(kycMode) ? new Date() : lendingApplicationKycDetails.getAadharApprovedAt());
+            lendingApplicationKycDetails.setKycInitiatedAt(KycMode.SKIP_KYC.name().equalsIgnoreCase(kycMode) ? new Date() : lendingApplicationKycDetails.getKycInitiatedAt());
+            if(!ObjectUtils.isEmpty(prevKycDetails)) {
+                lendingApplicationKycDetails.setSelfieUrl(prevKycDetails.getSelfieUrl());
+                lendingApplicationKycDetails.setSelfieApprovedAt(prevKycDetails.getSelfieApprovedAt());
+                lendingApplicationKycDetails.setPan(prevKycDetails.getPan());
+                lendingApplicationKycDetails.setPanApprovedAt(prevKycDetails.getPanApprovedAt());
+                lendingApplicationKycDetails.setKycInitiatedAt(prevKycDetails.getKycInitiatedAt());
+            }
             lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
         }
     }
 
-    public Boolean isELigibleForLenderKyc(String lender, Long merchantId, boolean isTopup) {
+    public Boolean isEligibleForLenderKyc(String lender, Long merchantId, boolean isTopup) {
         if(lenderKycPipeLenders.contains(lender)) {
             switch (lender) {
                 case "ABFL" :
@@ -623,5 +644,50 @@ public class KycUtils {
         return null;
     }
 
+    public Boolean isEligibleForSkipKyc(Long applicationId, Lender lender, Long merchantId, boolean isTopup) {
+        if(skipKycEnabledLenders.contains(lender.name())) {
+            if(bharatPeKycLenderAlreadyAssigned(applicationId)) {
+                log.info("Skip Kyc not eligible, as BP kyc lender already assigned for application {}", applicationId);
+                return false;
+            }
+            if(skipKycCaseAlreadyFailedForLender(applicationId, lender.name())) {
+                log.info("Skip Kyc not eligible, as validation already failed with skip kyc on {} for application {}", lender, applicationId);
+                return false;
+            }
+            switch (lender) {
+                case TRILLIONLOANS:
+                    return easyLoanUtil.percentScaleUp(merchantId, isTopup ? trillionLoansConfig.getTopUpSkipKycRolloutPercent() : trillionLoansConfig.getSkipKycRolloutPercent());
+                default:
+                    return false;
+            }
+        }
+        return false;
+    }
+
+    public Boolean isEligibleForSkipKycOrLenderKyc(LendingApplication application) {
+        if(isEligibleForLenderKyc(application.getLender(), application.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()))) {
+            return true;
+        }
+        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(application.getId());
+        return !(ObjectUtils.isEmpty(kycDetails)) && LenderAssociationStages.SKIP_KYC.name().equalsIgnoreCase(kycDetails.getKycMode());
+    }
+
+    public Boolean bharatPeKycLenderAlreadyAssigned(Long applicationId) {
+        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndKycModeOrderByIdDesc(applicationId, KycMode.BP_KYC.name());
+        if(!ObjectUtils.isEmpty(kycDetails)) {
+            log.info("BP kyc lender already assigned for application {}", applicationId);
+            return true;
+        }
+        return false;
+    }
+
+    public Boolean skipKycCaseAlreadyFailedForLender(Long applicationId, String lender) {
+        LendingApplicationLenderDetails prevLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, Status.INACTIVE.name(), lender);
+        if(!ObjectUtils.isEmpty(prevLenderDetails) && LenderAssociationStages.SKIP_KYC.name().equalsIgnoreCase(prevLenderDetails.getKycMode())) {
+            log.info("Skip kyc case already failed with lender {} for application {}", lender, applicationId);
+            return true;
+        }
+        return false;
+    }
 
 }

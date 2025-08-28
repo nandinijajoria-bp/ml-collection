@@ -240,7 +240,7 @@ public class SignAgreementService {
 		}
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
 
-			KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) ? kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
+			KycStatusDTO kycStatus = kycUtils.isEligibleForSkipKycOrLenderKyc(lendingApplication) ? kycHandler.getKycStatusForLenderKycOrSkipKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
 			logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
 			if (kycStatus.getKycStatus().equals(KycStatus.NEW) || kycStatus.getKycStatus().equals(KycStatus.DRAFT)) {
 				logger.info("kyc not done for application:{}", applicationId);
@@ -926,8 +926,10 @@ public class SignAgreementService {
 			}
 
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
-
-			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));
+            Boolean isEligibleForSkipKyc = kycUtils.isEligibleForSkipKyc(newApplication.getId(), Lender.valueOf(newApplication.getLender()), newApplication.getMerchantId(), true);
+			LendingViewStates nextPage = getTopupViewState(Lender.valueOf(newApplication.getLender()), isEligibleForSkipKyc);
+			response.put("nextPage", nextPage);
+			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), nextPage);
 
 			loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
 			if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender()) && cloneContactReferenceForTopupEnabled) {
@@ -1021,12 +1023,13 @@ public class SignAgreementService {
 		return true;
 	}
 
-	private LendingViewStates getTopupViewState(Lender lender){
+	private LendingViewStates getTopupViewState(Lender lender, Boolean isEligibleForSkipKyc){
 		switch (lender){
 			case ABFL:
-			case TRILLIONLOANS:
 			case PAYU:
 				return LendingViewStates.LENDER_EVALUATION_PAGE;
+			case TRILLIONLOANS:
+				return isEligibleForSkipKyc ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.KYC_PAGE;
 			case PIRAMAL:
 				return LendingViewStates.KYC_PAGE;
 			default:

@@ -1,7 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associations;
 
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeKycWrapperService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -14,10 +14,10 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-public class CreateLeadAndDocUploadService implements ILenderAssociationService {
+public class KycService implements ILenderAssociationService {
     @Autowired
     @Lazy
-    InvokeCreateLeadAndDocUploadWrapperService invokeCreateLeadAndDocUploadWraperService;
+    InvokeKycWrapperService invokeKycWraperService;
 
     @Override
     public Optional invoke(Long applicationId, Map args) {
@@ -25,7 +25,7 @@ public class CreateLeadAndDocUploadService implements ILenderAssociationService 
             Map<String,String> request = new HashMap(){{
                 put("application_id", applicationId.toString());
             }};
-            invokeCreateLeadAndDocUploadWraperService.invokeCreateLeadAndDocUpload(request, args);
+            invokeKycWraperService.invokeKycAndDocUpload(request, args);
             log.info("invoking create lead api for {}", request);
         } catch (Exception e) {
             log.error("exception occurred while initiating create lead workflow for  {}, {}", applicationId, Arrays.asList(e.getStackTrace()));

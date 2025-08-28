@@ -164,7 +164,7 @@ public class RolloutUtil {
             log.info("Merchant not eligible for new flow due to flag config, application: {}", lendingApplication.getId());
             return false;
         }
-        if (Boolean.TRUE.equals(kycUtils.isELigibleForLenderKyc(
+        if (Boolean.TRUE.equals(kycUtils.isEligibleForLenderKyc(
                 lendingApplication.getLender(), lendingApplication.getMerchantId(), false))) {
             log.info("New flow for Merchant:{} is not eligible due to EKYC", merchantId);
             return false;

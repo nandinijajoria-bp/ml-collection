@@ -28,7 +28,7 @@ public class MFDisbursalCallbackService {
             if(!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDTO.getData())) {
                 MFDisbursalCallbackDTO mfDisbursalCallbackDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), MFDisbursalCallbackDTO.class);
                 MFDisbursalCallbackDTO.CallbackDTO callbackData = mfDisbursalCallbackDTO.getData();
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(Long.valueOf(nbfcResponseDTO.getApplicationId()),nbfcResponseDTO.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(Long.valueOf(nbfcResponseDTO.getApplicationId()),nbfcResponseDTO.getLender());
                 Boolean status = "SUCCESS".equalsIgnoreCase(callbackData.getStatus());
                 DisbursalCallbackCommonDTO disbursalCallbackCommonDTO = DisbursalCallbackCommonDTO.builder()
                         .applicationId(Long.parseLong(nbfcResponseDTO.getApplicationId()))

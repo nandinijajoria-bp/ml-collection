@@ -305,7 +305,7 @@ public class BreRequestKafka {
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
             lendingApplicationDao.save(lendingApplication.get());
             log.info("bre completed for {}", data.getAccountId());
-            if(kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
+            if(kycUtils.isEligibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
                 existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
                 lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);

@@ -57,7 +57,7 @@ public class PayUNachMandateService {
         try {
 
             log.info("Payu inside nach {} {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getDocUploadStatus(),lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus());
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequest.getLendingApplication().getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lenderAssociationDetailsRequest.getLendingApplication().getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
 
             if (!Arrays.asList(LenderAssociationStatus.BANK_UPDATION_SUCCESS.name(), LenderAssociationStatus.NACH_MANDATE_FAILED.name(), "NACH_MANDATE_HARD_FAILED").contains(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus())) {
                 log.info("Payu: Incorrect lead status for nachMandate");

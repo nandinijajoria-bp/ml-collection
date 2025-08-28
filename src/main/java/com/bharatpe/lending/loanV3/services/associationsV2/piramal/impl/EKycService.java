@@ -184,7 +184,7 @@ public class EKycService {
                     cKycResponseDto.setAadharNumber(eKycCallbackResponse.getAadharDetail().getMaskedAadhaarNumber());
                     cKycResponseDto.setSelfieBase64(eKycCallbackResponse.getSelfieDetail().getImageBase64());
                     cKycResponseDto.setCareOf(eKycCallbackResponse.getAadharDetail().getAddress().getCareOf());
-                    kycUtils.savePoaDetailsForLenderKyc(lendingApplication.getId(), cKycResponseDto);
+                    kycUtils.savePoaDetailsForKyc(lendingApplication, KycMode.LENDER_KYC.name(),cKycResponseDto);
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_COMPLETED.name());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.EKYC_COMPLETED.name());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycRetryCount(0);
