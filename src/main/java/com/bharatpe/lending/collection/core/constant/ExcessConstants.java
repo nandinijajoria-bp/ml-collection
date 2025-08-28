@@ -24,6 +24,7 @@ public interface ExcessConstants {
 		put("NB", "EXCESS_ADJUSTED_NB");
 		put("DC", "EXCESS_ADJUSTED_DC");
 		put("SETTLEMENT", "EXCESS_ADJUSTED_Settlement");
+		put("UPI_AUTOPAY", "AUTO_PAY_UPI_EXCESS_ADJUSTED");
 	}};
 
 }
