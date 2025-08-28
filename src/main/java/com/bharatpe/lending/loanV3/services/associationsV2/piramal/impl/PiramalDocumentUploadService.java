@@ -172,7 +172,7 @@ public class PiramalDocumentUploadService {
     }
 
     private NbfcRequestDto getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, DocType docType) {
-        if (Arrays.asList(DocType.SHOP_PHOTO, DocType.SHOP_STOCK.name()).contains(docType.name())) {
+        if (Arrays.asList(DocType.SHOP_PHOTO.name(), DocType.SHOP_STOCK.name()).contains(docType.name())) {
             DocumentUploadDTO documentUploadDTO = getAdditionalDocPayload(lenderAssociationDetailsDto.getLendingApplication(), lenderAssociationDetailsDto.getLendingApplicationLenderDetails(), docType);
             return NbfcRequestDto.builder().productName("LENDING").payload(documentUploadDTO).lender(Lender.PIRAMAL.name()).applicationId(lenderAssociationDetailsDto.getApplicationId())
                     .topup(LoanType.TOPUP.name().equals(lenderAssociationDetailsDto.getLendingApplication().getLoanType())).build();
