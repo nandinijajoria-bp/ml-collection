@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -15,7 +16,10 @@ import com.bharatpe.lending.loanV3.revamp.dto.OfferEvaluationRequestDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +55,18 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     @Autowired
     EligibilityV3Service eligibilityV3Service;
+
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
+
+    @Autowired
+    CommonUtil commonUtil;
+
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
+
+    @Autowired
+    LendingApplicationServiceV3Base lendingApplicationServiceV3Base;
 
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
@@ -88,7 +104,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             eligibilityStateDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(scopeDataArgs.getMerchant().getId()));
             eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
 
-
             if (isMaxLenderAttemptsReached(requestData)) {
                 handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(scopeDataArgs.getMerchant().getId()));
                 return new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
@@ -96,7 +111,10 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             trackFunnelEvent(String.valueOf(scopeDataArgs.getMerchant().getId()), FunnelEnums.StageEvent.COMPLETED);
 
-            return new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
+            loanDetailsV3Service.saveApplicationViewState(null, requestData.getLendingApplication().getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
+            return new LendingStateDTO<>(eligibilityStateDTO, getNextLendingViewState(requestData.getLendingApplication()), LendingViewStates.OFFER_EVALUATION_PAGE);
+
+            //return new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
         } catch (Exception e) {
             log.error("Error in getting offer stage data for {}: {}, {}",
                     scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -185,4 +203,23 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
         return stateDTO;
     }
+
+    private LendingViewStates getNextLendingViewState(LendingApplication lendingApplication) {
+        boolean isAddressPresent = commonUtil.doesApplicationHaveCompleteAddress(lendingApplication);
+        if (!isAddressPresent) {
+            return LendingViewStates.SHOP_DETAILS_PAGE;
+        }
+        boolean hasValidShopPhotos = lendingShopDocumentsDao.hasValidProofTypes(
+                lendingApplication.getMerchantId(),
+                lendingApplication.getId()
+        ) > 0;
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication)
+        if(bpKycRequired)
+        {
+            return LendingViewStates.LENDER_EVALUATION_PAGE;
+        }
+
+        return hasValidShopPhotos ? LendingViewStates.KYC_PAGE : LendingViewStates.SHOP_PICTURES_PAGE;
+    }
+
 }
