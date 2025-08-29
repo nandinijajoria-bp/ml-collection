@@ -155,7 +155,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     private void trackFunnelEvent(String merchantId, FunnelEnums.StageEvent stageEvent) {
         try {
-            funnelService.submitEvent(Long.valueOf(merchantId),null, null,  FunnelEnums.StageId.OFFER_EVALUATION_PAGE, stageEvent , null, null);
+            funnelService.submitEventV3(Long.valueOf(merchantId),null, null,  FunnelEnums.StageId.OFFER_EVALUATION_PAGE, stageEvent , null, null);
         } catch (Exception e) {
             log.error("Error tracking funnel event for merchant {}: {}", merchantId, e.getMessage());
         }
