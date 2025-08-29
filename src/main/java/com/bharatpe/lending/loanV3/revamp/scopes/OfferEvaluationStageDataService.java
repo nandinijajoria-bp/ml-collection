@@ -205,6 +205,9 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     }
 
     private LendingViewStates getNextLendingViewState(LendingApplication lendingApplication) {
+        if (lendingApplication == null) {
+            return LendingViewStates.OFFER_EVALUATION_PAGE;
+        }
         boolean isAddressPresent = commonUtil.doesApplicationHaveCompleteAddress(lendingApplication);
         if (!isAddressPresent) {
             return LendingViewStates.SHOP_DETAILS_PAGE;
