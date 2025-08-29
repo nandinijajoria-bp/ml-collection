@@ -102,7 +102,12 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             eligibilityStateDTO.setKycPanStatus(kycHandler.getPanStatus(scopeDataArgs.getMerchant().getId()));
 
             eligibilityStateDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(scopeDataArgs.getMerchant().getId()));
-            eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
+
+            if (scopeDataArgs.getLoanDetailsV3Request() != null ) {
+                eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
+            } else {
+                log.warn("LoanDetailsV3Request is null for merchant: {}", scopeDataArgs.getMerchant().getId());
+            }
 
             if (isMaxLenderAttemptsReached(requestData)) {
                 handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(scopeDataArgs.getMerchant().getId()));
