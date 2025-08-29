@@ -116,12 +116,16 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             trackFunnelEvent(String.valueOf(scopeDataArgs.getMerchant().getId()), FunnelEnums.StageEvent.COMPLETED);
 
-            if(requestData.getLendingApplication().getId() != null) {
+            if (requestData.getLendingApplication() != null && requestData.getLendingApplication().getId() != null) {
                 loanDetailsV3Service.saveApplicationViewState(null, requestData.getLendingApplication().getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
             }
-            return new LendingStateDTO<>(eligibilityStateDTO, getNextLendingViewState(requestData.getLendingApplication()), LendingViewStates.OFFER_EVALUATION_PAGE);
 
-            //return new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
+            LendingViewStates nextState = requestData.getLendingApplication() != null ?
+                    getNextLendingViewState(requestData.getLendingApplication()) :
+                    LendingViewStates.OFFER_EVALUATION_PAGE;
+
+            return new LendingStateDTO<>(eligibilityStateDTO, nextState, LendingViewStates.OFFER_EVALUATION_PAGE);
+
         } catch (Exception e) {
             log.error("Error in getting offer stage data for {}: {}, {}",
                     scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
