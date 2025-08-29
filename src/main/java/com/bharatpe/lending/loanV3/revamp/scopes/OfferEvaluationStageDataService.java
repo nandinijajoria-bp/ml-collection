@@ -74,9 +74,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     @Override
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null)){
-            lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
-        }
         return lendingStateDTO;
     }
 
