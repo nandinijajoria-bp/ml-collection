@@ -800,6 +800,7 @@ public class LoanEligibleService {
 
             AsyncLoggerUtil.logInfo(logger, "Lenders after removing rejected lenders due to open application: {} for merchantId: {}", eligibleOffersWithLenders , merchantId);
 
+            List<String> ineligibleLenders = new ArrayList<>();
 
             // Process each eligible loan
             for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
@@ -815,7 +816,6 @@ public class LoanEligibleService {
                                 .map(EligibleOffersResponseDTO.LenderData::getLenderName)
                                 .collect(Collectors.toList());
 
-                        List<String> ineligiblelenders = new ArrayList<>();
 
                         if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
                             List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","))
@@ -832,7 +832,7 @@ public class LoanEligibleService {
                                     String remarks = "Skipping " + lender + " due to lender in rejected lender list in lending risk variables";
                                     createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
                                     lendersToRemove.add(lender);
-                                    ineligiblelenders.add(lender);
+                                    ineligibleLenders.add(lender);
                                 }
                             }
 
@@ -843,12 +843,12 @@ public class LoanEligibleService {
                         //fetch from lender removed from lending audit trial
                         for (String activeLender : activeLenders) {
                             if (!lenderNames.contains(activeLender)) {
-                                ineligiblelenders.add(activeLender);
+                                ineligibleLenders.add(activeLender);
                             }
                         }
 
                         AsyncLoggerUtil.logInfo(logger, "Complete ineligible lenders list: {} for merchantId: {}",
-                                ineligiblelenders, merchantId);
+                                ineligibleLenders, merchantId);
 
                         List<LenderMetricsHistory> lenderMetricsHistoryList = lenderMetricsHistoryDao.findByLenderInAndIsLenderSwitchedOffFalse(lenderNames);
 
@@ -931,7 +931,7 @@ public class LoanEligibleService {
                                     initialLenders,
                                     fallbackLenders,
                                     rejectedLenders,
-                                    ineligiblelenders
+                                    ineligibleLenders
                             );
                             tenureWithLenders.add(tenureWithLender);
                             AsyncLoggerUtil.logInfo(logger, "Added tenure option: {} months with {} lenders for merchantId: {}",
@@ -946,8 +946,21 @@ public class LoanEligibleService {
             }
 
             if (tenureWithLenders.isEmpty()) {
-                AsyncLoggerUtil.logInfo(logger, "EXIT {} - No valid tenure options found for merchantId: {}", METHOD, merchantId);
-                return null;
+                AsyncLoggerUtil.logInfo(logger, "{} - No valid tenure options found, but returning ineligible lenders for merchantId: {}", METHOD, merchantId);
+
+                // Create a default TenureWithLender with empty eligible lenders but with ineligible lenders
+                EligibleOffersResponseDTO.TenureWithLender defaultTenure = new EligibleOffersResponseDTO.TenureWithLender(
+                        "NO_ELIGIBLE_OFFERS",  // category
+                        "0 Months",            // tenure
+                        0,                     // tenureInMonths
+                        0,                     // ediCount
+                        new ArrayList<>(),     // initialLenders (empty)
+                        new ArrayList<>(),     // fallbackLenders (empty)
+                        rejectedLenders,
+                        ineligibleLenders
+                );
+
+                tenureWithLenders.add(defaultTenure);
             }
 
             AsyncLoggerUtil.logInfo(logger, "EXIT {} - Found {} tenure options for merchantId: {}",

@@ -114,9 +114,9 @@ public class LoanUtil {
 	public static final int COOL_OFF_PERIOD_DAYS = 3;
 	public static final String CLOSURE = "ANY";
 	private static final String RECEIVABLE = "RECEIVABLE";
-	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), PIRAMAL.name()));
-	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), PIRAMAL.name()));
-	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
+	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(PAYU.name(), OXYZO.name(), ABFL.name(), PIRAMAL.name()));
+	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(ABFL.name(), PIRAMAL.name()));
+	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(ABFL.name(), PIRAMAL.name()));
 
 	@Autowired
 	MongoLogPublisher mongoLogPublisher;
@@ -291,6 +291,9 @@ public class LoanUtil {
 	@Value("${aggregation.flow.experimentId:}")
 	String isAggregationFlowApplicableExperimentId;
 
+	@Value("${aggregation.flow.experimentId:}")
+	String isAggregationFlowApplicableExperimentIdV2;
+
 	@Value("${payment.bank.change.flow.applicable:false}")
 	boolean isPaymentBankChangeFlowApplicable;
 
@@ -395,6 +398,9 @@ public class LoanUtil {
 
 	@Value("${lender.aggregation.screens:}")
 	String lenderAggregationScreens;
+
+	@Value("${lender.aggregation.screensV2:}")
+	String lenderAggregationScreensV2;
 
 	@Value("#{'${api.token:}'.split(',')}")
 	List<String> apiTokens;
@@ -2106,52 +2112,52 @@ public class LoanUtil {
 			return null;
 		}
 		if (lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA2") || lender.equals("MAMTA")) {
-			finalLender = Lender.MAMTA.name();
+			finalLender = MAMTA.name();
 		}
 		if (lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")) {
-			finalLender = Lender.LIQUILOANS.name();
+			finalLender = LIQUILOANS.name();
 		}
 		if (lender.equals("LIQUILOANS_NBFC") || "TRILLIONLOANS".equalsIgnoreCase(lender)) {
 			finalLender = "TRILLIONS";
 		}
 		if (lender.equals("LIQUILOANS_P2P_OF")) {
-			finalLender = Lender.LIQUILOANS_P2P_OF.name();
+			finalLender = LIQUILOANS_P2P_OF.name();
 		}
 		if (lender.equals("HINDON")) {
-			finalLender = Lender.HINDON.name();
+			finalLender = HINDON.name();
 		}
 		if (lender.equals("LDC")) {
-			finalLender = Lender.LDC.name();
+			finalLender = LDC.name();
 		}
 		if (lender.equals("ABFL")) {
 			finalLender = ABFL.name();
 		}
 		if (lender.equals("PIRAMAL")) {
-			finalLender = Lender.PIRAMAL.name();
+			finalLender = PIRAMAL.name();
 		}
 		if("USFB".equalsIgnoreCase(lender)) {
-			finalLender = Lender.USFB.name();
+			finalLender = USFB.name();
 		}
 		if("MUTHOOT".equalsIgnoreCase(lender)){
-			finalLender = Lender.MUTHOOT.name();
+			finalLender = MUTHOOT.name();
 		}
 		if("CAPRI".equalsIgnoreCase(lender)) {
-			finalLender = Lender.CAPRI.name();
+			finalLender = CAPRI.name();
 		}
 		if("PAYU".equalsIgnoreCase(lender)) {
-			finalLender = Lender.PAYU.name();
+			finalLender = PAYU.name();
 		}
 		if("CREDITSAISON".equalsIgnoreCase(lender)) {
-			finalLender = Lender.CREDITSAISON.name();
+			finalLender = CREDITSAISON.name();
 		}
 		if("SMFG".equalsIgnoreCase(lender)) {
-			finalLender = Lender.SMFG.name();
+			finalLender = SMFG.name();
 		}
 		if(UGRO.name().equalsIgnoreCase(lender)) {
 			finalLender = UGRO.name();
 		}
 		if("OXYZO".equalsIgnoreCase(lender)) {
-			finalLender = Lender.OXYZO.name();
+			finalLender = OXYZO.name();
 		}
 		return finalLender;
 	}
@@ -2175,7 +2181,7 @@ public class LoanUtil {
 	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender) {
 
 		if (ObjectUtils.isEmpty(lender)) return false;
-		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) && isBTApplication(lendingApplication)) {
+		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) && isBTApplication(lendingApplication)) {
 			logger.info("skip nach flow is not applicable for BT application {}", lendingApplication.getId());
 			return false;
 		}
@@ -3044,9 +3050,9 @@ public class LoanUtil {
 
 	public boolean isApplicableForAggregationFlowV2(Long merchantId, Long applicationId){
 		try{
-			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
+			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
 			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
-			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
+			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
 				if(!ObjectUtils.isEmpty(applicationId)){
 					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
@@ -3068,16 +3074,18 @@ public class LoanUtil {
 
 	public String getLenderAggregationScreen(Long applicationId, Long merchantId) {
 		try {
-			LendingAuditTrial lendingAuditTrial;
+			LendingAuditTrial lendingAuditTrial = null;
 
-			if (isApplicableForAggregationFlow(merchantId, null)) {
+			if (isApplicableForAggregationFlowV2(merchantId, null)) {
 				lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(
 						applicationId,
 						LendingViewStates.OFFER_EVALUATION_PAGE.name());
 			} else {
-				lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(
-						applicationId,
-						LendingViewStates.LENDER_AGGREGATION.name());
+				if(isApplicableForAggregationFlow(merchantId, null)) {
+					lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(
+							applicationId,
+							LendingViewStates.LENDER_AGGREGATION.name());
+				}
 			}
 
 			if (!ObjectUtils.isEmpty(lendingAuditTrial)) {
@@ -3320,7 +3328,7 @@ public class LoanUtil {
 		return PiramalForeclosureChargesRequestDto.builder()
 				.applicationId(lendingApplicationLenderDetails.getApplicationId())
 				.productName("LENDING")
-				.lender(Lender.PIRAMAL.name())
+				.lender(PIRAMAL.name())
 				.payload(PiramalForeclosureChargesRequestDto.Payload.builder()
 						.productId("BRTPE")
 						.uniqueReferenceId(String.valueOf(penaltyFeeLedger.getId()))
@@ -3746,9 +3754,9 @@ public class LoanUtil {
 	public boolean isNonTLToTLTopup(LendingApplication currentLendingApplication) {
 		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
 		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
-				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
 				&& !ObjectUtils.isEmpty(previousLendingApplication)
-				&& !Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+				&& !TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
 	}
 
 
@@ -3762,9 +3770,9 @@ public class LoanUtil {
 	public boolean isTLToTLTopup(LendingApplication currentLendingApplication) {
 		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
 		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
-				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
 				&& !ObjectUtils.isEmpty(previousLendingApplication)
-				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+				&& TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
 	}
 }
 

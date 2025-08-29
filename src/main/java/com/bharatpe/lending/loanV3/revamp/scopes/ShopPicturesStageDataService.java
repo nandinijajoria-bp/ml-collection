@@ -84,6 +84,11 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                     return lendingStateDTO;
                 }
             }
+            if(loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId())) {
+                if (LendingViewStates.OFFER_EVALUATION_PAGE.equals(lendingStateDTO.getLendingViewStates())) {
+                    return lendingStateDTO;
+                }
+            }
         }
 
         if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request().getResubmitReason())){

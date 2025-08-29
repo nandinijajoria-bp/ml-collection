@@ -64,6 +64,23 @@ public class LaunchLabsHandler {
         return null;
     }
 
+    public ExperimentConfigResponseDTO experimentConfigv2(Long experimentId, Long merchantId) {
+        try {
+            log.info("Calling Launch Labs experiment config API for experimentId: {}, merchantId: {}", experimentId, merchantId);
+
+            String url = BASE_URL + "/launch-labs/v3/experiment/config/" + experimentId + "/" + merchantId;
+
+            ResponseEntity<ExperimentConfigResponseDTO> apiResponse = restTemplate.getForEntity(url, ExperimentConfigResponseDTO.class);
+            log.info("Experiment config API response body: {}", apiResponse.getBody());
+
+            return apiResponse.getBody();
+        } catch (Exception ex) {
+            log.error("Exception occurred while fetching experiment config from Launch Lab for experimentId: {}, ex: ", experimentId, ex);
+
+        }
+        return null;
+    }
+
     public boolean checkIfFeatureIncludedInRollout(Long experimentId, Long merchantId) {
         try {
             ExperimentConfigResponseDTO experimentResponse = experimentConfig(experimentId, merchantId);

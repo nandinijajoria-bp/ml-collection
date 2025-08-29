@@ -896,7 +896,7 @@ public class LendingApplicationServiceV2 {
             if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
                 return new ApiResponse<>(true, "No lender assigned, application rejected");
             }
-            loanUtil.isApplicableForAggregationFlow(lendingApplication.getMerchantId(), lendingApplication.getId()); // For saving screen type if lender aggregation is applicable.
+            loanUtil.isApplicableForAggregationFlowV2(lendingApplication.getMerchantId(), lendingApplication.getId()); // For saving screen type if lender aggregation is applicable.
 
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
