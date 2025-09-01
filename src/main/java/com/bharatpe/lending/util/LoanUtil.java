@@ -291,7 +291,7 @@ public class LoanUtil {
 	@Value("${aggregation.flow.experimentId:}")
 	String isAggregationFlowApplicableExperimentId;
 
-	@Value("${aggregation.flow.experimentId:}")
+	@Value("${aggregation.flow.experimentIdV2:}")
 	String isAggregationFlowApplicableExperimentIdV2;
 
 	@Value("${payment.bank.change.flow.applicable:false}")
