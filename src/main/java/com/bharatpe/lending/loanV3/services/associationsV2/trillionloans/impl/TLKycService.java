@@ -223,17 +223,17 @@ public class TLKycService {
                 if(!ObjectUtils.isEmpty(response) && trillionLoansConfig.getKycValiditySuccessMessage().equalsIgnoreCase(response.getMessage()) && !ObjectUtils.isEmpty(response.getData())) {
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.KYC_PENDING.name() : LenderAssociationStatus.SKIP_KYC_CONSENT_PENDING.name());
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.KYC_VALIDITY_SUCCESS.name());
+                    kycUtils.savePoaDetailsForKyc(lendingApplication, KycMode.SKIP_KYC.name(), populateKycDetails(response.getData()));
                     metaData = Optional.ofNullable(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getMetaData()).orElse(new HashMap<>());
                     metaData.put("kycReuseLoanId", response.getData().getLastUsed().get(0).getLoanApplicationId());
                     metaData.put("eligibleForSkipKyc", true);
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setMetaData(metaData);
-                    kycUtils.savePoaDetailsForKyc(lendingApplication, KycMode.SKIP_KYC.name(), populateKycDetails(response.getData()));
                     commonService.manageApplicationState(lenderAssociationDetailsDto);
                     return true;
                 }
             }
         } catch (Exception ex) {
-            log.error("exception occurred while processing kyc validity check request for {} {}", lenderAssociationDetailsDto, Arrays.asList(ex.getStackTrace()));
+            log.error("exception occurred while processing kyc validity check request for {} {} {}", lenderAssociationDetailsDto, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.KYC_VALIDITY_FAILED.name());
         lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
