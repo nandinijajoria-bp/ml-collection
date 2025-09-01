@@ -2,6 +2,7 @@ package com.bharatpe.lending.handlers;
 
 
 import com.bharatpe.lending.dto.ExperimentConfigResponseDTO;
+import com.bharatpe.lending.dto.ExperimentConfigResponseDTOV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -64,13 +65,13 @@ public class LaunchLabsHandler {
         return null;
     }
 
-    public ExperimentConfigResponseDTO experimentConfigv2(Long experimentId, Long merchantId) {
+    public ExperimentConfigResponseDTOV2 experimentConfigv2(Long experimentId, Long merchantId) {
         try {
             log.info("Calling Launch Labs experiment config API for experimentId: {}, merchantId: {}", experimentId, merchantId);
 
             String url = BASE_URL + "/launch-labs/v3/experiment/config/" + experimentId + "/" + merchantId;
 
-            ResponseEntity<ExperimentConfigResponseDTO> apiResponse = restTemplate.getForEntity(url, ExperimentConfigResponseDTO.class);
+            ResponseEntity<ExperimentConfigResponseDTOV2> apiResponse = restTemplate.getForEntity(url, ExperimentConfigResponseDTOV2.class);
             log.info("Experiment config API response body: {}", apiResponse.getBody());
 
             return apiResponse.getBody();

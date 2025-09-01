@@ -3050,7 +3050,7 @@ public class LoanUtil {
 
 	public boolean isApplicableForAggregationFlowV2(Long merchantId, Long applicationId){
 		try{
-			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
 			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
@@ -3072,9 +3072,9 @@ public class LoanUtil {
 		return false;
 	}
 
-	public ExperimentConfigResponseDTO getLenderAggregationScreenType(Long merchantId, Long applicationId){
+	public ExperimentConfigResponseDTOV2 getLenderAggregationScreenType(Long merchantId, Long applicationId){
 		try{
-			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
 			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
@@ -3099,7 +3099,7 @@ public class LoanUtil {
 
 	public String getLenderAggregationScreenV2(Long applicationId, Long merchantId) {
 		try {
-			ExperimentConfigResponseDTO experimentConfigResponseDTO = getLenderAggregationScreenType(merchantId,applicationId);
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = getLenderAggregationScreenType(merchantId,applicationId);
 			if(ObjectUtils.isEmpty(experimentConfigResponseDTO)){
 				return null;
 			}
