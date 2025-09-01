@@ -25,6 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -100,8 +102,16 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             eligibilityStateDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(scopeDataArgs.getMerchant().getId()));
 
-            eligibilityStateDTO.setScreenType(loanUtil.getLenderAggregationScreenV2(requestData.getLendingApplication().getId(), scopeDataArgs.getMerchant().getId()));
+            String applicationId = String.valueOf(requestData.getLendingApplication() != null ?
+                    requestData.getLendingApplication().getId() : null);
+            Long merchantId = scopeDataArgs.getMerchant().getId();
 
+            String screenType = loanUtil.getLenderAggregationScreenV2(Long.valueOf(applicationId), merchantId);
+            if (ObjectUtils.isEmpty(screenType)) {
+                screenType = loanUtil.getLenderAggregationScreen(Long.valueOf(applicationId), merchantId);
+            }
+            eligibilityStateDTO.setScreenType(screenType);
+            
             if (scopeDataArgs.getLoanDetailsV3Request() != null ) {
                 eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
             } else {
