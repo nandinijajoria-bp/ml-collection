@@ -67,7 +67,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         }
         LoanInsuranceDTO insuranceDetails = insuranceService.fetchLenderInsurancePremiumDetails(lendingApplication);
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
         AgreementStateDTO agreementResponseV3 = AgreementStateDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender(lendingApplication.getLender())

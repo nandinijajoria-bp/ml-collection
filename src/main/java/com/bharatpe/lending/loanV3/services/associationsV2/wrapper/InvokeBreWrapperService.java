@@ -15,7 +15,6 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
-import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.EdiUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -34,7 +33,7 @@ import java.util.Objects;
 
 @Slf4j
 @Service
-public class InvokeUpdateLeadAndBREWorkflowWrapperService {
+public class InvokeBreWrapperService {
     @Autowired
     CommonService commonService;
 
@@ -99,7 +98,7 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
             }
             MDC.clear();
         } catch (Exception e) {
-            log.info("Exception in invoking update lead and BRE flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
+            log.error("Exception in invoking update lead and BRE flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
             MDC.clear();
         }
     }

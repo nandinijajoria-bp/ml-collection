@@ -22,7 +22,7 @@ public class CSCustomerAddressDataBuilder {
     CreditSaisonConfig csConfig;
 
     public CSCustomerAdditionalData buildCSCustomerAdditipnalData(CKycResponseDto cKycResponseDto, Long applicationId, Long merchantId) {
-        CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), merchantId, cKycResponseDto, applicationId);
+        CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), merchantId, cKycResponseDto);
 
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
 

@@ -1,7 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associations;
 
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeUpdateLeadAndBREWorkflowWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeBreWrapperService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -14,11 +14,11 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-public class UpdateLeadAndBREWorkflowService implements ILenderAssociationService<Optional> {
+public class BreService implements ILenderAssociationService<Optional> {
 
     @Autowired
     @Lazy
-    InvokeUpdateLeadAndBREWorkflowWrapperService updateLeadAndBREWorkflowWrapperService;
+    InvokeBreWrapperService invokeBreWrapperService;
 
     @Override
     public Optional invoke(Long applicationId, Map<String, Object> args) {
@@ -27,7 +27,7 @@ public class UpdateLeadAndBREWorkflowService implements ILenderAssociationServic
                 put("application_id", applicationId.toString());
             }};
             log.info("invoking update lead api for {}", request);
-            updateLeadAndBREWorkflowWrapperService.invokeUpdateLeadAndBREWorkflow(request, args);
+            invokeBreWrapperService.invokeUpdateLeadAndBREWorkflow(request, args);
         } catch (Exception e) {
             log.error("exception occurred while initiating update lead workflow for  {}, {}", applicationId, Arrays.asList(e.getStackTrace()));
         }

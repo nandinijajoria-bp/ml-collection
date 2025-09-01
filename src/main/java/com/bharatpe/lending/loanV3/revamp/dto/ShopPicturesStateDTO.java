@@ -15,4 +15,5 @@ public class ShopPicturesStateDTO {
     private Boolean lenderKycPipe;
     private Boolean lenderAssc;
     private Long merchantId;
+    private boolean skipKycEligible;
 }

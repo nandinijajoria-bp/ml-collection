@@ -56,7 +56,7 @@ public class CreateLeadService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            Boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
+            Boolean isEligibleForLenderKyc = kycUtils.isEligibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
             if (InvokeCreateLeadAndDocUploadWraperService.kycDataNeeded(LenderAssociationStages.PiramalAssociationStages.LEAD_CREATION.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 CKycResponseDto cKycResponseDto = isEligibleForLenderKyc ? kycUtils.getPanData(lenderAssociationDetailsDto.getMerchantId()) : kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId());
                 lenderAssociationDetailsDto.setCKycResponseDto(cKycResponseDto);

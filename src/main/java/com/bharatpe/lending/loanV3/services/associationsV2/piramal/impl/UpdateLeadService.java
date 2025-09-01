@@ -236,7 +236,7 @@ public class UpdateLeadService {
                         .monthlyNFI(Objects.nonNull(lendingBBS) ? lendingBBS.getNetFreeIncome() : 0d)
                         .build())
                 .build();
-        if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
+        if(kycUtils.isEligibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
             applicantsDetail.setApplicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
                             .currentAddress(getKycAddress(lendingApplicationKycDetails, "CURRENT"))
                             .permanentAddress(getKycAddress(lendingApplicationKycDetails, "PERMANENT"))

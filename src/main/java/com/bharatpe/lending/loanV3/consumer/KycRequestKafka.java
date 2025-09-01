@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.enums.KycMode;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
@@ -220,7 +221,7 @@ public class KycRequestKafka {
                     Integer currentKycRetryCount = ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycRetryCount()) ? 0 : existingLendingApplicationLenderDetails.getKycRetryCount();
                     if(currentKycRetryCount < abflTopupKycRetryCount) {
                         log.info("marking kycStatus KYC_retry for topup application as kyc callback resulted in failure for  {}", lendingApplication.get().getId());
-                        existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
+                        existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.RE_KYC.name());
                         existingLendingApplicationLenderDetails.setKycRetryCount(currentKycRetryCount + 1);
                         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                         loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.KYC_PAGE);
@@ -276,11 +277,12 @@ public class KycRequestKafka {
                 log.error("application not found !! {}", applicationId);
             }
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
-            if(kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) && ObjectUtils.isEmpty(poaXml)) {
+            if(kycUtils.isEligibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) && ObjectUtils.isEmpty(poaXml)) {
                 log.info("poaXml not found for applicationId {}", lendingApplication.get().getId());
                 throw new RuntimeException("poaXml not found for application " + lendingApplication.get().getId());
             }
-            cKycResponseDto = kycUtils.parsePoaXML(poaXml, lendingApplication.get().getMerchantId(), cKycResponseDto, lendingApplication.get().getId());
+            cKycResponseDto = kycUtils.parsePoaXML(poaXml, lendingApplication.get().getMerchantId(), cKycResponseDto);
+            kycUtils.savePoaDetailsForKyc(lendingApplication.get(), KycMode.LENDER_KYC.name(), cKycResponseDto);
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId,Status.ACTIVE.name(), Lender.ABFL.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("lending application lender details not found for {}", applicationId);
@@ -355,7 +357,7 @@ public class KycRequestKafka {
                 return;
             }
 
-            if(!kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))) {
+            if(!kycUtils.isEligibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))) {
                 log.info("skipping digiLocker kyc flow on ABFL for applicationId : {}", lendingApplication.get().getId());
                 kycRequestListener(request);
                 return;
@@ -386,9 +388,9 @@ public class KycRequestKafka {
                         log.info("kyc completed for the application {} ", lendingApplication.get().getId());
                         return;
                     }
-                    log.info("marking kycStatus KYC_RETRY for topup application as kyc validity resulted in failure for  {}", lendingApplication.get().getId());
+                    log.info("marking kycStatus RE_KYC for topup application as kyc validity resulted in failure for  {}", lendingApplication.get().getId());
                 }
-                lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
+                lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.RE_KYC.name());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.KYC_PAGE);
                 return;

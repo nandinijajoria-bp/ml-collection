@@ -14,12 +14,10 @@ import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.PricingExperiment;
 import com.bharatpe.lending.common.entity.LendingLenderPricing;
 import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.RiskVariablesDTO;
 import com.bharatpe.lending.entity.LendingLenderQuota;
-import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -29,7 +27,6 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.lending.service.LoanCreationService;
 import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
-import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -194,7 +191,9 @@ public class NbfcUtils {
                 }
                 lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
                 lendingApplicationDetailsDao.save(lendingApplicationDetails);
-                if(bharatPeKycLenderAlreadyAssigned(lendingApplication.getId(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) || (kycUtils.isELigibleForLenderKyc(modifiedLender.name(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())))) {
+                boolean lenderKycEligible = kycUtils.isEligibleForLenderKyc(modifiedLender.name(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
+                boolean skipKycEligible = kycUtils.isEligibleForSkipKyc(lendingApplication.getId(), Lender.valueOf(modifiedLender.name()), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
+                if(kycUtils.bharatPeKycLenderAlreadyAssigned(lendingApplication.getId()) || lenderKycEligible || skipKycEligible) {
                     log.info("Invoking lender association after lender change for applicationId {} {}", lendingApplication.getId(), lendingApplication.getLender());
                     pushApplicationToNextStage(lendingApplication.getId(), modifiedLender.name(), LenderAssociationStages.INIT.name(), Boolean.TRUE);
                 }
@@ -323,27 +322,13 @@ public class NbfcUtils {
                 return associationServiceUtil.invokeAddressUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             case "UPDATE_BANK_DETAILS":
                 return associationServiceUtil.invokeBankAccountUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "KYC_VALIDITY":
+                return associationServiceUtil.invokeKycValidity(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "SKIP_KYC":
+                return associationServiceUtil.invokeSkipKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return false;
         }
-    }
-
-
-    public Boolean bharatPeKycLenderAlreadyAssigned(Long applicationId, Long merchantId, boolean isTopup) {
-        try {
-            Boolean bpKycLenderFound = Boolean.FALSE;
-            List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
-            for(String lender : alreadyAssignedLender) {
-                if(!kycUtils.isELigibleForLenderKyc(lender, merchantId, isTopup)) {
-                    bpKycLenderFound = Boolean.TRUE;
-                    break;
-                }
-            }
-            return bpKycLenderFound;
-        } catch (Exception e) {
-            log.info("Exception in checking prev Bp Kyc lenders assigned for applicationId {}", applicationId);
-        }
-        return false;
     }
 
     public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){
