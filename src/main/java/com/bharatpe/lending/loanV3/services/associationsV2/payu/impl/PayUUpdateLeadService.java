@@ -59,7 +59,7 @@ public class PayUUpdateLeadService {
     public Boolean invokeUpdateAddress(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
             log.info("Payu inside updateAddress {} {}", lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getDocUploadStatus(),lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadStatus());
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
 
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.UPDATE_ADDRESS.name());
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_ADDRESS_PENDING.name());
@@ -175,7 +175,7 @@ public class PayUUpdateLeadService {
     public Boolean invokeBankAccountUpdation(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         try {
             log.info("Payu inside bankAccountUpdation {} {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getDocUploadStatus(),lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus());
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequest.getLendingApplication().getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lenderAssociationDetailsRequest.getLendingApplication().getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
 
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.UPDATE_BANK_DETAILS.name());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.BANK_UPDATION_PENDING.name());

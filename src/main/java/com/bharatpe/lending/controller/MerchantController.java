@@ -55,7 +55,7 @@ public class MerchantController {
             return buildErrorResponse("ERR_ADDRESS_VALIDATION", ErrorMessages.ADDRESS_VALIDATION_ERROR);
         }
 
-        return ResponseEntity.ok(Map.of("data", response, "status", true));
+        return ResponseEntity.ok("");
     }
 
     /**
@@ -75,7 +75,7 @@ public class MerchantController {
             return buildErrorResponse("ERR_NO_ADDRESSES", ErrorMessages.NO_ADDRESS_FOUND);
         }
 
-        return ResponseEntity.ok(Map.of("data", response, "status", true));
+        return ResponseEntity.ok("");
     }
 
     @PostMapping("/updateBusinessName")
@@ -101,7 +101,7 @@ public class MerchantController {
             return buildErrorResponse("ERR_BUSINESS_NAME_UPDATE", ErrorMessages.BUSINESS_NAME_UPDATE_FAILED);
         }
 
-        return ResponseEntity.ok(Map.of("status", true));
+        return ResponseEntity.ok("");
     }
 
     @GetMapping("/pincode/{pincode}")
@@ -125,6 +125,6 @@ public class MerchantController {
 
     private ResponseEntity<Object> buildErrorResponse(String errorCode, String errorMessage) {
         log.warn("Error occurred: {} - {}", errorCode, errorMessage);
-        return ResponseEntity.badRequest().body(Map.of("errorCode", errorCode, "errorMessage", errorMessage));
+        return ResponseEntity.ok("");
     }
 }

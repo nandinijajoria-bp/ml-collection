@@ -1,9 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.capri.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
-import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -19,7 +17,8 @@ import com.bharatpe.lending.loanV3.dto.request.capri.CapriCreateClientRequestDTO
 import com.bharatpe.lending.loanV3.dto.response.capri.CapriCreateClientResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.validations.CapriPayloadValidation;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeKycWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeLeadWrapperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -71,7 +70,7 @@ public class CapriCreateClientService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_CLIENT.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if (InvokeLeadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_CLIENT.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
             if (capriPayloadValidation.isInValidCreateClientPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {

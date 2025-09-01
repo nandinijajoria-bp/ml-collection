@@ -60,7 +60,7 @@ public class SmfgDisbursalCallbackServiceTest {
         lendingApplicationLenderDetails.setCccId("12345");
         lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
         lendingApplicationLenderDetails.setAnnualRoi(35.45D);
-        doReturn(lendingApplicationLenderDetails).when(lendingApplicationLenderDetailsDao).findByApplicationIdAndLender(anyLong(), anyString());
+        doReturn(lendingApplicationLenderDetails).when(lendingApplicationLenderDetailsDao).findTop1ByApplicationIdAndLenderOrderByIdDesc(anyLong(), anyString());
 
         DisbursalCallbackCommonDTO disbursalCallbackCommon = smfgDisbursalCallbackService.handleCallbackResponse(callbackRequest);
         assertTrue(disbursalCallbackCommon.getStatus());
@@ -89,7 +89,7 @@ public class SmfgDisbursalCallbackServiceTest {
         lendingApplicationLenderDetails.setCccId("12345");
         lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
         lendingApplicationLenderDetails.setAnnualRoi(35.45D);
-        doReturn(lendingApplicationLenderDetails).when(lendingApplicationLenderDetailsDao).findByApplicationIdAndLender(anyLong(), anyString());
+        doReturn(lendingApplicationLenderDetails).when(lendingApplicationLenderDetailsDao).findTop1ByApplicationIdAndLenderOrderByIdDesc(anyLong(), anyString());
 
         DisbursalCallbackCommonDTO disbursalCallbackCommon = smfgDisbursalCallbackService.handleCallbackResponse(callbackRequest);
         assertFalse(disbursalCallbackCommon.getStatus());

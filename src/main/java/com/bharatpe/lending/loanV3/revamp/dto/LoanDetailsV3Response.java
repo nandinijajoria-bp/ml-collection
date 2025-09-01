@@ -124,6 +124,7 @@ public class LoanDetailsV3Response {
     private VkycStatus vkycStatus;
     private Boolean vkycEligible;
     private Boolean dkycEligible;
+    private Boolean skipKycEligible;
 
     @Data
     @ToString

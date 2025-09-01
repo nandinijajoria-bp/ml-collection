@@ -428,7 +428,7 @@ public class VerifyOTPService {
 
                 //Specific requirement for payu
                 if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
-                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
                     lendingApplicationLenderDetails.setAgreementOtp(otp);
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 }
@@ -601,7 +601,7 @@ public class VerifyOTPService {
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
             if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
                 if(topupLoans.contains(lendingApplication.getLoanType())) {
-                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), Lender.ABFL.name());
                     if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                         LenderAssociationStages nextStage =
                                 LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
@@ -776,8 +776,8 @@ public class VerifyOTPService {
 
     private void updateKycStatus(LendingApplication lendingApplication) {
         try {
-            KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) ?
-                    kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
+            KycStatusDTO kycStatus = kycUtils.isEligibleForSkipKycOrLenderKyc(lendingApplication) ?
+                    kycHandler.getKycStatusForLenderKycOrSkipKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
             logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
             lendingApplication.setCkycStatus(kycStatus.getKycStatus().name());
             lendingApplication.setCkycDate(new Date());

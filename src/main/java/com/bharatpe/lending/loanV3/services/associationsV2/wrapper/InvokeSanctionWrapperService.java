@@ -42,9 +42,6 @@ public class InvokeSanctionWrapperService {
     Boolean enableLenderChange;
 
     @Autowired
-    AssociationServiceUtil associationServiceUtil;
-
-    @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Lazy
@@ -73,7 +70,7 @@ public class InvokeSanctionWrapperService {
             }
             if (Objects.isNull(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())) {
                 log.info("lead creation was unsuccessful for {} ", applicationId);
-                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.SANCTION_FAILED.name());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStatus.SANCTION_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.SANCTION_FAILED);
                 MDC.clear();
                 return;
@@ -94,7 +91,7 @@ public class InvokeSanctionWrapperService {
             }
             MDC.clear();
         } catch (Exception e) {
-            log.info("Exception in invoking sanction wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
+            log.error("Exception in invoking sanction wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
             MDC.clear();
         }
     }
@@ -133,28 +130,27 @@ public class InvokeSanctionWrapperService {
 
     public List<String> getStageToBeInvokedInOrder(Long applicationId) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
-
         if (!lendingApplication.isPresent()) {
             return new ArrayList<>();
         }
-        switch (lendingApplication.get().getLender()) {
-            case "TRILLIONLOANS": {
+        switch (Lender.valueOf(lendingApplication.get().getLender())) {
+            case TRILLIONLOANS: {
                 if (loanUtil.isNonTLToTLTopup(lendingApplication.get()))
                     return Arrays.asList(LenderAssociationStages.TOPUP_UNDO_APPROVE.name(), LenderAssociationStages.TOPUP_DATA.name(),
                             LenderAssociationStages.ADD_CHARGE.name(), LenderAssociationStages.TOPUP_APPROVE.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
                 else
                     return Arrays.asList(LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
             }
-            case "PAYU":
+            case PAYU:
                 return Arrays.asList(LenderAssociationStages.UPDATE_ADDRESS.name(),LenderAssociationStages.UPDATE_BANK_DETAILS.name(),LenderAssociationStages.NACH_MANDATE.name(), LenderAssociationStages.SKIP_VKYC.name());
-            case "CAPRI":
-            case "SMFG":
+            case CAPRI:
+            case SMFG:
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
-            case "MUTHOOT":
+            case MUTHOOT:
                 return Collections.singletonList(LenderAssociationStages.UPDATE_LEAD.name());
-            case "CREDITSAISON":
+            case CREDITSAISON:
                 return Collections.singletonList(LenderAssociationStages.PENNY_DROP.name());
-            case "UGRO":
+            case UGRO:
                 return Arrays.asList(LenderAssociationStages.NACH_MANDATE.name(), LenderAssociationStages.PENNY_DROP.name(), LenderAssociationStages.GET_LEAD.name());
             default:
                 return new ArrayList<>();

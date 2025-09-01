@@ -1829,12 +1829,8 @@ public class LenderAssignService implements ILenderAssignService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", !ObjectUtils.isEmpty(lendingApplication));
-        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication);
-        LendingApplicationKycDetails lendingApplicationKycDetails = null;
-        if(bpKycRequired){
-            lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), oldLender);
-        }
-        response.put("bpKycRequired", !ObjectUtils.isEmpty(lendingApplicationKycDetails));
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);
+        response.put("bpKycRequired", bpKycRequired);
         return response;
     }
 

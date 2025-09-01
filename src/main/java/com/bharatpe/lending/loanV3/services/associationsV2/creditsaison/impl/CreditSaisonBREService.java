@@ -47,10 +47,6 @@ public class CreditSaisonBREService {
     @Autowired
     KycUtils kycUtils;
 
-    @Lazy
-    @Autowired
-    NbfcUtils nbfcUtils;
-
     @Autowired
     ObjectMapper objectMapper;
 
@@ -287,7 +283,7 @@ public class CreditSaisonBREService {
 
                         commonService.manageApplicationState(lenderAssociationDetailsRequest);
                         List<String> stagesToBeInvokedInOrder = getStageToBeInvokedInOrder();
-                        Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest, stage)).findFirst();
+                        Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !commonService.invokeStage(lenderAssociationDetailsRequest, stage)).findFirst();
                         if (failureStage.isPresent()) {
                             log.info("CS: lender association failed at {} stage for applicationId {}  with lender {}", failureStage.get(), lendingApplication.getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
                             MDC.clear();

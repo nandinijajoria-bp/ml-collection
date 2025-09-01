@@ -23,6 +23,7 @@ public class LenderAssociationStatusResponse {
     Boolean isOfferModified;
     Boolean isApplicableForAggregationFlow;
     Boolean isRoiDecreased = false;
+    Long applicationId;
 
     LenderAssociationStatusResponseMetadata metadata;
 

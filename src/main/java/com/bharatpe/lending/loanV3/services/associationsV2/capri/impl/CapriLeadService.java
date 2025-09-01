@@ -14,7 +14,8 @@ import com.bharatpe.lending.loanV3.dto.request.capri.CapriUpdateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.dto.response.capri.CapriCreateLeadResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.validations.CapriPayloadValidation;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeKycWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeLeadWrapperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -65,7 +66,7 @@ public class CapriLeadService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if (InvokeLeadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
             if (capriPayloadValidation.isInvalidCreateLeadPayload()) {

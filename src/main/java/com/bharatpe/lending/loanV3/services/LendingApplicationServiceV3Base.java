@@ -24,6 +24,9 @@ import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.enums.KycMode;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.services.associationsV2.AbflDocGenerateService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -129,7 +132,6 @@ public abstract class LendingApplicationServiceV3Base {
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
 
-
     @Autowired
     AbflDocGenerateService abflDocGenerateService;
 
@@ -144,24 +146,23 @@ public abstract class LendingApplicationServiceV3Base {
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
-    public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus, boolean userReturnedFromLenderKyc) {
+    public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus) {
         LendingApplication currentDraftApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
         if (ObjectUtils.isEmpty(currentDraftApplication)) {
             LendingApplication currentRejectApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
+            LendingApplicationDetails rejectedApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentRejectApplication.getId());
             if(!ObjectUtils.isEmpty(currentRejectApplication)) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.LENDER_ASSOCIATION_FAILED)
-                        .stage(LenderAssociationStages.FAILED)
+                        .stage(LenderAssociationStages.valueOf(rejectedApplicationDetails.getStage()))
                         .ediModelModified(false)
                         .lender(currentRejectApplication.getLender())
+                        .applicationId(currentRejectApplication.getId())
                         .build());
             }
             return new ApiResponse<>(false, "open draft lending application not found");
         }
-        if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
-            return fetchTopupApplicationStatus(currentDraftApplication, lenderKycStatus, userReturnedFromLenderKyc);
-        }
-
+        Boolean isTopup = LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType());
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             return new ApiResponse<>(false, "lending application details not found");
@@ -173,33 +174,35 @@ public abstract class LendingApplicationServiceV3Base {
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                     .lender(currentDraftApplication.getLender())
                     .isApplicableForAggregationFlow(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId())))
+                    .applicationId(currentDraftApplication.getId())
                     .build());
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-
-            if (checkForBPKycRequired(currentDraftApplication)) {
+            if (LenderAssociationStages.RE_INIT.name().equalsIgnoreCase(lendingApplicationDetails.getStage()) || checkForBPKycRequired(currentDraftApplication, LenderAssociationStages.INIT)) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                        .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
-                        .stage(LenderAssociationStages.LENDER_CHANGE)
+                        .status(LenderAssociationStatus.LENDER_ASSOCIATION_PENDING)
+                        .stage(LenderAssociationStages.valueOf(lendingApplicationDetails.getStage()))
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
                         .showBpKycPage(Boolean.TRUE)
-                        .prevLender(getPrevLender(currentDraftApplication))
+                        .prevLender(!LenderAssociationStages.RE_INIT.name().equalsIgnoreCase(lendingApplicationDetails.getStage()) ? getPrevLender(currentDraftApplication) : null)
+                        .applicationId(currentDraftApplication.getId())
                         .build());
             }
-
 
             InvokeLenderAssociationRequest invokeLenderAssociationRequest = new InvokeLenderAssociationRequest();
             invokeLenderAssociationRequest.setApplicationId(currentDraftApplication.getId());
             invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
             invokeLenderAssociationRequest.setForceEnable(false);
             initLenderAssociation(invokeLenderAssociationRequest);
+            log.info("lead creation triggered ! Please retry for status in few minutes");
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
+                    .status(LenderAssociationStatus.LENDER_ASSOCIATION_PENDING)
                     .stage(LenderAssociationStages.INIT)
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                     .lender(currentDraftApplication.getLender())
+                    .applicationId(currentDraftApplication.getId())
                     .build());
 
         } else {
@@ -211,47 +214,40 @@ public abstract class LendingApplicationServiceV3Base {
                         .stage(stageUtil.getLenderAssociationStages(lendingApplicationLenderDetails.getApplicationId(), lendingApplicationLenderDetails.getLender()))
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
+                        .applicationId(currentDraftApplication.getId())
                         .build());
             }
             Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
             if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
                 // check if interest rate is lower ??
+                boolean isEdiChanged = false;
+                boolean isProcessingFeeChanged = false;
+                boolean isDowngradeCase = false;
                 if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
                     Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
                     if (eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()) {
                         log.info("EDI decreased for applicationId {}", currentDraftApplication.getId());
-                        return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                                .isRoiDecreased(true)
-                                .lender(currentDraftApplication.getLender())
-                                .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
-                                .stage(LenderAssociationStages.COMPLETED)
-                                .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                                .build());
+                        isEdiChanged = true;
+                    }
+                    if (Boolean.FALSE.equals(isTopup) && eligibleLoan.isPresent() && currentDraftApplication.getProcessingFee().intValue() != eligibleLoan.get().getProcessingFee()) {
+                        log.info("Processing fee changed for applicationId {}", currentDraftApplication.getId());
+                        isProcessingFeeChanged = true;
                     }
                 }
                 if (offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
                         !ObjectUtils.isEmpty(approvedLoanOfferAmount) && currentDraftApplication.getLoanAmount() > approvedLoanOfferAmount) {
                     log.info("offer downgraded for applicationId {}", currentDraftApplication.getId());
+                    isDowngradeCase = true;
+                }
+                if(isEdiChanged || isProcessingFeeChanged || isDowngradeCase) {
                     return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                             .isRoiDecreased(true)
                             .lender(currentDraftApplication.getLender())
                             .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                             .stage(LenderAssociationStages.COMPLETED)
                             .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                            .applicationId(currentDraftApplication.getId())
                             .build());
-                }
-                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
-                    Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
-                    if (eligibleLoan.isPresent() && currentDraftApplication.getProcessingFee().intValue() != eligibleLoan.get().getProcessingFee()) {
-                        log.info("Processing fee changed for applicationId {}", currentDraftApplication.getId());
-                        return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                                .isRoiDecreased(true)
-                                .lender(currentDraftApplication.getLender())
-                                .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
-                                .stage(LenderAssociationStages.COMPLETED)
-                                .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                                .build());
-                    }
                 }
 
                 log.info("Lender assoc completed but EDI not decreased for applicationId {}", currentDraftApplication.getId());
@@ -261,6 +257,29 @@ public abstract class LendingApplicationServiceV3Base {
                         .stage(LenderAssociationStages.COMPLETED)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
+                        .applicationId(currentDraftApplication.getId())
+                        .build());
+            } else if (LenderAssociationStages.LEAD_WRAPPER.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                log.info("Lender assoc at LEAD_WRAPPER for applicationId {}", currentDraftApplication.getId());
+                Boolean bpKycFlowNotInitiatedOnce = false;
+                if (LenderAssociationStatus.KYC_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                    bpKycFlowNotInitiatedOnce = checkForBPKycRequired(currentDraftApplication, LenderAssociationStages.LEAD_WRAPPER);
+                    if(Boolean.FALSE.equals(bpKycFlowNotInitiatedOnce)) {
+                        LenderAssociationStages currStage = LenderAssociationStages.valueOf(lendingApplicationLenderDetails.getStage());
+                        LenderAssociationStages nextStage = LenderAssociationStageFactoryV2.getNextStage(Lender.valueOf(lendingApplicationLenderDetails.getLender()), currStage);
+                        lendingApplicationLenderDetails.setStage(nextStage.name());
+                        lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        Boolean autoInvoke = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(currentDraftApplication.getLender()), LenderAssociationStages.valueOf(lendingApplicationLenderDetails.getStage()));
+                        nbfcUtils.pushApplicationToNextStage(currentDraftApplication.getId(), currentDraftApplication.getLender(), currStage.name(), autoInvoke);
+                    }
+                }
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
+                        .stage(LenderAssociationStages.LEAD_WRAPPER)
+                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                        .lender(currentDraftApplication.getLender())
+                        .showBpKycPage(bpKycFlowNotInitiatedOnce)
+                        .applicationId(currentDraftApplication.getId())
                         .build());
             } else if (LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                 log.info("Lender assoc at BRE for applicationId {}", currentDraftApplication.getId());
@@ -269,19 +288,12 @@ public abstract class LendingApplicationServiceV3Base {
                         .stage(LenderAssociationStages.BRE)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
+                        .applicationId(currentDraftApplication.getId())
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                log.info("Lender assoc at KYC for applicationId {}", currentDraftApplication.getId());
                 if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentDraftApplication.getLender())) {
-                    if (LenderAssociationStatus.SELFIE_PENDING_FOR_LENDER_KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
-                        //INVOKING STAGE FOR LENDER PIPE
-                        invokeStageForLender(InvokeStageRequestDTO.builder()
-                                .applicationId(currentDraftApplication.getId())
-                                .lender(currentDraftApplication.getLender())
-                                .stage(LenderAssociationStages.SELFIE_UPLOAD.name())
-                                .build());
-                    }
-
-                    if (!ObjectUtils.isEmpty(lenderKycStatus) && lenderKycStatus.equalsIgnoreCase(trillionLoansConfig.getEKycStatusCheck())) {
+                    if (Boolean.FALSE.equals(isTopup) && !ObjectUtils.isEmpty(lenderKycStatus) && lenderKycStatus.equalsIgnoreCase(trillionLoansConfig.getEKycStatusCheck())) {
                         invokeStageForLender(InvokeStageRequestDTO.builder()
                                 .applicationId(currentDraftApplication.getId())
                                 .lender(currentDraftApplication.getLender())
@@ -289,35 +301,47 @@ public abstract class LendingApplicationServiceV3Base {
                                 .build());
                     }
                 }
-                log.info("Lender assoc at KYC for applicationId {}", currentDraftApplication.getId());
-
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
                 if (ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
                     lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
                 }
-                ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse = new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
                         .stage(LenderAssociationStages.KYC)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
                         .lenderKycRedirectionUrl(lenderKycRedirectionUrl)
-                        .prevLender(LenderAssociationStatus.EKYC_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()) ? getPrevLender(currentDraftApplication) : null)
+                        .prevLender(LenderAssociationStatus.EKYC_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()) && Boolean.FALSE.equals(isTopup) ? getPrevLender(currentDraftApplication) : null)
                         .lenderKycRetry(LenderAssociationStatus.EKYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()))
+                        .applicationId(currentDraftApplication.getId())
                         .build());
-                return lenderAssociationStatusResponse;
             }
         }
         return new ApiResponse<>(false, "something went wrong");
     }
 
-    public Boolean checkForBPKycRequired(LendingApplication currentDraftApplication) {
+    public Boolean checkForBPKycRequired(LendingApplication currentDraftApplication, LenderAssociationStages stage) {
+        Boolean lenderKycPipe = kycUtils.isEligibleForLenderKyc(currentDraftApplication.getLender(), currentDraftApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType()));
+        Boolean skipKycEligible = kycUtils.isEligibleForSkipKyc(currentDraftApplication.getId(), Lender.valueOf(currentDraftApplication.getLender()), currentDraftApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType()));
+        LendingApplicationKycDetails consentKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndConsentDateNotNull(currentDraftApplication.getId());
+        if(LenderAssociationStages.LEAD_WRAPPER.equals(stage) && (skipKycEligible || lenderKycPipe) && ObjectUtils.isEmpty(consentKycDetails)) {
+            log.info("BP Selfie flow not initiated even once for application {}", currentDraftApplication.getId());
+            return true;
+        }
+        if(LenderAssociationStages.INIT.equals(stage) && ObjectUtils.isEmpty(consentKycDetails) && skipKycEligible) {
+            log.info("BP Selfie will be initiated after skip kyc flow for applicationId {}", currentDraftApplication.getId());
+            return false;
+        }
+        if(LenderAssociationStages.INIT.equals(stage) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId())) && ObjectUtils.isEmpty(consentKycDetails)) {
+            log.info("BP KYC flow not initiated even once for application {}", currentDraftApplication.getId());
+            return true;
+        }
         LendingApplicationLenderDetails prevLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.INACTIVE.name());
-        if (ObjectUtils.isEmpty(prevLenderDetails) || nbfcUtils.bharatPeKycLenderAlreadyAssigned(currentDraftApplication.getId(), currentDraftApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType()))
-                || kycUtils.isELigibleForLenderKyc(currentDraftApplication.getLender(), currentDraftApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType()))) {
+        if (ObjectUtils.isEmpty(prevLenderDetails) || kycUtils.bharatPeKycLenderAlreadyAssigned(currentDraftApplication.getId()) || lenderKycPipe || skipKycEligible) {
             log.info("BP Kyc already done for applicationId {}", currentDraftApplication.getId());
             return false;
         }
-        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(currentDraftApplication.getId(), currentDraftApplication.getLender());
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderAndKycModeOrderByIdDesc(currentDraftApplication.getId(), currentDraftApplication.getLender(), KycMode.BP_KYC.name());
         if (!ObjectUtils.isEmpty(lendingApplicationKycDetails) && !ObjectUtils.isEmpty(lendingApplicationKycDetails.getConsentDate())) {
             log.info("BP Kyc already done for applicationId {} with lender {}", currentDraftApplication.getId(), currentDraftApplication.getLender());
             return false;
@@ -327,7 +351,7 @@ public abstract class LendingApplicationServiceV3Base {
 
     private String getLenderKycRedirectionUrl(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String lenderKycStatus) {
         try {
-            if (kycUtils.isELigibleForLenderKyc(lendingApplicationLenderDetails.getLender(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
+            if (kycUtils.isEligibleForLenderKyc(lendingApplicationLenderDetails.getLender(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                 if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
                         && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycMode())
                         && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
@@ -498,87 +522,6 @@ public abstract class LendingApplicationServiceV3Base {
         return new ApiResponse<>(true,"success");
     }
 
-    public ApiResponse<?> fetchTopupApplicationStatus(LendingApplication currentDraftApplication, String lenderKycStatus, boolean userReturnedFromLenderKyc) {
-        log.info("Fetching topup loan application status for : {}", currentDraftApplication.getId());
-        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
-        if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
-            return new ApiResponse<>(false, "lending application details not found");
-        }
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
-        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            InvokeLenderAssociationRequest invokeLenderAssociationRequest = new InvokeLenderAssociationRequest();
-            invokeLenderAssociationRequest.setApplicationId(currentDraftApplication.getId());
-            invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
-            invokeLenderAssociationRequest.setForceEnable(false);
-            initLenderAssociation(invokeLenderAssociationRequest);
-        }
-
-        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            log.info("lead creation triggered ! Please retry for status in few minutes");
-            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.BRE_PENDING)
-                    .stage(LenderAssociationStages.BRE)
-                    .ediModelModified(false)
-                    .lender(currentDraftApplication.getLender())
-                    .build());
-        } else if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
-            if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(currentDraftApplication.getMerchantId())){
-                Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
-                if(eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()){
-                    log.info("EDI decreased for applicationId {}", currentDraftApplication.getId());
-                    return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                            .isRoiDecreased(true)
-                            .lender(currentDraftApplication.getLender())
-                            .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
-                            .stage(LenderAssociationStages.COMPLETED)
-                            .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                            .build());
-                }
-            }
-            Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
-            if(offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
-                    !ObjectUtils.isEmpty(approvedLoanOfferAmount) && currentDraftApplication.getLoanAmount() > approvedLoanOfferAmount) {
-                log.info("offer downgraded for applicationId {}", currentDraftApplication.getId());
-                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                        .isRoiDecreased(true)
-                        .lender(currentDraftApplication.getLender())
-                        .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
-                        .stage(LenderAssociationStages.COMPLETED)
-                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                        .build());
-            }
-            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
-                    .stage(LenderAssociationStages.COMPLETED)
-                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                    .lender(currentDraftApplication.getLender())
-                    .build());
-        } else if (LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getBreStatus()).orElse(LenderAssociationStatus.BRE_PENDING.name())))
-                    .stage(LenderAssociationStages.BRE)
-                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                    .lender(currentDraftApplication.getLender())
-                    .build());
-        } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-            String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
-            if(eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender()) && ObjectUtils.isEmpty(lenderKycRedirectionUrl)) {
-                lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
-            }
-            ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponseApiResponse = new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
-                    .stage(LenderAssociationStages.KYC)
-                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                    .lender(currentDraftApplication.getLender())
-                    .lenderKycRedirectionUrl(lenderKycRedirectionUrl)
-                    .lenderKycRetry(LenderAssociationStatus.EKYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()))
-                    .build());
-            return lenderAssociationStatusResponseApiResponse;
-        }
-        return new ApiResponse<>(false, "something went wrong");
-    }
-
-
     public ApiResponse<?> invokeStageForLender(InvokeStageRequestDTO invokeStageRequest) {
         try {
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(invokeStageRequest.getApplicationId());
@@ -675,7 +618,7 @@ public abstract class LendingApplicationServiceV3Base {
                 return new ApiResponse<>(false, createResponse("false", "Something went wrong"), "Something went wrong");
             }
 
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)){
                 return new ApiResponse<>(false, createResponse("false", "Something went wrong"), "Something went wrong");
 
@@ -825,7 +768,7 @@ public abstract class LendingApplicationServiceV3Base {
                             eligibleLoan.get().getIrr(),
                             eligibleLoan.get().getEdiCount(), eligibleLoan.get().getTenureInMonths());
 
-                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
                     ModifiedOfferResponseDto.OfferDetails newOfferDetails = null;
                     Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
 
@@ -902,5 +845,77 @@ public abstract class LendingApplicationServiceV3Base {
             log.error("Exception occurred:{}, {} for application:{}", ex.getMessage(), Arrays.asList(ex.getStackTrace()), applicationId);
         }
         return null;
+    }
+
+    public ApiResponse<?> skipKycConsent(Long merchantId, SkipKycConsentRequestDTO skipKycConsentRequest) {
+        try {
+            LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(skipKycConsentRequest.getApplicationId(), merchantId);
+            if(ObjectUtils.isEmpty(application)) {
+                log.info("Application not found with given id {} and merchantId {}", skipKycConsentRequest.getApplicationId(), merchantId);
+                return new ApiResponse<>(false, "application not found");
+            }
+            LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(skipKycConsentRequest.getApplicationId(), Status.ACTIVE.name(), application.getLender());
+            if(ObjectUtils.isEmpty(lenderDetails)) {
+                log.info("Lender details not found with lender {} and applicationId {}", application.getLender(), application.getId());
+                return new ApiResponse<>(false, "lender details not found");
+            }
+            LendingApplicationKycDetails applicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderAndKycModeOrderByIdDesc(application.getId(), application.getLender(), KycMode.SKIP_KYC.name());
+            if(ObjectUtils.isEmpty(applicationKycDetails)) {
+                log.info("Application kyc details not found with lender {} and applicationId {}", application.getLender(), application.getId());
+                return new ApiResponse<>(false, "Application Kyc details not found");
+            }
+            Boolean isEligibleForLenderKyc = kycUtils.isEligibleForLenderKyc(application.getLender(), application.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()));
+            KycMode kycMode = skipKycConsentRequest.isOptForSkipKyc() ? KycMode.SKIP_KYC : isEligibleForLenderKyc ? KycMode.LENDER_KYC : KycMode.BP_KYC;
+            LenderAssociationStatus kycStatus = isEligibleForLenderKyc ? skipKycConsentRequest.isOptForSkipKyc() ? LenderAssociationStatus.SKIP_KYC_PENDING : LenderAssociationStatus.EKYC_PENDING : LenderAssociationStatus.KYC_PENDING;
+            lenderDetails.setKycMode(skipKycConsentRequest.isOptForSkipKyc() ? LenderAssociationStages.SKIP_KYC.name() : isEligibleForLenderKyc ? LenderAssociationStages.EKYC.name() : LenderAssociationStages.KYC.name());
+            lenderDetails.setKycStatus(kycStatus.name());
+            lendingApplicationLenderDetailsDao.save(lenderDetails);
+            applicationKycDetails.setAadharApprovedAt(new Date());
+            lendingApplicationKycDetailsDao.save(applicationKycDetails);
+            if(LenderAssociationStatus.SKIP_KYC_PENDING.name().equalsIgnoreCase(lenderDetails.getKycStatus())) {
+                LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
+                lenderAssociationDetailsDto.setApplicationId(application.getId());
+                lenderAssociationDetailsDto.setLendingApplication(application);
+                lenderAssociationDetailsDto.setMerchantId(application.getMerchantId());
+                lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
+                lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lenderDetails);
+                lenderAssociationDetailsDto.setModifyLender(Boolean.TRUE);
+                new Thread(() -> nbfcUtils.invokeSpecificStage(application.getLender(), lenderAssociationDetailsDto, LenderAssociationStages.SKIP_KYC.name())).start();
+            }
+            LendingViewStates nextPage = isEligibleForLenderKyc ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.KYC_PAGE;
+            SkipKycConsentResponseDTO response = SkipKycConsentResponseDTO.builder()
+                    .kycMode(kycMode.name())
+                    .nextPage(nextPage)
+                    .build();
+            return new ApiResponse<>(response);
+        } catch (Exception e) {
+            log.error("Exception in skip kyc consent for merchant {} and applicationId {} {}", merchantId, skipKycConsentRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "something went wrong");
+    }
+
+    public ApiResponse<?> getSkipKycDetails(Long merchantId, Long applicationId) {
+        try {
+            LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            if(ObjectUtils.isEmpty(application)) {
+                log.info("Application not found for skip kyc details with given id {} and merchantId {}", applicationId, merchantId);
+                return new ApiResponse<>(false, "application not found");
+            }
+            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderAndKycModeOrderByIdDesc(applicationId, application.getLender(), KycMode.SKIP_KYC.name());
+            if(ObjectUtils.isEmpty(kycDetails)) {
+                log.info("Skip Kyc details not found with applicationId {}", application.getId());
+                return new ApiResponse<>(false, "Skip kyc details not found");
+            }
+            SkipKycDetailsResponseDTO response = SkipKycDetailsResponseDTO.builder()
+                    .applicationId(application.getId())
+                    .aadhaarName(kycDetails.getAadharName())
+                    .dob(kycDetails.getDob())
+                    .aadhaarAddress(kycDetails.getAadharAddress())
+                    .build();
+            return new ApiResponse<>(response);
+        } catch (Exception e) {
+            log.error("Exception in fetching skip kyc details for merchant {} and applicationId {} {}", merchantId, applicationId, Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "something went wrong");
     }
 }

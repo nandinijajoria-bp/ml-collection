@@ -18,7 +18,8 @@ import com.bharatpe.lending.loanV3.dto.response.ugro.UgroCreateLeadResponse;
 import com.bharatpe.lending.loanV3.dto.response.ugro.UgroGetLeadResponse;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.ugro.validations.UgroPayloadValidation;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeKycWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeLeadWrapperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -79,7 +80,7 @@ public class UgroLeadService {
                 log.info("UGRO: application id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if (InvokeLeadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
             if (payloadValidation.isInvalidCreateLeadCKycData(lenderAssociationDetailsDto.getCKycResponseDto())) {
