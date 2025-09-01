@@ -100,6 +100,8 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             eligibilityStateDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(scopeDataArgs.getMerchant().getId()));
 
+            eligibilityStateDTO.setScreenType(loanUtil.getLenderAggregationScreenV2(requestData.getLendingApplication().getId(), scopeDataArgs.getMerchant().getId()));
+
             if (scopeDataArgs.getLoanDetailsV3Request() != null ) {
                 eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
             } else {

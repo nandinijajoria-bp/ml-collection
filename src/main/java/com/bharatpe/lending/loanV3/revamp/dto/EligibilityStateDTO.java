@@ -65,5 +65,6 @@ public class EligibilityStateDTO {
     private Long merchantId;
     private LendingApplication lendingApplication;
     private boolean isAggregationFlowApplicable;
+    private String screenType;
 
 }

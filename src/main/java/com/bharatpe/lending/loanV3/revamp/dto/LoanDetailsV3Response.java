@@ -126,6 +126,7 @@ public class LoanDetailsV3Response {
     private Boolean vkycEligible;
     private Boolean dkycEligible;
     private LendingApplication lendingApplication;
+    private String lenderAggregationScreen;
 
     @Data
     @ToString

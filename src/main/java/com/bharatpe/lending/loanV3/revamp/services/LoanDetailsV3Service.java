@@ -1356,6 +1356,7 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setPreviousFinalOffer(eligibilityStateDTO.getPreviousFinalOffer());
         loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
         loanDetailsV3Response.setLendingApplication(eligibilityStateDTO.getLendingApplication());
+        loanDetailsV3Response.setLenderAggregationScreen(eligibilityStateDTO.getScreenType());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
