@@ -172,7 +172,10 @@ public abstract class LendingApplicationServiceV3Base {
                     .stage(LenderAssociationStages.LENDER_CHANGE)
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                     .lender(currentDraftApplication.getLender())
-                    .isApplicableForAggregationFlow(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), merchantId)))
+                    .isApplicableForAggregationFlow(
+                            !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))
+                                    || !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), merchantId))
+                    )
                     .build());
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());

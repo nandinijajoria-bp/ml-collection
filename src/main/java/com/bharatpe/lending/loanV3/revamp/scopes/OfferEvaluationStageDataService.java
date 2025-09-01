@@ -153,7 +153,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             builder.lendingApplication(lendingApplication)
                     .previousLenders(lendingApplicationLenderDetailsDao.findPreviousLenders(lendingApplication.getId()))
                     .isRepeatLoan(loanUtil.isRepeatLoan(lendingApplication.getMerchantId()))
-                    .lenderAggregationScreen(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), lendingApplication.getMerchantId()));
+                    .lenderAggregationScreen(loanUtil.getLenderAggregationScreenV2(lendingApplication.getId(), lendingApplication.getMerchantId()));
         }
 
         return builder.build();

@@ -3072,28 +3072,54 @@ public class LoanUtil {
 		return false;
 	}
 
-	public String getLenderAggregationScreen(Long applicationId, Long merchantId) {
-		try {
-			LendingAuditTrial lendingAuditTrial = null;
-
-			if (isApplicableForAggregationFlowV2(merchantId, null)) {
-				lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(
-						applicationId,
-						LendingViewStates.OFFER_EVALUATION_PAGE.name());
-			} else {
-				if(isApplicableForAggregationFlow(merchantId, null)) {
-					lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(
-							applicationId,
-							LendingViewStates.LENDER_AGGREGATION.name());
+	public ExperimentConfigResponseDTO getLenderAggregationScreenType(Long merchantId, Long applicationId){
+		try{
+			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
+			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
+			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
+				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
+				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+					lendingAuditTrial.setApplicationId(applicationId);
+					lendingAuditTrial.setMerchantId(merchantId);
+					lendingAuditTrial.setType(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+					lendingAuditTrial.setLoanId("BPL"+applicationId);
+					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
+					lendingAuditTrialDao.save(lendingAuditTrial);
 				}
-			}
-
-			if (!ObjectUtils.isEmpty(lendingAuditTrial)) {
-				return lendingAuditTrial.getOldStatus();
+				return experimentConfigResponseDTO;
 			}
 		} catch (Exception ex) {
-			logger.error("Exception occurred while fetching aggregation screen for applicationId {}: {} {}",
-					applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+			logger.error("Exception occurred while deciding aggregation flow :{}", ex.getMessage());
+		}
+		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
+		return null;
+	}
+
+
+	public String getLenderAggregationScreenV2(Long applicationId, Long merchantId) {
+		try {
+			ExperimentConfigResponseDTO experimentConfigResponseDTO = getLenderAggregationScreenType(merchantId,applicationId);
+			if(ObjectUtils.isEmpty(experimentConfigResponseDTO)){
+				return null;
+			}
+			else
+				return experimentConfigResponseDTO.getVariationId();
+		} catch (Exception ex) {
+			logger.error("Exception occurred while fetching aggregation screen for merchantId {}: {} {}",
+					merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+		}
+		return null;
+	}
+
+	public String getLenderAggregationScreen(Long applicationId, Long MerchantId) {
+		try{
+			LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.LENDER_AGGREGATION.name());
+			if(!ObjectUtils.isEmpty(lendingAuditTrial)){
+				return lendingAuditTrial.getOldStatus();
+			}
+		} catch (Exception ex){
+			logger.error("Exception occurred while fetching aggregation screen for applicationId {} {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
 		}
 		return null;
 	}
