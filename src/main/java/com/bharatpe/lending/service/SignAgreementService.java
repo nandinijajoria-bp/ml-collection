@@ -992,7 +992,7 @@ public class SignAgreementService {
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 		List<LoanEligibilityDTO> loans;
-		if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc())) {
+		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
 			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
 		} else {
 			loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
@@ -1003,12 +1003,12 @@ public class SignAgreementService {
 		logger.info("latest eligibility for {} : {}", merchantId, validLoans);
 
 		if(validLoans.isEmpty()){
-			logger.info("no eligible loan offer available at topup application creation for {}", merchantId);
+			logger.warn("no eligible loan offer available at topup application creation for {}", merchantId);
 			return false;
 		}
 
 		LoanEligibilityDTO loanEligibilityDTO;
-		if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc())) {
+		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
 			loanEligibilityDTO = validLoans.stream()
 					.filter(dto -> dto.getTenure().equals(eligibleLoan.getTenure())
 							&& dto.getAmount().compareTo(eligibleLoan.getAmount().intValue()) == 0)
