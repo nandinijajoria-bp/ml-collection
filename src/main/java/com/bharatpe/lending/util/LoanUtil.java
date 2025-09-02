@@ -465,6 +465,15 @@ public class LoanUtil {
 	@Value("#{${upi.autopay.tpv.check.rollout:{\"TRILLIONLOANS\": 100}}}")
 	private Map<String, Integer> upiAutopayTpvCheckRollout;
 
+	@Value("${payment.lock.retry.count:5}")
+	private int paymentLockRetryCount;
+
+	@Value("${payment.lock.key.ttl.sec:60}")
+	private int paymentLockKeyTtlSec;
+
+	@Value("${payment.lock.rollout.date:}")
+	public String paymentLockRolloutDate;
+
 	@PostConstruct
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
@@ -3689,6 +3698,52 @@ public class LoanUtil {
 				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
 				&& !ObjectUtils.isEmpty(previousLendingApplication)
 				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+	}
+
+	public boolean isPaymentLockAcquired(String lockKey) {
+		try {
+			int counter = paymentLockRetryCount <= 0 ? 1 : paymentLockRetryCount;
+			while (counter > 0) {
+				if (lendingCache.acquireLock(lockKey, paymentLockKeyTtlSec)) {
+					logger.info("Payment lock acquired for key: {}", lockKey);
+					return true;
+				}
+				counter--;
+				logger.info("Payment lock is already acquired for key: {}, retry after 2 seconds, remaining retries: {}", lockKey, counter);
+				Thread.sleep(2000);
+			}
+		} catch (Exception e) {
+			logger.error("Payment lock is already acquired for key: {}, Stack: {}", lockKey, Arrays.asList(e.getStackTrace()), e);
+		}
+		return false;
+	}
+
+	public void releasePaymentLock(String lockkey) {
+		try {
+			lendingCache.releaseLock(lockkey);
+		} catch (Exception e) {
+			logger.error("Error while releasing payment lock for key: {}, Stack: {}", lockkey, Arrays.asList(e.getStackTrace()), e);
+		}
+	}
+
+	public boolean isPaymentLockEnabled(LendingPaymentSchedule loan) {
+		try {
+			logger.info("isPaymentLockEnabled loan: {}", loan.getId());
+			Date thresholdDate = parseDateFromProperty(paymentLockRolloutDate);
+
+			return loan.getCreatedAt().after(thresholdDate);
+		} catch (Exception e) {
+			logger.error("error in isPaymentLockEnabled {} {} {}", loan, e.getMessage(), Arrays.asList(e.getStackTrace()));
+		}
+		return false;
+	}
+
+	private Date parseDateFromProperty(String property) {
+		if (StringUtils.isEmpty(property)) {
+			logger.error("Property is empty or null, cannot parse date.");
+			return null;
+		}
+		return DateTimeUtil.parseDate(property.trim(), "yyyy-MM-dd HH:mm:ss");
 	}
 }
 

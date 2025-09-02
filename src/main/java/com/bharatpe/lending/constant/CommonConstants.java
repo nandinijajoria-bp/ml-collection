@@ -7,4 +7,5 @@ public class CommonConstants {
             ",jai.jain@bharatpe.com,kanika.sehgal@bharatpe.com,accounts@bharatpe.com";
     public static final String OK = "OK";
 
+    public static final String PAYMENT_LOCK_KEY_PREFIX = "PAYMENT_LOCK_";
 }
