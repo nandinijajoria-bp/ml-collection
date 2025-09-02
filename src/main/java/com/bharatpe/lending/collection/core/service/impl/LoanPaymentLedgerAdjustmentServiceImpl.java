@@ -75,7 +75,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     @Autowired
     LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("CollectionLowLatencyKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
