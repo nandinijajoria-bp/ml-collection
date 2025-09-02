@@ -46,6 +46,9 @@ public class LenderAssociationStageFactory {
     @Autowired
     LenderPennyDropStageAssociationSvcFactory lenderPennyDropStageAssociationSvcFactory;
 
+    @Autowired
+    LeadWrapperStageAssociationSvcFactory leadWrapperStageAssociationSvcFactory;
+
 
     public LenderAssociationServiceFactory getStageAssociatedLenderService(String stage) {
         if (LenderAssociationStages.KYC.name().equalsIgnoreCase(stage)) {
@@ -70,6 +73,8 @@ public class LenderAssociationStageFactory {
             return rpsStageAssociationSvcFactory;
         } else if (LenderAssociationStages.PENNY_DROP.name().equalsIgnoreCase(stage)) {
             return lenderPennyDropStageAssociationSvcFactory;
+        } else if (LenderAssociationStages.LEAD_WRAPPER.name().equalsIgnoreCase(stage)) {
+            return leadWrapperStageAssociationSvcFactory;
         }
         return oldModelAssociationSvcFactory;
     }

@@ -213,8 +213,8 @@ public class VkycServiceV2 {
             return true;
         }
 
-        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(
-                vkycDetails.getApplicationId(), vkycDetails.getLender());
+        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(
+                vkycDetails.getApplicationId());
         if (!ObjectUtils.isEmpty(kycDetails) && !ObjectUtils.isEmpty(kycDetails.getAadharApprovedAt())) {
             Date approvedAt = kycDetails.getAadharApprovedAt();
             Date now = new Date();

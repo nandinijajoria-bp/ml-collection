@@ -117,7 +117,10 @@ public class PiramalDocumentUploadService {
                 return DocType.SELFIE;
             case "AADHAR_UPLOAD":
                 return DocType.DIGILOCKER_AADHAAR_XML;
-
+            case "SHOP_PHOTO":
+                return DocType.SHOP_PHOTO;
+            case "SHOP_STOCK":
+                return DocType.SHOP_STOCK;
             default:
                return DocType.SELFIE;
         }
@@ -129,6 +132,9 @@ public class PiramalDocumentUploadService {
                 return LenderAssociationStages.PiramalAssociationStages.AADHAR_UPLOAD;
             case "SELFIE":
                 return LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD;
+            case "SHOP_PHOTO":
+            case "SHOP_STOCK":
+                return LenderAssociationStages.PiramalAssociationStages.DOC_UPLOAD;
             default:
                 return null;
         }
@@ -153,12 +159,27 @@ public class PiramalDocumentUploadService {
                     default:
                         return LenderAssociationStatus.SELFIE_UPLOAD_PENDING;
                 }
+            case "SHOP_PHOTO":
+            case "SHOP_STOCK":
+                switch (currentStage) {
+                    case "FAILED":
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_FAILED;
+                    case "SUCCESS":
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_SUCCESS;
+                    default:
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_PENDING;
+                }
             default:
                 return null;
         }
     }
 
     private NbfcRequestDto getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, DocType docType) {
+        if (Arrays.asList(DocType.SHOP_PHOTO.name(), DocType.SHOP_STOCK.name()).contains(docType.name())) {
+            DocumentUploadDTO documentUploadDTO = getAdditionalDocPayload(lenderAssociationDetailsDto.getLendingApplication(), lenderAssociationDetailsDto.getLendingApplicationLenderDetails(), docType);
+            return NbfcRequestDto.builder().productName("LENDING").payload(documentUploadDTO).lender(Lender.PIRAMAL.name()).applicationId(lenderAssociationDetailsDto.getApplicationId())
+                    .topup(LoanType.TOPUP.name().equals(lenderAssociationDetailsDto.getLendingApplication().getLoanType())).build();
+        }
         // call validation Layer
         DocumentUploadDTO documentUploadDTO = new DocumentUploadDTO();
         documentUploadDTO.setUploadDate(DateTimeUtil.getDateInFormat(new Date(), "yyyy-MM-dd'T'HH:mm:ss.000'Z'"));

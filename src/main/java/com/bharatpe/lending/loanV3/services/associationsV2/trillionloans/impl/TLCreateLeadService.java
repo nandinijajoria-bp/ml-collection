@@ -14,7 +14,8 @@ import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLCreateLeadRequest
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLCreateLeadResponseDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations.TLPayloadValidation;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeKycWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeLeadWrapperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
@@ -62,8 +63,10 @@ public class TLCreateLeadService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
-            if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            boolean isTopup =  LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType());
+            boolean isEligibleForSkipKyc = kycUtils.isEligibleForSkipKyc(lenderAssociationDetailsDto.getLendingApplication().getId(), Lender.TRILLIONLOANS, lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), isTopup);
+
+            if (InvokeLeadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
             if (payloadValidation.isInvalidCreateLeadPayload()) {
@@ -76,7 +79,7 @@ public class TLCreateLeadService {
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
             LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
-            NBFCRequestDTO<?> createLeadRequest = getCreateLeadPayload(lenderAssociationDetailsDto, isEligibleForLenderKyc);
+            NBFCRequestDTO<?> createLeadRequest = getCreateLeadPayload(lenderAssociationDetailsDto);
             if (Objects.isNull(createLeadRequest)) {
                 log.info("error in create lead payload of TrillionLoans for applicationId: {}", lendingApplication.getId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_FAILED.name());
@@ -90,7 +93,8 @@ public class TLCreateLeadService {
                     log.info("createLead request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
                     TLCreateLeadResponseDto createLeadResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCreateLeadResponseDto.class);
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadId(createLeadResponseDTO.getResourceId().toString());
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.SELFIE_PENDING_FOR_LENDER_KYC.name() : LenderAssociationStatus.LEAD_CREATION_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(isEligibleForSkipKyc ? LenderAssociationStatus.LEAD_CREATION_SUCCESS.name() : LenderAssociationStatus.KYC_PENDING.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.LEAD_CREATION_SUCCESS.name());
                     commonService.manageApplicationState(lenderAssociationDetailsDto);
                     return true;
                 }
@@ -102,20 +106,23 @@ public class TLCreateLeadService {
                 }
             }
         } catch (Exception e) {
-            log.info("exception occurred while processing create lead of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("exception occurred while processing create lead of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_FAILED.name());
         commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.LEAD_CREATION_FAILED);
         return false;
     }
 
-    private NBFCRequestDTO<?> getCreateLeadPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, boolean isEligibleForLenderKyc) {
+    private NBFCRequestDTO<?> getCreateLeadPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 throw new RuntimeException("Lending application details not found for application " + lendingApplication.getId());
             }
+            String externalId = kycUtils.skipKycCaseAlreadyFailedForLender(lendingApplication.getId(), lendingApplication.getLender()) ? lendingApplication.getExternalLoanId() + "_" + LenderAssociationStatus.RE_KYC.name() : lendingApplication.getExternalLoanId();
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDealId(externalId);
+            commonService.manageApplicationState(lenderAssociationDetailsRequest);
             TLCreateLeadRequestDto createLeadRequest = TLCreateLeadRequestDto.builder()
                     .clientId(Long.valueOf(lendingApplicationLenderDetails.getCccId()))
                     .loanOfficerId(1L)
@@ -137,7 +144,7 @@ public class TLCreateLeadService {
                             .chargeId(2L)
                             .amount(String.format("%.3f", (lendingApplication.getProcessingFee() / lendingApplication.getLoanAmount()) * 100))
                             .build()))
-                    .externalId(lendingApplication.getExternalLoanId())
+                    .externalId(externalId)
                     .loanIdToClose(null)
                     .isTopup(Boolean.FALSE)
                     .build();
@@ -155,7 +162,7 @@ public class TLCreateLeadService {
                     .payload(createLeadRequest)
                     .build();
         } catch (Exception e) {
-            log.info("Exception in creating payload of create lead of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("Exception in creating payload of create lead of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

@@ -139,11 +139,11 @@ public class LendingUtil {
 				lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 
 		try {
-			KycStatusDTO kycStatus = Boolean.TRUE.equals(kycUtils.isELigibleForLenderKyc(
+			KycStatusDTO kycStatus = Boolean.TRUE.equals(kycUtils.isEligibleForLenderKyc(
 					lendingApplication.getLender(),
 					lendingApplication.getMerchantId(),
 					LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) ?
-					kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) :
+					kycHandler.getKycStatusForLenderKycOrSkipKycPipe(lendingApplication.getMerchantId()) :
 					kycHandler.getKycStatus(lendingApplication.getMerchantId());
 			log.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
 			lendingApplication.setCkycStatus(kycStatus.getKycStatus().name());

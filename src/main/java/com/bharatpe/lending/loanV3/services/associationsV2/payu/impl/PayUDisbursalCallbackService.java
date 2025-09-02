@@ -29,7 +29,7 @@ public class PayUDisbursalCallbackService {
         try {
             if(!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDTO.getData())) {
                 PayUDisbursalCallbackResponseDTO payUDisbursalCallbackResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), PayUDisbursalCallbackResponseDTO.class);
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(Long.valueOf(nbfcResponseDTO.getApplicationId()),nbfcResponseDTO.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(Long.valueOf(nbfcResponseDTO.getApplicationId()),nbfcResponseDTO.getLender());
                 Boolean status = "DISBURSED".equalsIgnoreCase(payUDisbursalCallbackResponseDTO.getData().getEventDetails().getStatus());
 
                 return  DisbursalCallbackCommonDTO.builder()

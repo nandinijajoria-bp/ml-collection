@@ -47,10 +47,9 @@ public class LendingApplicationControllerV3 {
     @GetMapping("/application/creationStatus")
     public ResponseEntity<ApiResponse<?>> applicationStatus(@RequestAttribute BasicDetailsDto merchant,
                                                             @RequestParam(required = false) Long associationId,
-                                                            @RequestParam(required = false) String lenderKycStatus,
-                                                            @RequestParam(required = false) boolean userReturnedFromLenderKyc) {
-        log.info("fetch application creation v3 status request for {} of merchant:{} where userReturnedFromLenderKyc : {}", associationId, merchant.getId(), userReturnedFromLenderKyc);
-        ApiResponse<?> response = lendingApplicationServiceV3.fetchApplicationStatus(merchant.getId(), lenderKycStatus, userReturnedFromLenderKyc);
+                                                            @RequestParam(required = false) String lenderKycStatus) {
+        log.info("fetch application creation v3 status request for {} of merchant:{} :", associationId, merchant.getId());
+        ApiResponse<?> response = lendingApplicationServiceV3.fetchApplicationStatus(merchant.getId(), lenderKycStatus);
         log.info(" application creation status response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);
     }
@@ -163,4 +162,19 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.ok().body(retryStageRequestDTO);
     }
 
+    @PostMapping("/skipKyc/consent")
+    public ResponseEntity<?> skipKyc(@RequestAttribute BasicDetailsDto merchant, @RequestBody SkipKycConsentRequestDTO skipKycConsentRequest) {
+        log.info("Skip kyc consent request received for merchant {} {}", merchant.getId(), skipKycConsentRequest);
+        ApiResponse<?> response = lendingApplicationServiceV3.skipKycConsent(merchant.getId(), skipKycConsentRequest);
+        HttpStatus status = response.success ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(response);
+    }
+
+    @GetMapping("/skipKyc/details")
+    public ResponseEntity<?> skipKyc(@RequestAttribute BasicDetailsDto merchant, @RequestParam Long applicationId) {
+        log.info("Skip kyc details request received for merchant {} and application {}", merchant.getId(), applicationId);
+        ApiResponse<?> response = lendingApplicationServiceV3.getSkipKycDetails(merchant.getId(), applicationId);
+        HttpStatus status = response.success ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(response);
+    }
 }

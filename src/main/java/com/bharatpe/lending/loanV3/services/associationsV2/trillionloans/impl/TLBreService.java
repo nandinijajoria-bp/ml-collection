@@ -282,7 +282,7 @@ public class TLBreService {
                     .identifier(identifierMap)
                     .build();
         } catch (Exception e) {
-            log.info("Exception in creating BRE payload of TrillionLoans for application {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("Exception in creating BRE payload of TrillionLoans for application {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
@@ -373,7 +373,7 @@ public class TLBreService {
         }
         int delay = trillionBreRetryIntervals.get(attempt);
         scheduler.schedule(() -> {
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
             if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
                 log.info("BRE invocation of {} already completed for applicationId {}", lendingApplicationLenderDetails.getLender(), lendingApplicationLenderDetails.getApplicationId());
                 scheduler.shutdown();

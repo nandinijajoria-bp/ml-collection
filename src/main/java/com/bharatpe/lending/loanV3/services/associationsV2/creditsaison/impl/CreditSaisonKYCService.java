@@ -21,6 +21,7 @@ import com.bharatpe.lending.loanV3.dto.request.creditsasion.CreditSasionKYCReque
 import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSaisonCallbackResponseDTO;
 import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSasionCallbackResponseStatuses;
 import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSasionKYCResponseDTO;
+import com.bharatpe.lending.loanV3.enums.KycMode;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -74,7 +75,7 @@ public class CreditSaisonKYCService {
                 return false;
             }
 
-            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lenderAssociationDetailsDto.getLendingApplication().getId(), lenderAssociationDetailsDto.getLendingApplication().getLender());
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndKycModeOrderByIdDesc(lenderAssociationDetailsDto.getLendingApplication().getId(), KycMode.BP_KYC.name());
 
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStages.KYC.name());
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
@@ -271,7 +272,7 @@ public class CreditSaisonKYCService {
 
     public List<CreditSasionKYCRequestDTO.LinkedIndividual.Address> getAddress(CKycResponseDto cKycResponseDto, Long applicationId, Long merchantId) {
 
-        CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), merchantId, cKycResponseDto, applicationId);
+        CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), merchantId, cKycResponseDto);
 
         String address = Stream.of(
                         poa.getHouse(),

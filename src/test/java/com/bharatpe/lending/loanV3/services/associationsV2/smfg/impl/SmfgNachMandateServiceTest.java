@@ -103,7 +103,7 @@ public class SmfgNachMandateServiceTest {
         when(mockSmfgConfig.getDailyInstallmentFrequency()).thenReturn("emifrequency");
 
         final NBFCResponseDTO nbfcResponseDTO = new NBFCResponseDTO<>(true, "applicationId", "productName", "lender",
-                "data", "error");
+                "data", "error", null, null);
         SmfgAppPushRequest smfgAppPushRequest = new SmfgAppPushRequest();
         SmfgAppPushRequest.RepaymentDisbBankDetails repaymentDisbBankDetails = new SmfgAppPushRequest.RepaymentDisbBankDetails();
         repaymentDisbBankDetails.setAccountno("123456");
@@ -180,7 +180,7 @@ public class SmfgNachMandateServiceTest {
         when(lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(anyLong())).thenReturn(lendingApplicationDetails);
 
         final NBFCResponseDTO nbfcResponseDTO = new NBFCResponseDTO<>(false, "applicationId", "productName", "lender",
-                "data", "error");
+                "data", "error", null, null);
         SmfgAppPushRequest smfgAppPushRequest = new SmfgAppPushRequest();
         SmfgAppPushRequest.RepaymentDisbBankDetails repaymentDisbBankDetails = new SmfgAppPushRequest.RepaymentDisbBankDetails();
         repaymentDisbBankDetails.setAccountno("123");
@@ -239,7 +239,7 @@ public class SmfgNachMandateServiceTest {
         when(mockSmfgConfig.getDailyInstallmentFrequency()).thenReturn("emifrequency");
 
         final NBFCResponseDTO nbfcResponseDTO = new NBFCResponseDTO<>(false, "applicationId", "productName", "lender",
-                "data", "error");
+                "data", "error", null, null);
         when(mockLenderAPIGateway.invokeStage(
                 any(NBFCRequestDTO.class), eq(LenderAssociationStages.NACH_MANDATE)))
                 .thenReturn(nbfcResponseDTO);
@@ -297,7 +297,7 @@ public class SmfgNachMandateServiceTest {
         when(mockSmfgConfig.getDailyInstallmentFrequency()).thenReturn("emifrequency");
 
         final NBFCResponseDTO nbfcResponseDTO = new NBFCResponseDTO<>(true, "applicationId", "productName", "lender",
-                "data", "error");
+                "data", "error", null,null);
         SmfgAppPushRequest smfgAppPushRequest = new SmfgAppPushRequest();
         SmfgAppPushRequest.RepaymentDisbBankDetails repaymentDisbBankDetails = new SmfgAppPushRequest.RepaymentDisbBankDetails();
         repaymentDisbBankDetails.setAccountno("123456");

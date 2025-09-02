@@ -18,9 +18,23 @@ public class LenderAssociationStageFactoryV2 {
                     case CREDITSAISON:
                     case UGRO:
                     case OXYZO:
-                        return LenderAssociationStages.KYC;
+                        return LenderAssociationStages.LEAD_WRAPPER;
                     case SMFG:
                         return LenderAssociationStages.BRE;
+                    default:
+                        return LenderAssociationStages.OLD_MODEL;
+                }
+            case LEAD_WRAPPER:
+                switch (lender) {
+                    case USFB:
+                    case TRILLIONLOANS:
+                    case MUTHOOT:
+                    case CAPRI:
+                    case PAYU:
+                    case CREDITSAISON:
+                    case UGRO:
+                    case OXYZO:
+                        return LenderAssociationStages.KYC;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
                 }
@@ -132,6 +146,8 @@ public class LenderAssociationStageFactoryV2 {
     public static Boolean autoInvokeNextStage(Lender lender, LenderAssociationStages stage) {
         switch (stage) {
             case INIT:
+            case LEAD_WRAPPER:
+            case ASSC_COMPLETED:
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
@@ -168,21 +184,6 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
-                    case UGRO:
-                    case OXYZO:
-                        return Boolean.TRUE;
-                    default:
-                        return Boolean.FALSE;
-                }
-            case ASSC_COMPLETED:
-                switch (lender) {
-                    case USFB:
-                    case TRILLIONLOANS:
-                    case MUTHOOT:
-                    case CAPRI:
-                    case PAYU:
-                    case CREDITSAISON:
-                    case SMFG:
                     case UGRO:
                     case OXYZO:
                         return Boolean.TRUE;

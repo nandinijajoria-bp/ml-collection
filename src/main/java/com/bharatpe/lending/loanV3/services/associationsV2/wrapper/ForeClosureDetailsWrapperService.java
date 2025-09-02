@@ -8,6 +8,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
+import com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl.UgroForeclosureService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,9 @@ public class ForeClosureDetailsWrapperService implements ILenderAssociationServi
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
+    @Autowired
+    UgroForeclosureService ugroForeclosureService;
+
     public LenderForeclosureDetailsDTO invoke(Long applicationId, Map<String, Object> args) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if (!lendingApplication.isPresent()) {
@@ -43,7 +47,12 @@ public class ForeClosureDetailsWrapperService implements ILenderAssociationServi
         }
         Double foreclosureAmount = associationServiceUtil.getForeclosureAmount(lendingApplication.get().getLender(), applicationId);
         log.info("Foreclosure amount fetched for application id {} is {}",applicationId, foreclosureAmount);
+        Double principalOutstandingDetails = 0.0;
+        if( "UGRO".equalsIgnoreCase(lendingApplication.get().getLender()) ) {
+            principalOutstandingDetails = ugroForeclosureService.getForeclosurePrincipalOutstandingDetails(applicationId);
+        }
         return LenderForeclosureDetailsDTO.builder()
+                .principalOutstanding(principalOutstandingDetails)
                 .foreclosureAmount(foreclosureAmount)
                 .build();
     }

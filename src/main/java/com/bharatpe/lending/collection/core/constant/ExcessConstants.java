@@ -9,7 +9,7 @@ public interface ExcessConstants {
 	// NOTE -> for each mode descrption must be added
 	Map<String , Integer> ExcessCollectionPriorityMap = new HashMap<String , Integer>() {{
 		put("NACH", 10);
-		put("UPI_AUTO_PAY", 20);
+		put("UPI_AUTOPAY", 20);
 		put("FP", 30);
 		put("UPI", 40);
 		put("NB", 50);
@@ -24,6 +24,7 @@ public interface ExcessConstants {
 		put("NB", "EXCESS_ADJUSTED_NB");
 		put("DC", "EXCESS_ADJUSTED_DC");
 		put("SETTLEMENT", "EXCESS_ADJUSTED_Settlement");
+		put("UPI_AUTOPAY", "AUTO_PAY_UPI_EXCESS_ADJUSTED");
 	}};
 
 }

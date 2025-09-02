@@ -74,7 +74,7 @@ public class PiramalInsuranceService {
     }
 
     public NbfcRequestDto getPayload(LendingApplication lendingApplication) {
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || ObjectUtils.isEmpty(lendingApplicationLenderDetails.getLeadId())) {
             log.info("No lender details / leadId found for applicationId  {}", lendingApplication.getId());
             return null;
