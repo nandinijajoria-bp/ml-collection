@@ -39,6 +39,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
         registry.addInterceptor(validateTokenInterceptor)
 				.excludePathPatterns("/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/lending/topup_eligibility","/support/fetchBulkContacts/**","/support/showBulkContacts",
 				"/lending/push_lead_response", "/lms/v1/**",
+				"/ai/**",
 				"/lending/csPanel/**",
 				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
 				"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",
@@ -55,8 +56,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/payment_link/**", "/lending/bank-statement/session/callback","/lending/liquiloan/backdated/loan", "/lending/gst3b/session/callback","/topup/close","/support/rte-program",
 						"/lending/merchant/eligibility","/support/loan-flag-status","/swagger-ui/**", "/lending/check-delete-eligible", "/lending/v3/invokeStage", "/lending/payment/details/v2", "/lending/homepage/cards", "/milestone/rte-eligibility-check",
 						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel", "/lending/v3/retryStage", "/vkyc/callback","/lending/payment/receipt","/lending/payment/pdpd/shift",
-						"/milestone/rte-loan-eligibility-check",
-						"/ai/**");
+						"/milestone/rte-loan-eligibility-check");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication", "/lms/v1/**",
