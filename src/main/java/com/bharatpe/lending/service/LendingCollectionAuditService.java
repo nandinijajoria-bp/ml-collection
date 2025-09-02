@@ -46,7 +46,7 @@ public class LendingCollectionAuditService {
     private String realTimePostingLenderTopic;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("CollectionLowLatencyKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
 

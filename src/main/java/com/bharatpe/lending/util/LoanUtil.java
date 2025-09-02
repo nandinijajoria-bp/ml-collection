@@ -207,6 +207,10 @@ public class LoanUtil {
 	KafkaTemplate<String, Object> confluentKafkaTemplate;
 
 	@Autowired
+	@Qualifier("LoanJourneyKafkaTemplate")
+	KafkaTemplate<String, Object> loanJourneyKafkaTemplate;
+
+	@Autowired
 	LendingRiskVariablesDao lendingRiskVariablesDao;
 
 	@Autowired
@@ -1786,7 +1790,7 @@ public class LoanUtil {
 				put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
 			}};
 			executorService.execute(() -> {
-				confluentKafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				loanJourneyKafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 			logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
 		} catch (Exception e) {
@@ -1830,7 +1834,7 @@ public class LoanUtil {
 			request.put("proof_stock_side", proof_stock_side);
 			logger.info("Data published to DS for application Id : {} {}", request, lendingApplication.getId());
 			executorService.execute(() -> {
-				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				loanJourneyKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 		} catch (Exception e) {
 			logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);

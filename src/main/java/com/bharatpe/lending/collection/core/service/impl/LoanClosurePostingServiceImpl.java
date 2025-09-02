@@ -67,7 +67,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("CollectionLowLatencyKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
     @Autowired
     ObjectMapper objectMapper;
