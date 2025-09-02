@@ -62,6 +62,10 @@ public class LendingUtil {
 	@Qualifier("ConfluentKafkaTemplate")
 	KafkaTemplate<String, Object> confluentKafkaTemplate;
 
+	@Autowired
+	@Qualifier("LoanJourneyKafkaTemplate")
+	KafkaTemplate<String, Object> loanJourneyKafkaTemplate;
+
 	@Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
 	String kafkaTopicPostChecks;
 
@@ -169,7 +173,7 @@ public class LendingUtil {
 				put("merchantId", merchantId);
 				put("applicationId", applicationId);
 			}};
-			confluentKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
+			loanJourneyKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
 			log.info("Pushed " + detailMap + " to topic find_lat_long");
 		} catch (Exception e) {
 			log.error("Error occured while pushing to topic find_lat_long", e);
@@ -182,7 +186,7 @@ public class LendingUtil {
 			Map<String, Long> detailMap = new HashMap<>();
 			detailMap.put("merchantId", merchantId);
 			detailMap.put("applicationId", applicationId);
-			confluentKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
+			loanJourneyKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
 			log.info("Pushed {} to topic verify_contacts_for_application", detailMap);
 		} catch (Exception e) {
 			log.error("Error occured while pushing to topic verify_contacts_for_application", e);
@@ -196,7 +200,7 @@ public class LendingUtil {
 				put("merchantId", merchantId);
 				put("applicationId", applicationId);
 			}};
-			confluentKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
+			loanJourneyKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
 			log.info("Pushed " + detailMap + " to topic check_duplicate_pancard");
 		} catch (Exception e) {
 			log.error("Error occured while pushing to topic check_duplicate_pancard", e);

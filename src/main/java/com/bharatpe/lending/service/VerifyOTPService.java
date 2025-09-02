@@ -140,6 +140,10 @@ public class VerifyOTPService {
     KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     @Autowired
+    @Qualifier("LoanJourneyKafkaTemplate")
+    KafkaTemplate<String, Object> loanJourneyKafkaTemplate;
+
+    @Autowired
     EnachHandler enachHandler;
 
     @Autowired
@@ -799,7 +803,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            confluentKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
+            loanJourneyKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic find_lat_long");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic find_lat_long", e);
@@ -1056,7 +1060,7 @@ public class VerifyOTPService {
             Map<String, Long> detailMap = new HashMap<>();
             detailMap.put("merchantId", merchantId);
             detailMap.put("applicationId", applicationId);
-            confluentKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
+            loanJourneyKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
             logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
@@ -1236,7 +1240,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            confluentKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
+            loanJourneyKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic check_duplicate_pancard");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic check_duplicate_pancard", e);
