@@ -56,6 +56,9 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
     @Value("${mandate.switch.rollout.percent:10}")
     Integer mandateSwitchRolloutPercent;
 
+    @Value("${upi.autopay.doc.upload.assc.completed.rollout.percent:0}")
+    private int docUploadAsscCompletedRolloutPercent;
+
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
 
@@ -285,6 +288,12 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
         if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.info("No lending application lender details found for application id: {}", lendingApplication.getId());
+            return;
+        }
+        if( ! LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
+                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), docUploadAsscCompletedRolloutPercent)){
+            log.info("Application is not in ASSC_COMPLETED stage for applicationId: {}, merchantId: {}, current stage is: {}, skipping this doc upload flow",
+                    lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplicationLenderDetails.getStage());
             return;
         }
 

@@ -107,7 +107,7 @@ import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LM
 @Slf4j
 public class PaymentService {
 
-    private static final String UPI_AUTO_PAY = "UPI_AUTOPAY";
+    private static final String UPI_AUTO_PAY = "UPI_AUTO_PAY";
     public static final Set<String> LENDER_FORECLOSURE_AGREEMENT_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
     Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
