@@ -6,11 +6,12 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.config.VkycConfig;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
-import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,12 @@ public class InvokeSanctionWrapperService {
     @Lazy
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    VkycConfig vkycConfig;
 
     @Async("lenderPoolTaskExecutor")
     public void invokeSanctionFlow(Map<String, String> request, Map<String, Object> args) {
@@ -142,7 +149,11 @@ public class InvokeSanctionWrapperService {
                     return Arrays.asList(LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
             }
             case PAYU:
-                return Arrays.asList(LenderAssociationStages.UPDATE_ADDRESS.name(),LenderAssociationStages.UPDATE_BANK_DETAILS.name(),LenderAssociationStages.NACH_MANDATE.name(), LenderAssociationStages.SKIP_VKYC.name());
+                ArrayList<String> stages = new ArrayList<>(Arrays.asList(LenderAssociationStages.UPDATE_ADDRESS.name(),LenderAssociationStages.UPDATE_BANK_DETAILS.name(),LenderAssociationStages.NACH_MANDATE.name()));
+                if(!easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(), vkycConfig.getRolloutPercentage())) {
+                    stages.add(LenderAssociationStages.SKIP_VKYC.name()); // when merchant is ineligible mark vkyc skipped.
+                }
+                return stages;
             case CAPRI:
             case SMFG:
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
