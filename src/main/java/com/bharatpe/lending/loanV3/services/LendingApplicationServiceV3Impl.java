@@ -92,7 +92,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
         Boolean forceEnable = invokeLenderAssociationRequest.getForceEnable();
         String  stage = invokeLenderAssociationRequest.getStage();
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
-        if (!lendingApplication.isPresent()) {
+        if (!lendingApplication.isPresent() || Arrays.asList("deleted", "rejected").contains(lendingApplication.get().getStatus())) {
             log.info("no application found for application {}", applicationId);
             return;
         }
