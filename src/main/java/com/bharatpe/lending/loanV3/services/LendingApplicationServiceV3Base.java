@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.ModifiedOfferResponseDto;
 import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.lending.service.LoanCreationService;
@@ -526,7 +527,7 @@ public abstract class LendingApplicationServiceV3Base {
         try {
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(invokeStageRequest.getApplicationId());
             log.info("lending application {}", lendingApplication.get());
-            if (ObjectUtils.isEmpty(lendingApplication.get())) {
+            if (ObjectUtils.isEmpty(lendingApplication.get()) || Arrays.asList("deleted", "rejected").contains(lendingApplication.get().getStatus())) {
                 log.info("no application found for {}", invokeStageRequest.getApplicationId());
                 return new ApiResponse<>(false, "No application found for given Id");
             }
