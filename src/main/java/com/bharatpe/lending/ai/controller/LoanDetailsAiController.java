@@ -23,7 +23,7 @@ public class LoanDetailsAiController {
 
     @GetMapping(value = "/latest",produces = "application/json")
     public ResponseEntity<ApiResponse<LoanDetailResponse>> getApplicationDetail(
-            @RequestAttribute BasicDetailsDto merchant,
+            @RequestAttribute(required = false) BasicDetailsDto merchant,
             @RequestParam(required = false) Long merchantId) {
         if(merchant!=null){
             merchantId=merchant.getId();
