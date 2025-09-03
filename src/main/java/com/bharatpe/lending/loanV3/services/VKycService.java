@@ -430,15 +430,17 @@ public class VKycService {
 
     public Boolean skipVkycForInEligibleUsers(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         String lender = lenderAssociationDetailsRequestDto.getLendingApplication().getLender();
-        boolean topup = LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType());
-        if (!topup && (!vkycConfig.getEnabledLenders().contains(lender) || easyLoanUtil.percentScaleUp(lenderAssociationDetailsRequestDto.getMerchantId(), vkycConfig.getRolloutPercentage()))) {
-            return true; // skip vkyc logic to run only in case if vkyc is not enabled for the lender or merchant
+        if (!vkycConfig.getEnabledLenders().contains(lender)) {
+            return true;
+        }
+        if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())) {
+            return true;
         }
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.SKIP_VKYC.name());
         commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
         LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getApplicationId(), lender)
-                .orElseGet(()-> createPendingVkycDetailsRecord(lenderAssociationDetailsRequestDto.getLendingApplication()));
-        if (!topup && vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
+                .orElseGet(() -> createPendingVkycDetailsRecord(lenderAssociationDetailsRequestDto.getLendingApplication()));
+        if (vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
             vkycDetails.setDkycEligible(true);
             lendingApplicationVkycDetailsDao.save(vkycDetails);
             ApiResponse<?> apiResponse = initiateDkyc(lenderAssociationDetailsRequestDto.getLendingApplication(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), vkycDetails);
