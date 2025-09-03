@@ -166,7 +166,7 @@ public class TLCreateClientService {
     private TLCreateClientRequestDto.ClientDetails getClientDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, boolean isEligibleForLenderKyc) {
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
-
+        updateLastNameAndMiddleName(nameAndDobDetailsDto);
         return  isEligibleForLenderKyc ? TLCreateClientRequestDto.ClientDetails.builder()
                 .firstName(nameAndDobDetailsDto.getFirstName())
                 .middleName(nameAndDobDetailsDto.getMiddleName())
@@ -272,6 +272,17 @@ public class TLCreateClientService {
         }
         log.info("For applicationId {} clientId : {} ", applicationId, clientId);
         return false;
+    }
+
+    private void updateLastNameAndMiddleName(NameAndDobDetailsDto nameAndDobDetailsDto) {
+        String lastName = nameAndDobDetailsDto.getLastName();
+        String middleName = nameAndDobDetailsDto.getMiddleName();
+        int lastSpace = lastName.trim().lastIndexOf(" ");
+        if (lastSpace == -1) {
+            return;
+        }
+        nameAndDobDetailsDto.setLastName(lastName.substring(lastSpace + 1));
+        nameAndDobDetailsDto.setMiddleName(middleName + " " + lastName.substring(0, lastSpace));
     }
 
 }
