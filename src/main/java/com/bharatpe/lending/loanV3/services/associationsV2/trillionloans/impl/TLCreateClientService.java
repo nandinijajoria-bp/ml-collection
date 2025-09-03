@@ -75,10 +75,12 @@ public class TLCreateClientService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
-            lenderAssociationDetailsDto.setCKycResponseDto(isEligibleForLenderKyc ? kycUtils.getPanData(lenderAssociationDetailsDto.getMerchantId()) : kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
+            boolean isTopup =  LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType());
+            boolean isEligibleForLenderKycOrSkipKyc = kycUtils.isEligibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(),isTopup)
+                                                      || kycUtils.isEligibleForSkipKyc(lenderAssociationDetailsDto.getLendingApplication().getId(), Lender.TRILLIONLOANS, lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), isTopup);
+            lenderAssociationDetailsDto.setCKycResponseDto(isEligibleForLenderKycOrSkipKyc ? kycUtils.getPanData(lenderAssociationDetailsDto.getMerchantId()) : kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
 
-            if (payloadValidation.isInValidCreateClientPayload(lenderAssociationDetailsDto.getCKycResponseDto(), isEligibleForLenderKyc)) {
+            if (payloadValidation.isInValidCreateClientPayload(lenderAssociationDetailsDto.getCKycResponseDto(), isEligibleForLenderKycOrSkipKyc)) {
                 log.info("invalid response from downstream api for createClient of TrillionLoans : {}", lenderAssociationDetailsDto.getApplicationId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.CREATE_CLIENT_FAILED);
@@ -88,7 +90,7 @@ public class TLCreateClientService {
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
             LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
-            NBFCRequestDTO<?> createClientRequest = getPayload(lenderAssociationDetailsDto, isEligibleForLenderKyc);
+            NBFCRequestDTO<?> createClientRequest = getPayload(lenderAssociationDetailsDto, isEligibleForLenderKycOrSkipKyc);
             if (Objects.isNull(createClientRequest)) {
                 log.info("error in create client payload of TrillionLoans for applicationId: {}", lendingApplication.getId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
@@ -125,7 +127,7 @@ public class TLCreateClientService {
                 }
             }
         } catch (Exception e) {
-            log.info("exception occurred while processing create client of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("exception occurred while processing create client of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(updateClientException ? LenderAssociationStatus.UPDATE_CLIENT_FAILED.name() : LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
         commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, updateClientException ? LenderAssociationStatus.UPDATE_CLIENT_FAILED : LenderAssociationStatus.CREATE_CLIENT_FAILED);
@@ -149,7 +151,7 @@ public class TLCreateClientService {
                             .build())
                     .build();
         } catch (Exception e) {
-            log.info("Exception in creating payload of Create Client of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("Exception in creating payload of Create Client of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

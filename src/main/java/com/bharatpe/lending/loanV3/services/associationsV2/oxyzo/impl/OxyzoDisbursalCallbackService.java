@@ -36,7 +36,7 @@ public class OxyzoDisbursalCallbackService {
 
                 OxyzoDisbursalCallbackResponseDTO oxyzoDisbursalCallbackResponseDTO = objectMapper.convertValue(commonResponseDTO.getData(), OxyzoDisbursalCallbackResponseDTO.class);
 
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(Long.valueOf(nbfcResponseDTO.getApplicationId()),nbfcResponseDTO.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(Long.valueOf(nbfcResponseDTO.getApplicationId()),nbfcResponseDTO.getLender());
                 Boolean status = "DISBURSED".equalsIgnoreCase(oxyzoDisbursalCallbackResponseDTO.getDisbursalStatus());
 
 

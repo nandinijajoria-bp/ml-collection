@@ -56,7 +56,7 @@ public class CreateLeadService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            Boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
+            Boolean isEligibleForLenderKyc = kycUtils.isEligibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
             if (InvokeCreateLeadAndDocUploadWraperService.kycDataNeeded(LenderAssociationStages.PiramalAssociationStages.LEAD_CREATION.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 CKycResponseDto cKycResponseDto = isEligibleForLenderKyc ? kycUtils.getPanData(lenderAssociationDetailsDto.getMerchantId()) : kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId());
                 lenderAssociationDetailsDto.setCKycResponseDto(cKycResponseDto);
@@ -102,21 +102,29 @@ public class CreateLeadService {
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         try {
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lenderAssociationDetailsDto.getMerchantId());
-            String firstName = nameAndDobDetailsDto.getFirstName();
-            String middleName = nameAndDobDetailsDto.getMiddleName();
-            String lastName = nameAndDobDetailsDto.getLastName();
+            log.info("nameAndDobDetailsDto for applicationId: {} is: {}", lendingApplication.getId(),nameAndDobDetailsDto);
+            String panFirstName = nameAndDobDetailsDto.getFirstName();
+
+            CKycResponseDto aadhaarAndPanDetails = kycUtils.getPanAndAadhaarData(lenderAssociationDetailsDto.getMerchantId());
+            if(!ObjectUtils.isEmpty(aadhaarAndPanDetails) && !ObjectUtils.isEmpty(aadhaarAndPanDetails.getName())){
+                nameAndDobDetailsDto.setFirstName(kycUtils.getFirstName(aadhaarAndPanDetails));
+                nameAndDobDetailsDto.setMiddleName(kycUtils.getMiddleName(aadhaarAndPanDetails));
+                nameAndDobDetailsDto.setLastName(kycUtils.getLastName(aadhaarAndPanDetails));
+                log.info("updated aadhaarDetails in nameAndDobDetailsDto for applicationId: {} is {}", lendingApplication.getId(),nameAndDobDetailsDto);
+            }
+
             String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
-            applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto, isEligibleForLenderKyc));
+            applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto, panFirstName, isEligibleForLenderKyc));
             CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
                             .partnerApplicationId(lenderAssociationDetailsDto.getLendingApplication().getExternalLoanId())
                             .productId("BRTPE")
                             .entityType("INDIVIDUAL")
                             .primaryApplicantDetail(
                                     CreateLeadRequestDTO.PrimaryApplicantDetail.builder()
-                                            .firstName(firstName)
-                                            .middleName(middleName)
-                                            .lastName(ObjectUtils.isEmpty(lastName) ? firstName : lastName)
+                                            .firstName(nameAndDobDetailsDto.getFirstName())
+                                            .middleName(nameAndDobDetailsDto.getMiddleName())
+                                            .lastName(ObjectUtils.isEmpty(nameAndDobDetailsDto.getLastName()) ? nameAndDobDetailsDto.getFirstName() : nameAndDobDetailsDto.getLastName())
                                             .mobileNo(mobile)
                                             .build()
                             )
@@ -148,7 +156,7 @@ public class CreateLeadService {
         return null;
     }
 
-    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto, Boolean isEligibleForLenderKyc) {
+    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto,String panFirstName,Boolean isEligibleForLenderKyc) {
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .applicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
@@ -165,7 +173,7 @@ public class CreateLeadService {
                         .salutation(getGender(cKycResponseDto.getGender()).equalsIgnoreCase("FEMALE") ? "MRS" : "MR")
                         .mobileNo(mobile)
                         .panCardDetail(CreateLeadRequestDTO.ApplicantsDetail.Applicant.PanCardDetail.builder()
-                                .name(nameAndDobDetailsDto.getFirstName())
+                                .name(panFirstName)
                                 .panCardNo(cKycResponseDto.getPanNumber())
                                 .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                                 .build())

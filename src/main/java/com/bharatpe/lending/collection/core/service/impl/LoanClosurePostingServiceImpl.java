@@ -67,7 +67,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("CollectionLowLatencyKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
     @Autowired
     ObjectMapper objectMapper;
@@ -353,6 +353,11 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     @Override
     public void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
         try {
+            Date  loanEligibilityDate = activeLoan.getLoanApplication().getAgreementAt();
+            if("UGRO".equalsIgnoreCase(activeLoan.getNbfc()) && loanUtil.checkIfForeClosureChargesApplicable(loanEligibilityDate, activeLoan.getNbfc()) ){
+                log.info("foreclosure reciept posting for ugro loan is skipping {}", activeLoan.getId());
+                return;
+            }
             logger.info("inside the post foreclosure of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
             NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger, null);
             if(ObjectUtils.isEmpty(nbfcRequest)) {

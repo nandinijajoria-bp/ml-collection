@@ -58,6 +58,7 @@ import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.TRANSFER_BY_BP;
+import static com.bharatpe.lending.constant.CommonConstants.PAYMENT_LOCK_KEY_PREFIX;
 import static com.bharatpe.lending.constant.LendingConfigKeys.ADVANCE_EDI;
 import static com.bharatpe.lending.enums.Lender.PIRAMAL;
 
@@ -154,28 +155,34 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     @Override
     @Transactional
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
-        log.info("adjustMoney for loan: {} and payment {} started ", loan, payment);
+        boolean isPaymentLockEnabled = loanUtil.isPaymentLockEnabled(loan);
+        boolean isLockAcquired = isPaymentLockEnabled ? true : false;
+        try {
+            log.info("adjustMoney for loan: {} and payment {} started ", loan, payment);
 
-        if (Objects.isNull(loan) || Objects.isNull(payment)) return loan;
-//        Settlement adjustment moved to adjust money block
-//
-//        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
-//        if (Objects.nonNull(payment.getSource()) && waiverList.contains(payment.getSource()) &&
-//                (loan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || loan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
-//            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
-//            Double excessCollectionBalance = 0D;
-//            for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
-//                if(lendingCollectionExcess.getAmount() > 0){
-//                    excessCollectionBalance += lendingCollectionExcess.getAmount();
-//                }
-//            }
-//            loanStatusService.waiverSettlement(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), "SETTLED", payment.getTerminalOrderId(), excessCollectionBalance, lendingCollectionExcessList);
-//            return loan;
-//        }
-        String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
-        adjustMoney(loan, payment, mechanism);
-        log.info("adjustMoney for loan: {} and payment {} complete", loan, payment);
-        return loan;
+            if (Objects.isNull(loan) || Objects.isNull(payment)) return loan;
+            String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
+            if (isPaymentLockEnabled && !loanUtil.isPaymentLockAcquired(PAYMENT_LOCK_KEY_PREFIX + loan.getId())) {
+                log.info("Payment lock already acquired for loanId: {}, skipping payment", loan.getId());
+                isLockAcquired = false;
+                // Method signature doesn't allow to throw checked exception
+                throw new RuntimeException("Some payment already in process for this loan id: " + loan.getId());
+            }
+            // Re-fetching a fresh copy of loan to avoid inconsistency in due_amount(stale/old) in case of multiple payment received simultaneously
+            Optional<LendingPaymentSchedule> loanOptional = lendingPaymentScheduleDao.findById(loan.getId());
+            if (!loanOptional.isPresent()) {
+                log.error("Lending Payment Schedule is not available with id : {}", loan.getId());
+                return loan;
+            }
+            loan = loanOptional.get();
+            adjustMoney(loan, payment, mechanism);
+            log.info("adjustMoney for loan: {} and payment {} complete", loan, payment);
+            return loan;
+        } finally {
+            if (isLockAcquired) {
+                loanUtil.releasePaymentLock(PAYMENT_LOCK_KEY_PREFIX + loan.getId());
+            }
+        }
     }
 
     private LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism) {

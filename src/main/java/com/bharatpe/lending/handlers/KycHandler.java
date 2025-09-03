@@ -18,7 +18,6 @@ import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycDocResponse;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
-import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -386,7 +385,7 @@ public class KycHandler {
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
 
-    public KycStatusDTO getKycStatusForLenderKycPipe(Long merchantId) {
+    public KycStatusDTO getKycStatusForLenderKycOrSkipKycPipe(Long merchantId) {
         log.info("Checking kyc status with kyc on lender pipe for merchant:{} ", merchantId);
 
         if(easyLoanUtil.isDummyMerchant(merchantId) || merchantId == 10407700L) {

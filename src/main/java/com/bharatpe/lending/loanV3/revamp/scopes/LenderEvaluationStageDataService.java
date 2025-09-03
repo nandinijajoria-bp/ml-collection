@@ -107,7 +107,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
                 lenderEvaluationStateDTO.setTopup(true);
                 lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
                 if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                     lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
                     if(Arrays.asList(LenderAssociationStatus.BRE_FAILED.name(), LenderAssociationStatus.RISK_FAILED.name()).contains(lendingApplicationLenderDetails.getBreStatus())) {
@@ -126,7 +126,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                         lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
                         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                         nextPage = LendingViewStates.LENDER_TOPUP_REJECTED;
-                    } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                    } else if (LenderAssociationStatus.RE_KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                         LendingViewStates nextLendingViewStateForTopup = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication);

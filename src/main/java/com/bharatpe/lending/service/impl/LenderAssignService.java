@@ -1448,7 +1448,6 @@ public class LenderAssignService implements ILenderAssignService {
         if(!ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("Experiment fetched for {}: {}", eligibleLoan.getMerchantId(), pricingExperiment);
             maxApr = BigDecimal.valueOf(pricingExperiment.getApr());
-            processingFee = eligibleLoan.getAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
             interestRate = pricingExperiment.getInterestRate();
         }else {
             LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
@@ -1456,7 +1455,6 @@ public class LenderAssignService implements ILenderAssignService {
 
             if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
                 maxApr = BigDecimal.valueOf(lendingLenderPricing.getApr());
-                processingFee = eligibleLoan.getAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
                 interestRate = lendingLenderPricing.getInterestRate();
             }
         }
@@ -1482,12 +1480,14 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("Experiment fetched for {}: {}", eligibleLoan.getMerchantId(), pricingExperiment);
             maxIrr = BigDecimal.valueOf(pricingExperiment.getIrr());
             interestRate = pricingExperiment.getInterestRate();
-        }
-        LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
-        log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
-        if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
-            maxIrr = BigDecimal.valueOf(lendingLenderPricing.getIrr());
-            interestRate = lendingLenderPricing.getInterestRate();
+        }else {
+            LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
+            log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+
+            if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
+                maxIrr = BigDecimal.valueOf(lendingLenderPricing.getIrr());
+                interestRate = lendingLenderPricing.getInterestRate();
+            }
         }
 
         LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(eligibleLoan.getId()).
@@ -1538,6 +1538,7 @@ public class LenderAssignService implements ILenderAssignService {
         try {
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
             LendingLenderQuota defaultLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+            Map<String, LendingLenderQuota> lenderQuotaMap = new HashMap<>();
             if(!ObjectUtils.isEmpty(eligibleLenders)) {
                 List<LendingLenderQuota> lenderLimits;
                 lenderLimits = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(eligibleLenders, lendingApplication.getLoanAmount());
@@ -1545,6 +1546,7 @@ public class LenderAssignService implements ILenderAssignService {
                 log.info("lender limits : {}", lenderLimits);
                 if (Objects.nonNull(lenderLimits)) {
                     for (LendingLenderQuota lendingLenderQuota : lenderLimits) {
+                        lenderQuotaMap.putIfAbsent(lendingLenderQuota.getLender(), lendingLenderQuota);
                         if(Objects.nonNull(defaultLender) && lendingLenderQuota.getLender().equals(defaultLender.getLender())){
                             continue;
                         }
@@ -1577,10 +1579,6 @@ public class LenderAssignService implements ILenderAssignService {
                 Double interestRate = null;
                 Double edi;
                 Double processingFee;
-                LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(lendingApplication.getId()).
-                        edi(lendingApplication.getEdi()).tenureInMonths(lendingApplication.getTenureInMonths()).
-                        loanAmount(lendingApplication.getLoanAmount()).payableDays(lendingApplication.getPayableDays()).
-                        lender(lendingApplication.getLender()).build();
                 if(!ObjectUtils.isEmpty(pricingExperiment)) {
                     interestRate = pricingExperiment.getInterestRate();
                     processingFee = lendingApplication.getLoanAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
@@ -1624,37 +1622,46 @@ public class LenderAssignService implements ILenderAssignService {
                 lenderData.setNachBounceAmount(getNachBounceAmount(valueOf(lender)));
                 lenderData.setInterestRate(interestRate);
                 eligibleLenderList.add(lenderData);
-
-
-                // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
-                eligibleLenderList.sort((lender1, lender2) -> {
-                    boolean isLender1Default = defaultLender != null &&
-                            defaultLender.getLender().equals(lender1.getLenderName());
-                    boolean isLender2Default = defaultLender != null &&
-                            defaultLender.getLender().equals(lender2.getLenderName());
-
-                    if (isLender1Default && !isLender2Default) return 1;
-
-                    if (!isLender1Default && isLender2Default) return -1;
-
-                    int interestRateComparison = lender2.getInterestRate().compareTo(lender1.getInterestRate());
-                    if (interestRateComparison != 0) {
-                        return interestRateComparison;
-                    }
-
-                    String rate1 = lender1.getApprovalRate();
-                    String rate2 = lender2.getApprovalRate();
-
-                    if (rate1.equals(rate2)) {
-                        return lender1.getLenderName().compareTo(lender2.getLenderName());
-                    }
-                    if ("HIGH".equals(rate1)) return -1;
-                    if ("HIGH".equals(rate2)) return 1;
-                    if ("MEDIUM".equals(rate1)) return -1;
-                    if ("MEDIUM".equals(rate2)) return 1;
-                    return 0;
-                });
             }
+
+            // SORT: Capital (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
+            eligibleLenderList.sort((lender1, lender2) -> {
+//                boolean isLender1Default = defaultLender != null &&
+//                        defaultLender.getLender().equals(lender1.getLenderName());
+//                boolean isLender2Default = defaultLender != null &&
+//                        defaultLender.getLender().equals(lender2.getLenderName());
+//
+//                if (isLender1Default && !isLender2Default) return 1;
+//
+//                if (!isLender1Default && isLender2Default) return -1;
+
+//                int interestRateComparison = lender2.getInterestRate().compareTo(lender1.getInterestRate());
+//                if (interestRateComparison != 0) {
+//                    return interestRateComparison;
+//                }
+
+                //Compare basis remaining capital limit
+                double lender1UtilizationRate = getLenderUtilizationRate(lenderQuotaMap.getOrDefault(lender1.getLenderName(), null));
+                double lender2UtilizationRate = getLenderUtilizationRate(lenderQuotaMap.getOrDefault(lender2.getLenderName(), null));
+
+                int capitalComparison = Double.compare(lender1UtilizationRate, lender2UtilizationRate);
+                if (capitalComparison != 0) {
+                    return capitalComparison;
+                }
+
+                String rate1 = lender1.getApprovalRate();
+                String rate2 = lender2.getApprovalRate();
+
+                if (rate1.equals(rate2)) {
+                    return lender1.getLenderName().compareTo(lender2.getLenderName());
+                }
+                if ("HIGH".equals(rate1)) return -1;
+                if ("HIGH".equals(rate2)) return 1;
+                if ("MEDIUM".equals(rate1)) return -1;
+                if ("MEDIUM".equals(rate2)) return 1;
+                return 0;
+            });
+
             log.info("eligible lenders after sorting:{}", eligibleLenderList);
 
             log.info("adding rejected lenders to the list for lendingApplication:{}:{}", lendingApplication.getId(), prevAssignedLenders);
@@ -1675,6 +1682,16 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("exception occurred:{},{}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return null;
         }
+    }
+
+    private double getLenderUtilizationRate(LendingLenderQuota lendingLenderQuota) {
+        if (Objects.isNull(lendingLenderQuota) || Objects.isNull(lendingLenderQuota.getAssignedAmount()) || Objects.isNull(lendingLenderQuota.getTotalWeeklyAmount())) {
+            return 101.0; // Default to a high utilization rate if no quota is found
+        }
+
+        return BigDecimal.valueOf(lendingLenderQuota.getAssignedAmount())
+                .divide(BigDecimal.valueOf(lendingLenderQuota.getTotalWeeklyAmount()), 5, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 
     public String getPropensityMatrix(Lender lender) {
@@ -1812,12 +1829,8 @@ public class LenderAssignService implements ILenderAssignService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", !ObjectUtils.isEmpty(lendingApplication));
-        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication);
-        LendingApplicationKycDetails lendingApplicationKycDetails = null;
-        if(bpKycRequired){
-            lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), oldLender);
-        }
-        response.put("bpKycRequired", !ObjectUtils.isEmpty(lendingApplicationKycDetails));
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);
+        response.put("bpKycRequired", bpKycRequired);
         return response;
     }
 

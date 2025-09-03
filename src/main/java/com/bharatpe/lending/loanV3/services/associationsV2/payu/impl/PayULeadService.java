@@ -91,6 +91,8 @@ public class PayULeadService {
     @Autowired
     LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
 
+    private final String PARENT_APPLICATION_ID = "parentApplicationId";
+
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         try {
@@ -230,13 +232,22 @@ public class PayULeadService {
                     .location(getLocation(lendingApplication.getMerchantId(), lendingApplication))
                     .build();
 
-
-            return NBFCRequestDTO.builder()
+            NBFCRequestDTO<?> requestDTO =  NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
                     .lender(lendingApplication.getLender())
                     .payload(payload)
+                    .topup(false)
                     .build();
+
+            if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                LendingApplication parentApplication = loanUtil.fetchParentApplication(lendingApplication.getId());
+                LinkedHashMap<String, Object> additionalData = new LinkedHashMap<>();
+                additionalData.put(PARENT_APPLICATION_ID, parentApplication.getId());
+                requestDTO.setIdentifier(additionalData);
+                requestDTO.setTopup(true);
+            }
+            return requestDTO;
 
         } catch (Exception e) {
             log.info("exception occurred while creating request payload for updateLead of PayU for applicationId: {}, {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
@@ -263,7 +274,7 @@ public class PayULeadService {
                 .lastName(nameAndDobDetails.getLastName())
                 .mobileNumber(kycUtils.getMobileFromKycData(cKycResponseDto))
                 .pan(cKycResponseDto.getPanNumber())
-                .dob(LocalDate.parse(nameAndDobDetails.getDob(), inputFormatter).format(outputFormatter))
+                .dob(LocalDate.parse(cKycResponseDto.getDob(), inputFormatter).format(outputFormatter))
                 .gender(getGender(kycUtils.getGender(cKycResponseDto.getGender()))) // TODO check if gender value is from correct db and is required
                 .isMainApplicant(true)
                 .build();

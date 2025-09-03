@@ -114,9 +114,9 @@ public class LoanUtil {
 	public static final int COOL_OFF_PERIOD_DAYS = 3;
 	public static final String CLOSURE = "ANY";
 	private static final String RECEIVABLE = "RECEIVABLE";
-	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), PIRAMAL.name()));
+	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
 	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), PIRAMAL.name()));
-	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
+	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
 
 	@Autowired
 	MongoLogPublisher mongoLogPublisher;
@@ -205,6 +205,10 @@ public class LoanUtil {
 	@Autowired
 	@Qualifier("ConfluentKafkaTemplate")
 	KafkaTemplate<String, Object> confluentKafkaTemplate;
+
+	@Autowired
+	@Qualifier("LoanJourneyKafkaTemplate")
+	KafkaTemplate<String, Object> loanJourneyKafkaTemplate;
 
 	@Autowired
 	LendingRiskVariablesDao lendingRiskVariablesDao;
@@ -447,6 +451,9 @@ public class LoanUtil {
 	@Value("${mandate.switch.rollout.percent:10}")
 	Integer mandateSwitchRolloutPercent;
 
+	@Value("${fore.closure.charges.rollout.date.ugro:2026-02-20 00:00:00}")
+	String ugroForeClosureChargesRolloutDate;
+
 	@Autowired
 	PricingExperimentDao pricingExperimentDao;
 
@@ -461,6 +468,15 @@ public class LoanUtil {
 
 	@Value("#{${upi.autopay.tpv.check.rollout:{\"TRILLIONLOANS\": 100}}}")
 	private Map<String, Integer> upiAutopayTpvCheckRollout;
+
+	@Value("${payment.lock.retry.count:5}")
+	private int paymentLockRetryCount;
+
+	@Value("${payment.lock.key.ttl.sec:60}")
+	private int paymentLockKeyTtlSec;
+
+	@Value("${payment.lock.rollout.date:}")
+	public String paymentLockRolloutDate;
 
 	@PostConstruct
 	public void init(){
@@ -479,6 +495,7 @@ public class LoanUtil {
 		nachBounceAmountConfig.put("LIQUILOANS_P2P", 650.0);
 	}
 
+	//iS this still being used
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -1773,7 +1790,7 @@ public class LoanUtil {
 				put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
 			}};
 			executorService.execute(() -> {
-				confluentKafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				loanJourneyKafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 			logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
 		} catch (Exception e) {
@@ -1817,7 +1834,7 @@ public class LoanUtil {
 			request.put("proof_stock_side", proof_stock_side);
 			logger.info("Data published to DS for application Id : {} {}", request, lendingApplication.getId());
 			executorService.execute(() -> {
-				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				loanJourneyKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 		} catch (Exception e) {
 			logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
@@ -1870,6 +1887,7 @@ public class LoanUtil {
 		}
 
 
+		// to ask to use 6 day or 7 isha & harshit
 		LendingEligibleLoan eligibleLoan = LendingEligibleLoan.builder()
 				.loanType(loanType)
 				.offerType(offerType)
@@ -1973,6 +1991,48 @@ public class LoanUtil {
 		eligibleLoanDao.saveAll(eligibleLoanList);
 		eligibleLoanDao.flush();
 		return sevenDayEligibleLoanOffer;
+	}
+
+	public LendingEligibleLoan calculateLoanBreakupV3(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version
+	) {
+
+		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
+		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		BigDecimal processingFee;
+		BigDecimal amountBD = new BigDecimal(amount);
+		BigDecimal processingFeeRateBD = BigDecimal.valueOf(tenureDetail.getProcessingFee());
+		if(tenureDetail.getProcessingFee() != null){
+			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
+		}
+		else{
+			processingFee = BigDecimal.ZERO;
+			logger.debug("Processing fee is null in tenure details, defaulting to zero");
+		}
+
+		return LendingEligibleLoan.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(sevenDayRepayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.initialRoi(tenureDetail.getInitialRoi())
+				.edi(sevenDayEdiAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.offerType(offerType)
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getTenure() * 30)
+				.processingFee(processingFee.intValue())
+				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.processingFeeRate(tenureDetail.getProcessingFee())
+				.build();
 	}
 
 	public boolean isInternalMerchant(Long merchantId) {
@@ -2712,6 +2772,9 @@ public class LoanUtil {
 					break;
 				case "ABFL":
 					date = abflForeClosureChargesRolloutDate;
+					break;
+				case "UGRO":
+					date = ugroForeClosureChargesRolloutDate;
 					break;
 				default:
 					break;
@@ -3608,6 +3671,83 @@ public class LoanUtil {
 
 	public boolean isMandateSwitchEnabled(LendingApplication lendingApplication){
 		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent);
+	}
+
+	/**
+	 * returns {@code true} if top-up is from non trillion to trillion using current lending application , otherwise {@code false}.
+	 *
+	 * @param currentLendingApplication  current application of merchant
+	 *
+	 * @return {@code true} if previous loan is non TL and lending application is for top-up, otherwise {@code false}
+	 */
+	public boolean isNonTLToTLTopup(LendingApplication currentLendingApplication) {
+		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
+		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& !ObjectUtils.isEmpty(previousLendingApplication)
+				&& !Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+	}
+
+
+	/**
+	 * returns {@code true} if top-up is from trillion to trillion using current and previous lending application, otherwise {@code false}.
+	 *
+	 * @param currentLendingApplication  current application of merchant
+	 *
+	 * @return {@code true} if previous loan is TL and lending application is for top-up, otherwise {@code false}
+	 */
+	public boolean isTLToTLTopup(LendingApplication currentLendingApplication) {
+		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
+		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& !ObjectUtils.isEmpty(previousLendingApplication)
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+	}
+
+	public boolean isPaymentLockAcquired(String lockKey) {
+		try {
+			int counter = paymentLockRetryCount <= 0 ? 1 : paymentLockRetryCount;
+			while (counter > 0) {
+				if (lendingCache.acquireLock(lockKey, paymentLockKeyTtlSec)) {
+					logger.info("Payment lock acquired for key: {}", lockKey);
+					return true;
+				}
+				counter--;
+				logger.info("Payment lock is already acquired for key: {}, retry after 2 seconds, remaining retries: {}", lockKey, counter);
+				Thread.sleep(2000);
+			}
+		} catch (Exception e) {
+			logger.error("Payment lock is already acquired for key: {}, Stack: {}", lockKey, Arrays.asList(e.getStackTrace()), e);
+		}
+		return false;
+	}
+
+	public void releasePaymentLock(String lockkey) {
+		try {
+			lendingCache.releaseLock(lockkey);
+		} catch (Exception e) {
+			logger.error("Error while releasing payment lock for key: {}, Stack: {}", lockkey, Arrays.asList(e.getStackTrace()), e);
+		}
+	}
+
+	public boolean isPaymentLockEnabled(LendingPaymentSchedule loan) {
+		try {
+			logger.info("isPaymentLockEnabled loan: {}", loan.getId());
+			Date thresholdDate = parseDateFromProperty(paymentLockRolloutDate);
+
+			return loan.getCreatedAt().after(thresholdDate);
+		} catch (Exception e) {
+			logger.error("error in isPaymentLockEnabled {} {} {}", loan, e.getMessage(), Arrays.asList(e.getStackTrace()));
+		}
+		return false;
+	}
+
+	private Date parseDateFromProperty(String property) {
+		if (StringUtils.isEmpty(property)) {
+			logger.error("Property is empty or null, cannot parse date.");
+			return null;
+		}
+		return DateTimeUtil.parseDate(property.trim(), "yyyy-MM-dd HH:mm:ss");
 	}
 }
 

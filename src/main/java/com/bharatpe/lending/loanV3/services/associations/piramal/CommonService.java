@@ -105,6 +105,7 @@ public class CommonService {
                         LenderAssociationStages.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage()));
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setStage(nextStage.name());
         manageApplicationState(lenderAssociationDetailsRequest);
+        log.info("Pushing application to next stage {} for : {} {}", nextStage, lenderAssociationDetailsRequest.getApplicationId(), lenderAssociationDetailsRequest);
         nbfcUtils.pushApplicationToNextStage(lenderAssociationDetailsRequest.getApplicationId(),
                 lenderAssociationDetailsRequest.getLendingApplication().getLender(),
                 currStage,
@@ -203,4 +204,25 @@ public class CommonService {
     public boolean offerDowngradeThresholdChecksFailed(double offerDowngradeThreshold, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto){
         return nbfcUtils.offerDowngradeThresholdChecksFailed(offerDowngradeThreshold, lenderAssociationDetailsRequestDto);
     }
+
+    public void manageApplicationStateAndReInitiateLenderAssociation(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, Boolean reInitLenderAssociation) {
+        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setStatus(Status.INACTIVE.name());
+        manageApplicationState(lenderAssociationDetailsRequest);
+        if(reInitLenderAssociation) {
+            log.info("Re-initiating lender association for lender {} and applicationId {}", lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest.getLendingApplication().getId());
+            nbfcUtils.pushApplicationToNextStage(lenderAssociationDetailsRequest.getLendingApplication().getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender(), LenderAssociationStages.INIT.name(), true);
+            return;
+        }
+        LendingApplicationDetails applicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lenderAssociationDetailsRequest.getLendingApplication().getId());
+        if(!ObjectUtils.isEmpty(applicationDetails)) {
+            applicationDetails.setLenderAssc(false);
+            applicationDetails.setStage(LenderAssociationStages.RE_INIT.name());
+            lendingApplicationDetailsDao.save(applicationDetails);
+        }
+    }
+
+    public Boolean invokeStage(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, String stage) {
+        return nbfcUtils.invokeSpecificStage(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest, stage);
+    }
+
 }

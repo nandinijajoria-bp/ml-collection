@@ -55,7 +55,7 @@ public class ModifiedOfferStageService implements IStageDataService<ModifiedOffe
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
             LendingApplication lendingApplication1 = lendingApplication.get();
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication1.getId(), lendingApplication1.getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication1.getId(), lendingApplication1.getLender());
             if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("lending application lender details not found for applicationId: {}", lendingApplication1.getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
