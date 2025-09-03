@@ -233,7 +233,7 @@ public class PayUUpdateLeadService {
                             .applicationId(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())
                             .updatedBankDetails(PayUUpdateLeadRequestDTO.BankDetailsDTO.builder()
                                     .accountTypeId("CURRENT".equalsIgnoreCase(merchantDetailsDto.getBankDetail().getAccountType()) ? "CURRENT" : "SAVINGS")
-                                    .bankAccountName("")
+                                    .bankAccountName(merchantDetailsDto.getBankDetail().getBeneficiaryName())
                                     .accountNumber(merchantDetailsDto.getBankDetail().getAccountNumber())
                                     .bankName(merchantDetailsDto.getBankDetail().getBankName())
                                     .ifscCode(merchantDetailsDto.getBankDetail().getIfsc())
