@@ -433,14 +433,11 @@ public class VKycService {
         if (!vkycConfig.getEnabledLenders().contains(lender)) {
             return true;
         }
-        if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())) {
-            return true;
-        }
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.SKIP_VKYC.name());
         commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
         LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getApplicationId(), lender)
                 .orElseGet(() -> createPendingVkycDetailsRecord(lenderAssociationDetailsRequestDto.getLendingApplication()));
-        if (vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
+        if (!LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType()) && vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
             vkycDetails.setDkycEligible(true);
             lendingApplicationVkycDetailsDao.save(vkycDetails);
             ApiResponse<?> apiResponse = initiateDkyc(lenderAssociationDetailsRequestDto.getLendingApplication(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), vkycDetails);
