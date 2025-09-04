@@ -638,7 +638,7 @@ public class MerchantLoansService {
                     Optional<LoanDpdSlave> loanDpd = loanDpdDaoSlave.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
                     if (!ObjectUtils.isEmpty(loanDpd)) {
                         log.info("loan dpd{} for merchant id is {}",loanDpd.get(), merchantId);
-                        loan.setNewDpd(Math.max(loanDpd.get().getDpd(), 0));
+                        //loan.setNewDpd(Math.max(loanDpd.get().getDpd(), 0));
 
                         if (loanDpd.isPresent() && loanDpd.get().getDpd()<3 && loanDpd.get().getDpd()!=0) {
                             log.info("merchant id is {}", merchantId);

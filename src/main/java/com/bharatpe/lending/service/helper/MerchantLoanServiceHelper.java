@@ -141,7 +141,7 @@ public class MerchantLoanServiceHelper {
                 }
                 Optional<LoanDpdSlave> loanDpd = loanDpdDaoSlave.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
                 if (loanDpd.isPresent() && !ObjectUtils.isEmpty(loanDpd.get().getDpd())) {
-                    loan.setNewDpd(Math.max(loanDpd.get().getDpd(), 0));  // use db value if present
+                    //loan.setNewDpd(Math.max(loanDpd.get().getDpd(), 0));  // use db value if present
                     if(easyLoanUtil.percentScaleUp(merchantId, apiGatewayService.getUpiPercent())
                             && Lender.LDC.name().equalsIgnoreCase(loan.getLender())){
                         loan.setAutoPayEligibility(loanDpd.map(dpd -> dpd.getDpd() < 3 && dpd.getDpd() != 0).orElse(Boolean.FALSE));
