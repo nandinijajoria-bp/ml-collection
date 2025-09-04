@@ -113,6 +113,8 @@ public class MerchantLoanServiceHelper {
                 loan.setNetPayable(Math.max(loan.getTotalDue() - loan.getTotalExcessBalance(), 0));
             }
             loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(), loan.getDueAmount()));
+            // use db value if present - as same day due can't be consider as dpd
+            loan.setNewDpd(loan.getDpd()); // override with loan_dpd value later
 
             Optional<LendingLedgerSlave> lendingLedger = Optional.ofNullable(ledgersByLoanId.get(loan.getLoanId()));
             loan.setLastEdiPaid(lendingLedger.map(LendingLedgerSlave::getAmount).orElse(0D));
@@ -137,11 +139,13 @@ public class MerchantLoanServiceHelper {
                     loan.setAutoPayMandateStatus(autoPayUPI.get().getStatus());
                     loan.setMandateRegisterId(autoPayUPI.get().getOrderId());
                 }
-
-                if(easyLoanUtil.percentScaleUp(merchantId, apiGatewayService.getUpiPercent())
-                        && Lender.LDC.name().equalsIgnoreCase(loan.getLender())){
-                    Optional<LoanDpdSlave> loanDpd = loanDpdDaoSlave.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
-                    loan.setAutoPayEligibility(loanDpd.map(dpd -> dpd.getDpd() < 3 && dpd.getDpd() != 0).orElse(Boolean.FALSE));
+                Optional<LoanDpdSlave> loanDpd = loanDpdDaoSlave.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
+                if (loanDpd.isPresent() && !ObjectUtils.isEmpty(loanDpd.get().getDpd())) {
+                    loan.setNewDpd(Math.max(loanDpd.get().getDpd(), 0));  // use db value if present
+                    if(easyLoanUtil.percentScaleUp(merchantId, apiGatewayService.getUpiPercent())
+                            && Lender.LDC.name().equalsIgnoreCase(loan.getLender())){
+                        loan.setAutoPayEligibility(loanDpd.map(dpd -> dpd.getDpd() < 3 && dpd.getDpd() != 0).orElse(Boolean.FALSE));
+                    }
                 }
                 if (loan.isSettlementInitiated()) {
                     SettlementDetails settlementDetails = settlemetDetailsDao.findByLoanIdAndStatus(loan.getLoanId(), INIT.name());
