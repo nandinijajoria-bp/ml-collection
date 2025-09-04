@@ -6,6 +6,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.ApplicationStatus;
@@ -237,7 +238,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 lendingApplication.getMerchantId(),
                 lendingApplication.getId()
         ) > 0;
-        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication);
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);
         if(bpKycRequired)
         {
             return LendingViewStates.LENDER_EVALUATION_PAGE;

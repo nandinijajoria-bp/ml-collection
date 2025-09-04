@@ -3115,20 +3115,25 @@ public class LoanUtil {
 		return null;
 	}
 
-
 	public String getLenderAggregationScreenV2(Long applicationId, Long merchantId) {
 		try {
-			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = getLenderAggregationScreenType(merchantId,applicationId);
-			if(ObjectUtils.isEmpty(experimentConfigResponseDTO)){
-				return null;
+			if(applicationId != null) {
+				LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.OFFER_EVALUATION_PAGE.name());
+				if(!ObjectUtils.isEmpty(lendingAuditTrial) && !StringUtils.isEmpty(lendingAuditTrial.getOldStatus())) {
+					return lendingAuditTrial.getOldStatus();
+				}
 			}
-			else
+
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = getLenderAggregationScreenType(merchantId, applicationId);
+			if(ObjectUtils.isEmpty(experimentConfigResponseDTO)) {
+				return null;
+			} else {
 				return experimentConfigResponseDTO.getVariationId();
+			}
 		} catch (Exception ex) {
-			logger.error("Exception occurred while fetching aggregation screen for merchantId {}: {} {}",
-					merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+			logger.error("Exception occurred while getting lender aggregation screen: {}", ex.getMessage());
+			return null;
 		}
-		return null;
 	}
 
 	public String getLenderAggregationScreen(Long applicationId, Long MerchantId) {

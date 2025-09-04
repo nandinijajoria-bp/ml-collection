@@ -336,7 +336,7 @@ public abstract class LendingApplicationServiceV3Base {
             log.info("BP Selfie will be initiated after skip kyc flow for applicationId {}", currentDraftApplication.getId());
             return false;
         }
-        if(LenderAssociationStages.INIT.equals(stage) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId())) && ObjectUtils.isEmpty(consentKycDetails)) {
+        if(LenderAssociationStages.INIT.equals(stage) && (!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), currentDraftApplication.getMerchantId())) || !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), currentDraftApplication.getMerchantId())) )&& ObjectUtils.isEmpty(consentKycDetails)) {
             log.info("BP KYC flow not initiated even once for application {}", currentDraftApplication.getId());
             return true;
         }

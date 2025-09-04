@@ -1016,7 +1016,7 @@ public class LendingApplicationServiceV2 {
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", !ObjectUtils.isEmpty(lendingApplication));
-        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication);
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication,LenderAssociationStages.INIT);
         LendingApplicationKycDetails lendingApplicationKycDetails = null;
         if(bpKycRequired){
             lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), oldLender);
