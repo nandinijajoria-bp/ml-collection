@@ -33,6 +33,8 @@ public class PayUForeclosureDetailsResponseDTO {
 
     private Integer amountOrPercentage;
 
+    private Integer futurePrincipal;
+
     private String value;
 
     private List<Integer> Date;

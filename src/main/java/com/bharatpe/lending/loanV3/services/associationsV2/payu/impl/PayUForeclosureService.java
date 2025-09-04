@@ -137,6 +137,39 @@ public class PayUForeclosureService {
         }
     }
 
+    public Double getPrincipalOutstandingForeclosureDetails(Long applicationId) {
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PAYU.name());
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            log.info("lender record not exist of PAYU for {}", applicationId);
+            return null;
+        }
+        NBFCRequestDTO nbfcRequestDto = NBFCRequestDTO.builder()
+                .productName("LENDING")
+                .lender(Lender.PAYU.name())
+                .applicationId(applicationId)
+                .payload(PayUForeclosureDetailsRequestDTO.builder()
+                        .applicationId(lendingApplicationLenderDetails.getLeadId())
+                        .loanId(Integer.valueOf(lendingApplicationLenderDetails.getLan()))
+                        .build())
+                .build();
+        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH, payuForeclosureDetailsTimeoutThreshold);
+        try {
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+
+                PayUCommonResponseDTO commonResponseDTO = objectMapper.convertValue(nbfcResponseDto.getData(), PayUCommonResponseDTO.class);
+
+                PayUForeclosureDetailsResponseDTO foreclosureResponse =  objectMapper.convertValue(commonResponseDTO.getApiResponse(), PayUForeclosureDetailsResponseDTO.class);
+
+                if ("SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus()) && !ObjectUtils.isEmpty(foreclosureResponse.getAmount()) && !ObjectUtils.isEmpty(foreclosureResponse.getFeeChargesPortion())) {
+                    return foreclosureResponse.getFuturePrincipal().doubleValue();
+                }
+
+            }
+        } catch (Exception e) {
+            log.error("exception occurred while fetching foreclosure details of PAYU for {} {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return 0D;
+    }
 
 
 }
