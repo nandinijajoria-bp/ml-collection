@@ -8,7 +8,6 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.*;
@@ -59,7 +58,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -607,6 +605,7 @@ public class MerchantLoansService {
                     loan.setNetPayable(Math.max(loan.getTotalDue() - loan.getTotalExcessBalance(), 0));
                 }
                 loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(), loan.getDueAmount()));
+                loan.setNewDpd(loan.getDpd()); // override with loan_dpd value later
                 if (lendingLedger != null) {
                     loan.setLastEdiPaid(lendingLedger.getAmount());
                 } else {
@@ -637,20 +636,21 @@ public class MerchantLoansService {
                     }
 
                     Optional<LoanDpdSlave> loanDpd = loanDpdDaoSlave.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
-                    if (!ObjectUtils.isEmpty(loanDpd))
-                    {
+                    if (!ObjectUtils.isEmpty(loanDpd)) {
                         log.info("loan dpd{} for merchant id is {}",loanDpd.get(), merchantId);
-                    if (loanDpd.isPresent() && loanDpd.get().getDpd()<3 && loanDpd.get().getDpd()!=0) {
-                        log.info("merchant id is {}", merchantId);
-                        if (easyLoanUtil.percentScaleUp(merchantId, apiGatewayService.upiPercent)
-                                && "LDC".equalsIgnoreCase(loan.getLender())) {
-                            loan.setAutoPayEligibility(Boolean.TRUE);
+                        loan.setNewDpd(Math.max(loanDpd.get().getDpd(), 0));
+
+                        if (loanDpd.isPresent() && loanDpd.get().getDpd()<3 && loanDpd.get().getDpd()!=0) {
+                            log.info("merchant id is {}", merchantId);
+                            if (easyLoanUtil.percentScaleUp(merchantId, apiGatewayService.upiPercent)
+                                    && "LDC".equalsIgnoreCase(loan.getLender())) {
+                                loan.setAutoPayEligibility(Boolean.TRUE);
+                            } else {
+                                loan.setAutoPayEligibility(Boolean.FALSE);
+                            }
                         } else {
                             loan.setAutoPayEligibility(Boolean.FALSE);
                         }
-                    } else {
-                        loan.setAutoPayEligibility(Boolean.FALSE);
-                    }
                     }
                     else
                         loan.setAutoPayEligibility(Boolean.FALSE);
