@@ -51,6 +51,9 @@ public class ForeClosureDetailsWrapperService implements ILenderAssociationServi
         if( "UGRO".equalsIgnoreCase(lendingApplication.get().getLender()) ) {
             principalOutstandingDetails = ugroForeclosureService.getForeclosurePrincipalOutstandingDetails(applicationId);
         }
+        if("PAYU".equalsIgnoreCase(lendingApplication.get().getLender()) ) {
+            principalOutstandingDetails = associationServiceUtil.getPrincipalOutstandingAmount(lendingApplication.get().getLender(), applicationId);
+        }
         return LenderForeclosureDetailsDTO.builder()
                 .principalOutstanding(principalOutstandingDetails)
                 .foreclosureAmount(foreclosureAmount)
