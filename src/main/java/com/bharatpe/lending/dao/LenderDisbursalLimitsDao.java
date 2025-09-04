@@ -26,10 +26,4 @@ public interface LenderDisbursalLimitsDao extends JpaRepository<LendingLenderQuo
     LendingLenderQuota findByLender(String lender);
 
     LendingLenderQuota findByEdiModelIsNull();
-
-    @Query(value = "SELECT * FROM lending_lender_quota " +
-            "WHERE updated_at BETWEEN :startDate AND :endDate",
-            nativeQuery = true)
-    List<LendingLenderQuota> findByUpdatedAtBetween(@Param("startDate") LocalDateTime startDate,
-                                                    @Param("endDate") LocalDateTime endDate);
 }
