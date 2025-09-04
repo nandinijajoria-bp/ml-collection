@@ -1215,13 +1215,13 @@ public class LoanEligibleService {
                 continue;
             }
 
-            if (lenderRolloutFailedCheck(lender, merchantId, evaluationId)) {
+           /* if (lenderRolloutFailedCheck(lender, merchantId, evaluationId)) {
                 String rejectReason = "Failed rollout percentage check for merchantId";
                 AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
                 createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, evaluationId);
                 iterator.remove();
                 continue;
-            }
+            }*/
 
             if (!negativeCategoryAndLoanAmountCheckPassed(loan, lendingRiskVariables.getRiskSegment(), lender,merchantId, evaluationId)) {
                 AsyncLoggerUtil.logInfo(logger, "skipping {} due to business category check failure for {}", lender, merchantId);
@@ -1856,10 +1856,10 @@ public class LoanEligibleService {
                     String remarks = "removing " + lender + " from eligible list for merchantId : " + merchantId + " due to not in rollout percentage " + piramalRolloutPercentage;
                     createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
                     continue;
-                }
+                }/*
                 if(lenderRolloutFailedCheck(lender, merchantId, evaluationId)) {
                     continue;
-                }
+                }*/
                 eligibleLendersSet.add(lender);
             }
         }
