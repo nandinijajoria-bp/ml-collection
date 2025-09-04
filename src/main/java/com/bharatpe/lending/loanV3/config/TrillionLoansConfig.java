@@ -39,4 +39,15 @@ public class TrillionLoansConfig {
     private Integer breTimeoutThreshold = 15000;
     private Integer postConsentTimeoutThreshold = 15000;
     private Integer updateLeadTimeoutThreshold = 20000;
+    private Integer kycValidityTimeoutThreshold = 20000;
+    private Integer skipKycTimeoutThreshold = 20000;
+    private Integer topUpSkipKycRolloutPercent = 0;
+    private Integer skipKycRolloutPercent = 0;
+    private String kycValiditySuccessMessage = "KYC Details Retrieved";
+    private Integer kycValidityRetryCount = 3;
+    private Integer skipKycRetryCount = 3;
+    private String skipKycConsentKey = "KYC_REUSE_CONFIRM";
+    private String skipKycConsentSource = "mobile_app";
+    private String skipKycSuccessMessage = "KYC Completed";
+    private Boolean kycCtaEnabledForTopup = false;
 }

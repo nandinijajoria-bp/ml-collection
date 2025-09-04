@@ -168,7 +168,7 @@ public class OxyzoLeadService {
 
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
 
-            CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), lendingApplication.getMerchantId(), cKycResponseDto, lendingApplication.getId());
+            CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), lendingApplication.getMerchantId(), cKycResponseDto);
 
             String careOf = poa.getCareOf();
             careOf += ",";

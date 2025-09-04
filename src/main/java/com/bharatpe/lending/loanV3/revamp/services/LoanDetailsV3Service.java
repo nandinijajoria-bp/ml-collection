@@ -338,6 +338,7 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setLender(kycStateDTO.getLender());
         loanDetailsV3Response.setLenderKycPipe(kycStateDTO.isLenderKycPipe());
         loanDetailsV3Response.setMerchantId(kycStateDTO.getMerchantId());
+        loanDetailsV3Response.setSkipKycEligible(kycStateDTO.isSkipKycEligible());
 
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setLenderAssc(kycStateDTO.getLenderAssc());
@@ -650,6 +651,7 @@ public class LoanDetailsV3Service {
         response.setLender(dto.getLender());
         response.setLenderKycPipe(dto.getLenderKycPipe());
         response.setMerchantId(dto.getMerchantId());
+        response.setSkipKycEligible(dto.isSkipKycEligible());
 
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setApplicationId(dto.getApplicationId());

@@ -208,7 +208,7 @@ public class PaymentService {
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("CollectionLowLatencyKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
     @Autowired

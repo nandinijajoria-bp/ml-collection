@@ -147,7 +147,7 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
                 lendingApplication.getId()
         ) > 0;
 
-        return hasValidShopPhotos ? LendingViewStates.KYC_PAGE : LendingViewStates.SHOP_PICTURES_PAGE;
+        return hasValidShopPhotos ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.SHOP_PICTURES_PAGE;
     }
 
     @Override

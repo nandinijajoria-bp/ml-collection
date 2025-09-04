@@ -122,7 +122,7 @@ public class InvokeAdditionalDocUploadWrapperService {
                 MDC.clear();
             }
         } catch (Exception e) {
-            log.info("Exception in invoking createLead and doc upload flow for applicationId : {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+            log.error("Exception in invoking createLead and doc upload flow for applicationId : {} {}", applicationId, Arrays.asList(e.getStackTrace()));
             MDC.clear();
         }
     }

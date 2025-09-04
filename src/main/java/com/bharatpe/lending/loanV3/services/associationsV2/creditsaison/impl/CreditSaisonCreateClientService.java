@@ -12,7 +12,8 @@ import com.bharatpe.lending.loanV3.dto.request.creditsasion.CreditSasionDedupeRe
 import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSasionDedupeResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.validations.CreditSaisonPayloadValidation;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeKycWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeLeadWrapperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,7 +58,7 @@ public class CreditSaisonCreateClientService {
                 log.info("CS: Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_CLIENT.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if (InvokeLeadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_CLIENT.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
             if (creditSaisonPayloadValidation.isInValidCreateClientPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {

@@ -11,16 +11,14 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
-import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.EdiUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -28,12 +26,10 @@ import org.springframework.util.ObjectUtils;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
-public class InvokeCreateLeadAndDocUploadWrapperService {
+public class InvokeLeadWrapperService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
@@ -41,31 +37,26 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     CommonService commonService;
 
     @Autowired
-    NbfcUtils nbfcUtils;
-
-    @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
-    KycUtils kycUtils;
-
-    @Autowired
     private EdiUtil ediUtil;
+
+    @Lazy
+    @Autowired
+    KycUtils kycUtils;
 
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
 
     @Async("lenderPoolTaskExecutor")
-    public void invokeCreateLeadAndDocUpload(Map<String, String> request, Map<String, Object> args) {
+    public void invokeCreateLead(Map<String, String> request, Map<String, Object> args) {
         try {
-            List<String> stagesToBeInvokedInOrder = new ArrayList<>();
             if (!ObjectUtils.isEmpty(args)) {
-                if (args.containsKey("stages")) {
-                    stagesToBeInvokedInOrder = Arrays.stream(((String) args.get("stages")).split(",")).collect(Collectors.toList());
-                }
                 if (args.containsKey("requestId")) {
                     MDC.put("requestId", (String) args.get("requestId"));
                 }
@@ -73,6 +64,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             Long applicationId = Long.valueOf(request.get("application_id"));
             LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
             lenderAssociationDetailsRequestDto.setApplicationId(applicationId);
+            lenderAssociationDetailsRequestDto.setManageState(true);
             runBaseChecksAndCreateRecord(lenderAssociationDetailsRequestDto);
             if (ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails())) {
                 log.info("no record found in lendingApplicationLenderDetails for applicationId {} with lender {}", applicationId, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
@@ -80,41 +72,26 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 return;
             }
             log.info("base checks ran for applicationId {} with lender {}", applicationId, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
-            stagesToBeInvokedInOrder = getStageToBeInvokedInOrder(lenderAssociationDetailsRequestDto.getLendingApplication().getId(),
-                    lenderAssociationDetailsRequestDto.getLendingApplication().getLender(),
-                    lenderAssociationDetailsRequestDto.getLendingApplication().getMerchantId(),
-                    LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())
-            );
-            lenderAssociationDetailsRequestDto.setManageState(true);
-            Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto, stage)).findFirst();
+            List<String> stagesToBeInvokedInOrder = getStageToBeInvokedInOrder(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            LendingApplication application = lenderAssociationDetailsRequestDto.getLendingApplication();
+            boolean isTopup = LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType());
+            boolean eligibleForSkipKyc = kycUtils.isEligibleForSkipKyc(application.getId(), Lender.valueOf(application.getLender()), application.getMerchantId(), isTopup);
+            Boolean eligibleForLenderKyc = kycUtils.isEligibleForLenderKyc(application.getLender(), application.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()));
+            stagesToBeInvokedInOrder =  eligibleForSkipKyc ? addStagesForSkipKyc(application.getId(), new ArrayList<>(stagesToBeInvokedInOrder), Lender.valueOf(application.getLender())) : stagesToBeInvokedInOrder;
+            Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !commonService.invokeStage(lenderAssociationDetailsRequestDto, stage)).findFirst();
             if (failureStage.isPresent()) {
                 log.info("lender association failed at {} stage for applicationId {}  with lender {}", failureStage.get(), applicationId, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
                 MDC.clear();
                 return;
             }
-            if(!Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplication().getLender())){
-                invokeBREWorkflow(lenderAssociationDetailsRequestDto);
+            if(!eligibleForSkipKyc && !eligibleForLenderKyc) {
+                commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
             }
             MDC.clear();
         } catch (Exception e) {
-            log.info("Exception in invoking createLead and doc upload flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
+            log.error("Exception in invoking lead wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
             MDC.clear();
         }
-    }
-
-    public void invokeBREWorkflow(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
-        log.info("Pushing application to BRE stage for : {} {}", lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
-        String currStage = lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getStage();
-        LenderAssociationStages nextStage =
-                LenderAssociationStageFactoryV2.getNextStage(Lender.valueOf(lenderAssociationDetailsDto.getLendingApplication().getLender()),
-                        LenderAssociationStages.valueOf(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getStage()));
-        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setStage(nextStage.name());
-        commonService.manageApplicationState(lenderAssociationDetailsDto);
-        nbfcUtils.pushApplicationToNextStage(lenderAssociationDetailsDto.getApplicationId(),
-                lenderAssociationDetailsDto.getLendingApplication().getLender(),
-                currStage,
-                Boolean.TRUE
-        );
     }
 
     public void runBaseChecksAndCreateRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -134,7 +111,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             log.info("lead creation already done for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
         }
         if (null == lendingApplicationLenderDetails) {
-            lendingApplicationLenderDetails = createLenderRecord(lendingApplication.get(), LenderAssociationStages.KYC.name(), Status.ACTIVE.name());
+            lendingApplicationLenderDetails = createLenderRecord(lendingApplication.get(), LenderAssociationStages.LEAD_WRAPPER.name(), Status.ACTIVE.name());
         }
         lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
     }
@@ -161,8 +138,6 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     public static boolean kycDataNeeded(String stage) {
         switch (stage) {
             case "CREATE_LEAD":
-            case "AADHAR_UPLOAD":
-            case "SELFIE_UPLOAD":
             case "UPDATED_LEAD":
             case "CREATE_CLIENT":
                 return true;
@@ -171,58 +146,37 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
         }
     }
 
-    public List<String> getStageToBeInvokedInOrder(Long applicationId, String lender, Long merchantId, boolean isTopUp) {
-        log.info("Getting stages to be invoked in createLead and docUpload for applicationId  {} and lender {} ", applicationId, lender);
+    public List<String> getStageToBeInvokedInOrder(Long applicationId, String lender) {
+        log.info("Getting stages to be invoked in lead wrapper for applicationId  {} and lender {} ", applicationId, lender);
         if (ObjectUtils.isEmpty(lender)) {
             throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }
         switch (Lender.valueOf(lender)) {
-            case USFB:  //TODO Add PAN in list if required
-                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(),
-                        LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name());
-            case TRILLIONLOANS:
-                return Stream.concat(Stream.of(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name()),
-                                getStagesForIneligibleKYCLenderPipe(lender, merchantId, isTopUp).stream())
-                    .collect(Collectors.toList());
-            case MUTHOOT:
-                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name(),
-                        LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.KYC.name());
-            case CAPRI:
-                return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name(),LenderAssociationStages.AADHAR_UPLOAD.name(),
-                        LenderAssociationStages.SELFIE_UPLOAD.name());
-            case PAYU:
-                List<String> stages = new ArrayList<>(Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name()));
-                if (!isTopUp) {
-                    stages.addAll(Arrays.asList(LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name(),
-                            LenderAssociationStages.SHOP_STOCK_PHOTO_UPLOAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.KYC.name()));
-                }
-                return stages;
-            case CREDITSAISON:
-                return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.KYC.name());
+            case USFB:
             case UGRO:
-                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(),
-                        LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.CREATE_CLIENT.name());
             case OXYZO:
-                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.KYC.name());
+                return Collections.singletonList(LenderAssociationStages.CREATE_LEAD.name());
+            case TRILLIONLOANS:
+            case CAPRI:
+                return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name());
+            case MUTHOOT:
+            case PAYU:
+                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name());
+            case CREDITSAISON:
+                return Collections.singletonList(LenderAssociationStages.CREATE_CLIENT.name());
             default:
                 throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }
-
     }
 
-    private List<String> getStagesForIneligibleKYCLenderPipe(String lender, Long merchantId, boolean isTopup) {
-        if (!kycUtils.isELigibleForLenderKyc(lender, merchantId, isTopup)) {
-            switch (Lender.valueOf(lender)) {
-                case TRILLIONLOANS: {
-                    List<String> stages = new ArrayList<>(Arrays.asList(LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name()));
-                    if (!isTopup) {
-                        stages.add(LenderAssociationStages.KYC.name());
-                    }
-                    return stages;
-                }
-            }
+    public List<String> addStagesForSkipKyc(Long applicationId, List<String> stageToBeInvokedForLender, Lender lender) {
+        switch (lender) {
+            case TRILLIONLOANS:
+                  stageToBeInvokedForLender.add(LenderAssociationStages.KYC_VALIDITY.name());
+                  break;
+            default:
+                throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }
-        return Collections.emptyList();
+        return stageToBeInvokedForLender;
     }
-
 }

@@ -799,4 +799,22 @@ public class AssociationServiceUtil {
             return false;
         }
     }
+
+    public Boolean invokeKycValidity(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlKycService.kycValidityCheck(lenderAssociationDetailsRequest);
+            default:
+                return false;
+        }
+    }
+
+    public Boolean invokeSkipKyc(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlKycService.skipKyc(lenderAssociationDetailsRequest);
+            default:
+                return false;
+        }
+    }
 }

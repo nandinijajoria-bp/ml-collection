@@ -140,6 +140,10 @@ public class VerifyOTPService {
     KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     @Autowired
+    @Qualifier("LoanJourneyKafkaTemplate")
+    KafkaTemplate<String, Object> loanJourneyKafkaTemplate;
+
+    @Autowired
     EnachHandler enachHandler;
 
     @Autowired
@@ -259,6 +263,9 @@ public class VerifyOTPService {
     VKycService vkycService;
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
+
+    @Value("${constant.pf.for.topup.enabled.lender:}")
+    String constantProcessingFeeForTopupEnabledLender;
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         if (Objects.nonNull(merchant.getId())) {
@@ -425,7 +432,7 @@ public class VerifyOTPService {
 
                 //Specific requirement for payu
                 if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
-                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
                     lendingApplicationLenderDetails.setAgreementOtp(otp);
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 }
@@ -598,7 +605,7 @@ public class VerifyOTPService {
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
             if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
                 if(topupLoans.contains(lendingApplication.getLoanType())) {
-                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), Lender.ABFL.name());
                     if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                         LenderAssociationStages nextStage =
                                 LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
@@ -773,8 +780,8 @@ public class VerifyOTPService {
 
     private void updateKycStatus(LendingApplication lendingApplication) {
         try {
-            KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) ?
-                    kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
+            KycStatusDTO kycStatus = kycUtils.isEligibleForSkipKycOrLenderKyc(lendingApplication) ?
+                    kycHandler.getKycStatusForLenderKycOrSkipKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
             logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
             lendingApplication.setCkycStatus(kycStatus.getKycStatus().name());
             lendingApplication.setCkycDate(new Date());
@@ -796,7 +803,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            confluentKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
+            loanJourneyKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic find_lat_long");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic find_lat_long", e);
@@ -866,7 +873,10 @@ public class VerifyOTPService {
             double processingFee = Math.ceil(finalDisbursalAmountWithoutProcessingFee * processingFeeRate);
 
             // skipping updating pf for trillion as the details is already sent to them
-            if(!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) || LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) lendingApplication.setProcessingFee(processingFee);
+            if(!constantProcessingFeeForTopupEnabledLender.contains(lendingApplication.getLender()) || LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) {
+                logger.info("Updating processing fee for application: {} from {} to {}", lendingApplication.getId(), lendingApplication.getProcessingFee(), processingFee);
+                lendingApplication.setProcessingFee(processingFee);
+            }
             lendingApplication.setDisbursalAmount(finalDisbursalAmountWithoutProcessingFee - processingFee);
 
             lendingApplicationDao.save(lendingApplication);
@@ -1050,7 +1060,7 @@ public class VerifyOTPService {
             Map<String, Long> detailMap = new HashMap<>();
             detailMap.put("merchantId", merchantId);
             detailMap.put("applicationId", applicationId);
-            confluentKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
+            loanJourneyKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
             logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
@@ -1230,7 +1240,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            confluentKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
+            loanJourneyKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic check_duplicate_pancard");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic check_duplicate_pancard", e);

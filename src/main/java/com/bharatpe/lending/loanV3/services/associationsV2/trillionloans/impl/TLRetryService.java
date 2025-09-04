@@ -11,6 +11,7 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLCreateClientResponseDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLCreateLeadResponseDto;
+import com.bharatpe.lending.loanV3.enums.KycMode;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -41,14 +42,15 @@ public class TLRetryService {
     @Autowired
     LoanUtil loanUtil;
 
-    @Lazy
-    @Autowired
-    NbfcUtils nbfcUtils;
-
     public Boolean processCallback(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, NBFCResponseDTO<?> response) {
         try {
             Boolean isTopup = LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplication().getLoanType());
-            boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(), isTopup);
+            boolean isEligibleForLenderKyc = kycUtils.isEligibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(), isTopup);
+            boolean inRolloutForSkipKyc = kycUtils.isEligibleForSkipKyc(lenderAssociationDetailsRequest.getLendingApplication().getId(), Lender.TRILLIONLOANS, lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(), isTopup);
+            boolean isEligibleForSkipKyc = Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.CREATE_CLIENT.name()).contains(response.getType())
+                            ? inRolloutForSkipKyc : ObjectUtils.isEmpty(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode())
+                            ? Optional.ofNullable(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getMetaData()).map(id-> id.get("eligibleForSkipKyc")).filter(Boolean.class::isInstance).map(Boolean.class::cast).orElse(false)
+                            : LenderAssociationStages.SKIP_KYC.name().equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode());
             if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplication().getLoanType())) {
                 LendingApplication parentApplication = loanUtil.fetchParentApplication(lenderAssociationDetailsRequest.getLendingApplication().getId());
                 lenderAssociationDetailsRequest.setTopupParentLender(parentApplication.getLender());
@@ -62,14 +64,14 @@ public class TLRetryService {
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setCccId(createClientResponse.getClientId().toString());
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
                         commonService.manageApplicationState(lenderAssociationDetailsRequest);
-                        addKycStagesIfEligible(stageToBeInvokedInOrder, isEligibleForLenderKyc, isTopup, LenderAssociationStages.CREATE_CLIENT);
+                        addStagesIfEligible(stageToBeInvokedInOrder, isEligibleForLenderKyc, isTopup, LenderAssociationStages.CREATE_CLIENT, isEligibleForSkipKyc);
                         break;
                     case "CREATE_LEAD":
                         log.info("Create lead request of TrillionLoans success for {}", lenderAssociationDetailsRequest.getApplicationId());
                         TLCreateLeadResponseDto createLeadResponse = objectMapper.convertValue(response.getData(), TLCreateLeadResponseDto.class);
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadId(createLeadResponse.getResourceId().toString());
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.SELFIE_PENDING_FOR_LENDER_KYC.name() : LenderAssociationStatus.LEAD_CREATION_SUCCESS.name());
-                        addKycStagesIfEligible(stageToBeInvokedInOrder, isEligibleForLenderKyc, isTopup, LenderAssociationStages.CREATE_LEAD);
+                        addStagesIfEligible(stageToBeInvokedInOrder, isEligibleForLenderKyc, isTopup, LenderAssociationStages.CREATE_LEAD, isEligibleForSkipKyc);
                         break;
                     case "DOCUMENT_UPLOAD":
                         log.info("Doc upload request of TrillionLoans success for {}", lenderAssociationDetailsRequest.getApplicationId());
@@ -78,11 +80,13 @@ public class TLRetryService {
                                 ? LenderAssociationStages.SELFIE_UPLOAD
                                 : LenderAssociationStages.AADHAR_UPLOAD;
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getDocUploadStatus(isTopup, docStage));
-                        addKycStagesIfEligible(stageToBeInvokedInOrder, isEligibleForLenderKyc, isTopup, docStage);
+                        addStagesIfEligible(stageToBeInvokedInOrder, isEligibleForLenderKyc, isTopup, docStage, isEligibleForSkipKyc);
                         break;
                     case "KYC" :
                         log.info("Kyc request of TrillionLoans success for {}", lenderAssociationDetailsRequest.getApplicationId());
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.EKYC_PENDING.name() : LenderAssociationStatus.KYC_IN_PROGRESS.name());
+                        LenderAssociationStatus kycStatus = isEligibleForSkipKyc ? (isEligibleForLenderKyc ? LenderAssociationStatus.SKIP_KYC_CONSENT_PENDING : LenderAssociationStatus.SKIP_KYC_PENDING) : (isEligibleForLenderKyc ? LenderAssociationStatus.EKYC_PENDING : LenderAssociationStatus.KYC_IN_PROGRESS);
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(kycStatus.name());
+                        addStagesIfEligible(stageToBeInvokedInOrder, isEligibleForLenderKyc, isTopup, LenderAssociationStages.KYC, isEligibleForSkipKyc);
                         break;
                     case "BRE":
                         log.info("Bre request of TrillionLoans success for {}", lenderAssociationDetailsRequest.getApplicationId());
@@ -93,11 +97,15 @@ public class TLRetryService {
                         log.info("invalid response type for trillion retry callback {}", response);
                 }
                 commonService.manageApplicationState(lenderAssociationDetailsRequest);
-                Optional<LenderAssociationStages> failureStage = stageToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest, stage.name())).findFirst();
+                Optional<LenderAssociationStages> failureStage = stageToBeInvokedInOrder.stream().filter(stage -> !commonService.invokeStage(lenderAssociationDetailsRequest, stage.name())).findFirst();
                 if (failureStage.isPresent()) {
                     log.info("lender association failed at {} stage for applicationId {}  with lender {}", failureStage.get(), lenderAssociationDetailsRequest.getApplicationId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
                     MDC.clear();
                     return false;
+                }
+                if(LenderAssociationStages.LEAD_WRAPPER.name().equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage())
+                   && Boolean.FALSE.equals(isEligibleForLenderKyc) && Boolean.FALSE.equals(isEligibleForSkipKyc)) {
+                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                 }
                 return true;
             }
@@ -122,25 +130,24 @@ public class TLRetryService {
         return kycStatus;
     }
 
-    private void addKycStagesIfEligible(List<LenderAssociationStages> stagesToInvoked, boolean isEligibleForLenderKyc, boolean isTopup, LenderAssociationStages currStage) {
-           switch(currStage) {
-               case CREATE_CLIENT:
-                   stagesToInvoked.add(LenderAssociationStages.CREATE_LEAD);
-               case CREATE_LEAD:
-                    if (Boolean.FALSE.equals(isEligibleForLenderKyc)) {
-                        stagesToInvoked.add(LenderAssociationStages.SELFIE_UPLOAD);
-                        stagesToInvoked.add(LenderAssociationStages.AADHAR_UPLOAD);
-                        if (Boolean.FALSE.equals(isTopup)) stagesToInvoked.add(LenderAssociationStages.KYC);
-                    }
-                    break;
-               case SELFIE_UPLOAD:
-                   if(Boolean.FALSE.equals(isEligibleForLenderKyc)) stagesToInvoked.add(LenderAssociationStages.AADHAR_UPLOAD);
-                   if(isEligibleForLenderKyc || Boolean.FALSE.equals(isTopup)) stagesToInvoked.add(LenderAssociationStages.KYC);
-                   break;
-               case AADHAR_UPLOAD:
-                   if(Boolean.FALSE.equals(isTopup)) stagesToInvoked.add(LenderAssociationStages.KYC);
-                   break;
-               default:
+    private void addStagesIfEligible(List<LenderAssociationStages> stagesToInvoked, boolean isEligibleForLenderKyc, boolean isTopup, LenderAssociationStages currStage, boolean isEligibleForSkipKyc) {
+        switch (currStage) {
+            case CREATE_CLIENT:
+                stagesToInvoked.add(LenderAssociationStages.CREATE_LEAD);
+            case CREATE_LEAD:
+                if (isEligibleForSkipKyc) stagesToInvoked.add(LenderAssociationStages.KYC_VALIDITY);
+                break;
+            case SELFIE_UPLOAD:
+                if (Boolean.FALSE.equals(isEligibleForLenderKyc) && Boolean.FALSE.equals(isEligibleForSkipKyc)) stagesToInvoked.add(LenderAssociationStages.AADHAR_UPLOAD);
+                if (Boolean.FALSE.equals(isEligibleForSkipKyc) || Boolean.FALSE.equals(isTopup)) stagesToInvoked.add(LenderAssociationStages.KYC);
+                if (isEligibleForSkipKyc) stagesToInvoked.add(LenderAssociationStages.SKIP_KYC);
+                break;
+            case AADHAR_UPLOAD:
+                stagesToInvoked.add(LenderAssociationStages.KYC);
+                break;
+            case KYC:
+                if(isEligibleForSkipKyc && Boolean.FALSE.equals(isEligibleForLenderKyc)) stagesToInvoked.add(LenderAssociationStages.SKIP_KYC);
+            default:
         }
     }
 

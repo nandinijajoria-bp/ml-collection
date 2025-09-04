@@ -126,6 +126,9 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.kyc.validity.api:api/v3/lender/kyc-validity}")
     String kycValidityUrl;
 
+    @Value("${nbfc.skip.kyc.api:api/v3/lender/skip-kyc}")
+    String skipKycUrl;
+
     @Autowired
     UgroConfig ugroConfig;
 
@@ -234,6 +237,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl + vkycConfig.getSkipVkycUrl();
             case "KYC_VALIDITY":
                 return nbfcBaseUrl + kycValidityUrl;
+            case "SKIP_KYC":
+                return nbfcBaseUrl + skipKycUrl;
             default:
                 return null;
         }

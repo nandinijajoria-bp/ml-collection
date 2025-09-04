@@ -27,7 +27,7 @@ public class SmfgDisbursalCallbackService {
             if (!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDTO.getData())) {
                 SmfgCallbackRequest smfgCallbackRequest = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), SmfgCallbackRequest.class);
                 if (!ObjectUtils.isEmpty(smfgCallbackRequest) && !ObjectUtils.isEmpty(smfgCallbackRequest.getData()) && !ObjectUtils.isEmpty(smfgCallbackRequest.getData().getOutput())) {
-                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(Long.valueOf(nbfcResponseDTO.getApplicationId()), nbfcResponseDTO.getLender());
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(Long.valueOf(nbfcResponseDTO.getApplicationId()), nbfcResponseDTO.getLender());
                     Boolean status = "SUCCESS".equalsIgnoreCase(smfgCallbackRequest.getStatus()) && "Processed".equalsIgnoreCase(smfgCallbackRequest.getData().getOutput().getDisbursalstatus());
                     DisbursalCallbackCommonDTO disbursalCallbackCommonDTO = DisbursalCallbackCommonDTO.builder()
                             .applicationId(Long.parseLong(nbfcResponseDTO.getApplicationId()))

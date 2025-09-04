@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
@@ -100,7 +101,8 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             log.info("one picture is missing of shop for merchantId : {} and applicationId : {}",lendingStateDTO.getData().getMerchantId(),lendingStateDTO.getData().getMerchantId());
         }
         else{
-            lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
+            LendingViewStates nextPage = lendingStateDTO.getData().isSkipKycEligible() ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.KYC_PAGE;
+            lendingStateDTO.setLendingViewStates(nextPage);
             if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request())){
                 log.info("loanDetails v3 request : {}", scopeDataArgs.getLoanDetailsV3Request());
                 if(scopeDataArgs.getLoanDetailsV3Request().isShopPhotoStepCompleted() && easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), shopPhotoSyncRollout ) ){
@@ -168,7 +170,8 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                 }
             }
 
-            shopPicturesStateDTO.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
+            shopPicturesStateDTO.setLenderKycPipe(kycUtils.isEligibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
+            shopPicturesStateDTO.setSkipKycEligible(kycUtils.isEligibleForSkipKyc(lendingApplication.getId(), Lender.valueOf(lendingApplication.getLender()), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
 
             if(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()))shopPicturesStateDTO.setDummyMerchant(true);
             scopeDataArgs.setApplicationId(lendingApplication.getId());

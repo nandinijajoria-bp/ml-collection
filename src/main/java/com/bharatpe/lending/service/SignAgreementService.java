@@ -170,6 +170,12 @@ public class SignAgreementService {
 	@Value("${clone.contact.references.for.topup.enabled:false}")
 	Boolean cloneContactReferenceForTopupEnabled;
 
+	@Value("${topup.v2.flow.enabled:1}")
+	private Integer topupV2FlowEnabled;
+
+	@Value("${topup.v2.flow.lenders:PIRAMAL}")
+	private String topupV2FlowLenders;
+
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
 		if (!ObjectUtils.isEmpty(merchantBasicDetails.getId())) {
@@ -240,7 +246,7 @@ public class SignAgreementService {
 		}
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
 
-			KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) ? kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
+			KycStatusDTO kycStatus = kycUtils.isEligibleForSkipKycOrLenderKyc(lendingApplication) ? kycHandler.getKycStatusForLenderKycOrSkipKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
 			logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
 			if (kycStatus.getKycStatus().equals(KycStatus.NEW) || kycStatus.getKycStatus().equals(KycStatus.DRAFT)) {
 				logger.info("kyc not done for application:{}", applicationId);
@@ -926,8 +932,10 @@ public class SignAgreementService {
 			}
 
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
-
-			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));
+            Boolean isEligibleForSkipKyc = kycUtils.isEligibleForSkipKyc(newApplication.getId(), Lender.valueOf(newApplication.getLender()), newApplication.getMerchantId(), true);
+			LendingViewStates nextPage = getTopupViewState(Lender.valueOf(newApplication.getLender()), isEligibleForSkipKyc);
+			response.put("nextPage", nextPage);
+			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), nextPage);
 
 			loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
 			if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender()) && cloneContactReferenceForTopupEnabled) {
@@ -983,16 +991,32 @@ public class SignAgreementService {
 
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
-		List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
-		List<LoanEligibilityDTO> loans1 = loans.stream()
-				.filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+		List<LoanEligibilityDTO> loans;
+		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
+			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
+		} else {
+			loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
+		}
+		List<LoanEligibilityDTO> validLoans = loans.stream()
+				.filter(loan ->  loan.getIsRejected() == null || !Boolean.TRUE.equals(loan.getIsRejected()))
 				.collect(Collectors.toList());
-		logger.info("latest eligibility for {} : {}", merchantId, loans1);
-		if(loans1.isEmpty()){
-			logger.info("no eligible loan offer available at topup application creation for {}", merchantId);
+		logger.info("latest eligibility for {} : {}", merchantId, validLoans);
+
+		if(validLoans.isEmpty()){
+			logger.warn("no eligible loan offer available at topup application creation for {}", merchantId);
 			return false;
 		}
-		LoanEligibilityDTO loanEligibilityDTO = loans1.get(0);
+
+		LoanEligibilityDTO loanEligibilityDTO;
+		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
+			loanEligibilityDTO = validLoans.stream()
+					.filter(dto -> dto.getTenure().equals(eligibleLoan.getTenure())
+							&& dto.getAmount().compareTo(eligibleLoan.getAmount().intValue()) == 0)
+					.findFirst()
+					.orElse(null);
+		} else {
+			loanEligibilityDTO = validLoans.get(0);
+		}
 		if(ObjectUtils.isEmpty(loanEligibilityDTO) || ObjectUtils.isEmpty(loanEligibilityDTO.getId())){
 			logger.info("no eligible loan entry found at topup application creation for {}", merchantId);
 			return false;
@@ -1021,12 +1045,13 @@ public class SignAgreementService {
 		return true;
 	}
 
-	private LendingViewStates getTopupViewState(Lender lender){
+	private LendingViewStates getTopupViewState(Lender lender, Boolean isEligibleForSkipKyc){
 		switch (lender){
 			case ABFL:
-			case TRILLIONLOANS:
 			case PAYU:
 				return LendingViewStates.LENDER_EVALUATION_PAGE;
+			case TRILLIONLOANS:
+				return isEligibleForSkipKyc ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.KYC_PAGE;
 			case PIRAMAL:
 				return LendingViewStates.KYC_PAGE;
 			default:

@@ -16,6 +16,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDt
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLEKycRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLEkycStatusCheckRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.*;
+import com.bharatpe.lending.loanV3.enums.KycMode;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -214,7 +215,7 @@ public class TLEKycService {
         TLEKycStatusCheckResponseDto.Action action = getDigilockerAction(ekycStatusCheckResponseDto);
         if (!ObjectUtils.isEmpty(action)) {
             CKycResponseDto cKycResponseDto = populateEKycDetails(action);
-            kycUtils.savePoaDetailsForLenderKyc(lendingApplication.getId(), cKycResponseDto);
+            kycUtils.savePoaDetailsForKyc(lendingApplication, KycMode.LENDER_KYC.name(), cKycResponseDto);
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_IN_PROGRESS.name());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.EKYC_COMPLETED.name());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycRetryCount(0);

@@ -122,9 +122,7 @@ import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1539,36 +1537,6 @@ public class LendingApplicationServiceV2 {
         return isMismatch;
     }
 
-    private void invokeBreForPiramal(LendingGstDetail lendingGstDetail, LendingApplication lendingApplication) {
-
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
-        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-
-        if (!ObjectUtils.isEmpty(lendingGstDetail) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
-                !ObjectUtils.isEmpty(lendingGstDetail.getShopType())
-                && lendingApplicationLenderDetails.getStage().equals(LenderAssociationStages.KYC.name())
-                && lendingApplicationLenderDetails.getKycStatus().equals(LenderAssociationStatus.SELFIE_UPLOAD_SUCCESS.name())
-                && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus())) {
-            log.info("criteria met to invoke bre for piramal for {}", lendingApplication.getId());
-
-            String currStage =  lendingApplicationLenderDetails.getStage();
-            LenderAssociationStages nextStage =
-                    LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()),
-                            LenderAssociationStages.valueOf(lendingApplicationLenderDetails.getStage()));
-            lendingApplicationLenderDetails.setStage(nextStage.name());
-            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-            nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(),
-                    lendingApplication.getLender(),
-                    currStage,
-                    Boolean.TRUE
-            );
-        }
-//        else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
-//           log.info("lender changed as current address not same as permanent address for {}", lendingApplication.getId());
-//            nbfcUtils.modifyLender(lendingApplication,lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
-//        }
-    }
-
     public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
         try {
             return !(!ObjectUtils.isEmpty(applicationRequest.getAddressDetails()) &&
@@ -2628,7 +2596,7 @@ public class LendingApplicationServiceV2 {
     public boolean invokeUpdateLeadApi(LendingApplication lendingApplication, boolean isDowngradeInitiateFlow) {
         log.info("Calling update lead api for applicationId: {} & merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
         LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.error("Lending application lender details not found for applicationId: {} & lender: {}", lendingApplication.getId(), lendingApplication.getLender());
             return false;
@@ -3536,7 +3504,7 @@ public class LendingApplicationServiceV2 {
         /** new Library code ends here **/
 
         else if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
             fileName = lendingApplicationLenderDetails.getLeadId() + '_' + SANCTION_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
             ByteArrayInputStream inStream = getLoanDocPdf(sanctionCumLoanAgreementHtml, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, lendingApplication, sanctionCompressionLevel);
             if (ObjectUtils.isEmpty(inStream)) {
@@ -3831,7 +3799,7 @@ public class LendingApplicationServiceV2 {
             /** new Library code ends here **/
 
             else if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
                 fileName = lendingApplicationLenderDetails.getLeadId() + '_' + KFS_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
                 ByteArrayInputStream inStream = getLoanDocPdf(kfsHtml, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, lendingApplication, kfsCompressionLevel);
                 if (ObjectUtils.isEmpty(inStream)) {
@@ -4966,7 +4934,7 @@ public class LendingApplicationServiceV2 {
                         lendingGstDetail.setAddressType("Same");
                     }
                 }
-                if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
+                if(kycUtils.isEligibleForSkipKycOrLenderKyc(lendingApplication)) {
                     LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
                     if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
                         lendingGstDetail.setAddress1(lendingApplicationKycDetails.getAadharAddress());
@@ -5009,6 +4977,21 @@ public class LendingApplicationServiceV2 {
             if (Objects.isNull(lendingApplication)) {
                 return new ApiResponse<>(false, "There is no such applicationId for given merchantId");
             }
+            if(kycUtils.isEligibleForSkipKycOrLenderKyc(lendingApplication)) {
+                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
+                if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                    AadhaarAddressResponseDTO dto = new AadhaarAddressResponseDTO();
+                    dto.setAddress(lendingApplicationKycDetails.getAadharAddress());
+                    dto.setGender(lendingApplicationKycDetails.getGender());
+                    dto.setName(lendingApplicationKycDetails.getAadharName());
+                    dto.setDob(lendingApplicationKycDetails.getDob());
+                    dto.setAadharNumber(lendingApplicationKycDetails.getAadharIdentifier());
+                    dto.setState(lendingApplicationKycDetails.getAadharState());
+                    dto.setCity(lendingApplicationKycDetails.getAadharCity());
+                    dto.setPincode(lendingApplicationKycDetails.getAadharPinCode());
+                    return new ApiResponse<>(dto);
+                }
+            }
             List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchantId());
             for (KycDoc kycDoc : kycDocs) {
                 if (KycDocType.POA.equals(kycDoc.getDocType())) {
@@ -5021,21 +5004,6 @@ public class LendingApplicationServiceV2 {
                     dto.setDob(kycDoc.getDob());
                     dto.setGender(kycDoc.getGender());
                     dto.setAadharNumber(kycDoc.getDocIdentifier());
-                    return new ApiResponse<>(dto);
-                }
-            }
-            if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
-                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
-                if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
-                    AadhaarAddressResponseDTO dto = new AadhaarAddressResponseDTO();
-                    dto.setAddress(lendingApplicationKycDetails.getAadharAddress());
-                    dto.setGender(lendingApplicationKycDetails.getGender());
-                    dto.setName(lendingApplicationKycDetails.getAadharName());
-                    dto.setDob(lendingApplicationKycDetails.getDob());
-                    dto.setAadharNumber(lendingApplicationKycDetails.getAadharIdentifier());
-                    dto.setState(lendingApplicationKycDetails.getAadharState());
-                    dto.setCity(lendingApplicationKycDetails.getAadharCity());
-                    dto.setPincode(lendingApplicationKycDetails.getAadharPinCode());
                     return new ApiResponse<>(dto);
                 }
             }
@@ -5295,7 +5263,7 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String mitcHtml = (String) apiResponse.data;
 
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
 
             fileName = lendingApplicationLenderDetails.getLeadId() + '_' + MITC_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
 
@@ -5371,7 +5339,7 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String gtcHtml = (String) apiResponse.data;
 
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
 
             fileName = lendingApplicationLenderDetails.getLeadId() + '_' + GTC_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
 
@@ -5446,7 +5414,7 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String loaHtml = (String) apiResponse.data;
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
                 fileName = lendingApplicationLenderDetails.getLeadId() + '_' + LOA_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
                 ByteArrayInputStream inStream = getLoanDocPdf(loaHtml, ApplicationDocType.LOA_DOC, lendingApplication, sanctionCompressionLevel);
                 if (ObjectUtils.isEmpty(inStream)) {
@@ -5542,7 +5510,7 @@ public class LendingApplicationServiceV2 {
             String applicationFormHtml = (String) apiResponse.data;
 
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
                 fileName = lendingApplicationLenderDetails.getLeadId() + '_' + AF_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
                 ByteArrayInputStream inStream = getLoanDocPdf(applicationFormHtml, ApplicationDocType.APPLICATION_FORM_DOC, lendingApplication, sanctionCompressionLevel);
                 if (ObjectUtils.isEmpty(inStream)) {

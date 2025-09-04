@@ -152,7 +152,7 @@ public class MFLeadService {
             if (Objects.isNull(updateLeadRequestDto) || leadPayloadValidation.isInValidPayload(lenderAssociationDetailsRequest.getCKycResponseDto())) {
                 log.info("error in update lead payload of Muthoot for applicationId: {}", lenderAssociationDetailsRequest.getApplicationId());
                 lenderAssociationDetailsRequest.setLendingApplicationLenderDetails(setLeadStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), LenderAssociationStatus.UPDATE_LEAD_FAILED.name()));
-                if ("KYC".equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage())) {
+                if ("LEAD_WRAPPER".equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage())) {
                     commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.UPDATE_LEAD_FAILED);
                 } else {
                     commonService.manageApplicationState(lenderAssociationDetailsRequest);
@@ -174,7 +174,7 @@ public class MFLeadService {
             log.error("error while pushing update lead of Muthoot for  {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsRequest.setLendingApplicationLenderDetails(setLeadStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), LenderAssociationStatus.UPDATE_LEAD_FAILED.name()));
-        if ("KYC".equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage())) {
+        if ("LEAD_WRAPPER".equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage())) {
             commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.UPDATE_LEAD_FAILED);
         } else {
             commonService.manageApplicationState(lenderAssociationDetailsRequest);
@@ -183,7 +183,7 @@ public class MFLeadService {
     }
 
     private LendingApplicationLenderDetails setLeadStatus(LendingApplicationLenderDetails lendingApplicationLenderDetails, String status) {
-        if ("KYC".equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+        if ("LEAD_WRAPPER".equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
             lendingApplicationLenderDetails.setKycStatus(status);
         } else {
             lendingApplicationLenderDetails.setSanctionStatus(status);
@@ -196,7 +196,7 @@ public class MFLeadService {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
             MFUpdateLeadRequestDTO payload = null;
-            if ("KYC".equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage())) {
+            if ("LEAD_WRAPPER".equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getStage())) {
                 payload = MFUpdateLeadRequestDTO.builder()
                         .customerID(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
                         .program("EDI")

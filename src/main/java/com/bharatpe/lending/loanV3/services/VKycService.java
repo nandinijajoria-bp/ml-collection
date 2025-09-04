@@ -104,7 +104,7 @@ public class VKycService {
                 log.info("No application found for given merchantId {} and applicationId {} for initiate vkyc", merchantId, applicationId);
                 return new ApiResponse<>(false, null, "No Application found for applicationId");
             }
-            LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lendingApplication.getLender());
+            LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lenderDetails) || ObjectUtils.isEmpty(lenderDetails.getLeadId())) {
                 log.info("No lender details or lead id found for given lender {} and applicationId {} for initiate vkyc", lendingApplication.getLender(), applicationId);
                 return new ApiResponse<>(false, null, "No Lender details found for given applicationId and lender");
@@ -163,7 +163,7 @@ public class VKycService {
                 log.info("No application found for given merchantId {} and applicationId {}", merchantId, applicationId);
                 return new ApiResponse<>(false, null, "No Application found for applicationId");
             }
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lender);
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lender);
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || ObjectUtils.isEmpty(lendingApplicationLenderDetails.getLeadId())) {
                 log.info("No lender details or leadId found for given lender {} and applicationId {}", lender, applicationId);
                 return new ApiResponse<>(false, null, "No Lender details found for given applicationId and lender");
@@ -224,7 +224,7 @@ public class VKycService {
                 log.info("No application found for applicationId {}", callbackRequest.getApplicationId());
                 return;
             }
-            LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lenderDetails)) {
                 log.info("No lender details found for given lender {} and applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
                 return;
@@ -279,7 +279,7 @@ public class VKycService {
                 log.info("No application found for given merchantId {} and applicationId {} for initiate dkyc", merchantId, applicationId);
                 return new ApiResponse<>(false, null, "No Application found for applicationId");
             }
-            LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lendingApplication.getLender());
+            LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lenderDetails) || ObjectUtils.isEmpty(lenderDetails.getLeadId())) {
                 log.info("No lender details or lead id found for given lender {} and applicationId {} for initiate dkyc", lendingApplication.getLender(), applicationId);
                 return new ApiResponse<>(false, null, "No Lender details found for given applicationId and lender");
@@ -430,15 +430,14 @@ public class VKycService {
 
     public Boolean skipVkycForInEligibleUsers(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         String lender = lenderAssociationDetailsRequestDto.getLendingApplication().getLender();
-        boolean topup = LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType());
-        if (!topup && (!vkycConfig.getEnabledLenders().contains(lender) || easyLoanUtil.percentScaleUp(lenderAssociationDetailsRequestDto.getMerchantId(), vkycConfig.getRolloutPercentage()))) {
-            return true; // skip vkyc logic to run only in case if vkyc is not enabled for the lender or merchant
+        if (!vkycConfig.getEnabledLenders().contains(lender)) {
+            return true;
         }
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.SKIP_VKYC.name());
         commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
         LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getApplicationId(), lender)
-                .orElseGet(()-> createPendingVkycDetailsRecord(lenderAssociationDetailsRequestDto.getLendingApplication()));
-        if (!topup && vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
+                .orElseGet(() -> createPendingVkycDetailsRecord(lenderAssociationDetailsRequestDto.getLendingApplication()));
+        if (!LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType()) && vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
             vkycDetails.setDkycEligible(true);
             lendingApplicationVkycDetailsDao.save(vkycDetails);
             ApiResponse<?> apiResponse = initiateDkyc(lenderAssociationDetailsRequestDto.getLendingApplication(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), vkycDetails);

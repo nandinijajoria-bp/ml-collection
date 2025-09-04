@@ -23,4 +23,5 @@ public class KYCStateDTO {
     private String convertedKycRanking;
     private String kycRanking;
     private String kycRankingStatus;
+    private boolean skipKycEligible;
 }
