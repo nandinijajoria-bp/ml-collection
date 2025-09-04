@@ -159,6 +159,7 @@ public class LendingMerchantLoansResponseDTO extends TopupEligibilityResponseDat
         private Integer ediCount;
         private String lender;
         private Integer dpd;
+        private Integer newDpd; // its stores value of loan_dpd for frontend to show message
         @JsonProperty(value = "showPaynow")
         private boolean showPaynow = true;
         @JsonProperty(value = "showCustomAmount")
