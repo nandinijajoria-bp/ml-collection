@@ -73,6 +73,12 @@ public class NachBounceChargesService {
     @Value("${creditsaison.charges.rollout.date:-}")
     private String creditSaisonChargesRolloutDate;
 
+    @Value("${dpd.penalty.ugro.rollout.date}")
+    String dpdPenaltyUgroLoansRolloutDate;
+
+    @Value("${ugro.nach.bounce.charge:500}")
+    Integer ugroNachBounceCharge;
+
     public Double getNachCharges(LendingPaymentSchedule lendingPaymentSchedule) {
         Double nachCharges = 0d;
         boolean isNachBounceApplicable = checkNachBounceCharges(lendingPaymentSchedule);
@@ -119,6 +125,9 @@ public class NachBounceChargesService {
             case "CREDITSAISON":
                 return creditSaisonChargesRolloutDate;
 
+            case"UGRO" :
+                return dpdPenaltyUgroLoansRolloutDate;
+
             default:
               return null;
         }
@@ -132,6 +141,8 @@ public class NachBounceChargesService {
                 return payUNachBounceCharge;
             case "CREDITSAISON":
                 return creditSaisonNachBounceCharge;
+            case "UGRO":
+                return ugroNachBounceCharge;
             default:
                 return null;
         }

@@ -491,6 +491,7 @@ public class LoanUtil {
 		nachBounceAmountConfig.put("LIQUILOANS_NBFC", 500.0);
 		nachBounceAmountConfig.put("PAYU", 500.0);
 		nachBounceAmountConfig.put("OXYZO", 500.0);
+		nachBounceAmountConfig.put("UGRO", 500.0);
 		nachBounceAmountConfig.put("LIQUILOANS_P2P_OF", 650.0);
 		nachBounceAmountConfig.put("LIQUILOANS_P2P", 650.0);
 	}
