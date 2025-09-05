@@ -719,7 +719,7 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
+        boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlowV2(merchant.getId(), null);
         if (applicationRequest.getApplicationId() == null) {
             if(isApplicableForAggregationFlow) {
                 updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
