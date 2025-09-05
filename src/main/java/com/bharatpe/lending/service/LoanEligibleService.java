@@ -841,11 +841,15 @@ public class LoanEligibleService {
                         }
 
                         //fetch from lender removed from lending audit trial
+                        Set<String> ineligibleLendersSet = new HashSet<>(ineligibleLenders);
+
                         for (String activeLender : activeLenders) {
                             if (!lenderNames.contains(activeLender)) {
-                                ineligibleLenders.add(activeLender);
+                                ineligibleLendersSet.add(activeLender);
                             }
                         }
+
+                        ineligibleLenders = new ArrayList<>(ineligibleLendersSet);
 
                         AsyncLoggerUtil.logInfo(logger, "Complete ineligible lenders list: {} for merchantId: {}",
                                 ineligibleLenders, merchantId);
