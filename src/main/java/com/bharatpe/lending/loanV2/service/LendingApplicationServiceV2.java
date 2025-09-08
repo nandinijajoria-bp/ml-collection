@@ -721,7 +721,7 @@ public class LendingApplicationServiceV2 {
 
         boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlowV2(merchant.getId(), null);
         LendingApplication inProgressLoanApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
-        if (inProgressLoanApplication != null) {
+        if (inProgressLoanApplication == null) {
             // We have an in-progress application
             if (isApplicableForAggregationFlow) {
                 updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
