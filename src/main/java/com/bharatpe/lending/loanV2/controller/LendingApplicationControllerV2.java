@@ -183,4 +183,24 @@ public class LendingApplicationControllerV2 {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping(value = "/additional-details/save", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> captureShopAndBusinessDetails(@RequestHeader("token") String token,
+                                                           @RequestAttribute BasicDetailsDto merchant,
+                                                           @RequestBody SaveMerchantDetailsDto saveMerchantDetailsDto) {
+        try {
+            ApiResponse<?> response = lendingApplicationServiceV2.saveAddressAndBusinessName(merchant, saveMerchantDetailsDto).getBody();
+            log.info("save additional-details response:{} for merchant:{}", response, merchant.getId());
+
+            if (response.isSuccess()) {
+                return ResponseEntity.ok(response); // 200 OK
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response); // 400 Bad Request
+            }
+        } catch (Exception e) {
+            log.error("Error while saving additional details for merchant: {}", merchant.getId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Internal server error")); // 500 Internal Server Error
+        }
+    }
+
 }

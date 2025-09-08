@@ -4,6 +4,7 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV2.dto.EmiEligibility;
@@ -62,5 +63,8 @@ public class EligibilityStateDTO {
     private String dob;
     private Long refreshCountDownMinutes;
     private Long merchantId;
+    private Boolean showShopDetailsOnBankDisbursementPage;
+    private AddressDetails addressDetails;
+    private String businessName;
 
 }

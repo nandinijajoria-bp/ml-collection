@@ -109,8 +109,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
@@ -5377,6 +5380,75 @@ public class LendingApplicationServiceV2 {
         } catch (Exception e) {
             log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+    }
+
+
+    @Transactional
+    public ResponseEntity<ApiResponse<?>> saveAddressAndBusinessName(BasicDetailsDto merchant, SaveMerchantDetailsDto saveMerchantDetailsDto) {
+        log.info("Capture address & business name for merchant:{}", merchant.getId());
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ApiResponse<>(false, "Open application not found."));
+            }
+
+            AddressValidationDto addressValidationDto = getAddressValidationScore(saveMerchantDetailsDto.getAddressDetails());
+            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                log.info("address quality score less than 20");
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ApiResponse<>(false, "Address quality score less than 20"));
+            }
+
+            if (!ObjectUtils.isEmpty(saveMerchantDetailsDto.getBusinessName())) {
+                boolean isUpdated = merchantService.updateMerchantBusinessName(merchant.getId(), saveMerchantDetailsDto.getBusinessName());
+                if (isUpdated) {
+                    LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+                    lendingMerchantDetails.setBusinessName(saveMerchantDetailsDto.getBusinessName());
+                    lendingMerchantDetailsDao.save(lendingMerchantDetails);
+                    log.info("Business name updated for application: {}", lendingApplication.getId());
+                    lendingApplication.setBusinessName(saveMerchantDetailsDto.getBusinessName());
+                }
+            }
+
+            if (Objects.nonNull(saveMerchantDetailsDto.getAddressDetails())) {
+                ReqAddAddress reqAddAddress = createMerchantAddAddressRequest(merchant.getId(), saveMerchantDetailsDto.getAddressDetails());
+                merchantService.addAddress(merchant.getId(), reqAddAddress);
+
+                AddressDetails addressDetails = saveMerchantDetailsDto.getAddressDetails();
+                lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
+                lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getArea()) ? addressDetails.getArea() : lendingApplication.getArea());
+                lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
+                lendingApplication.setState(!StringUtils.isEmpty(addressDetails.getState()) ? addressDetails.getState() : lendingApplication.getState());
+                lendingApplication.setShopNumber(!StringUtils.isEmpty(addressDetails.getAddress1()) ?
+                        addressDetails.getAddress1().substring(0, Math.min(addressDetails.getAddress1().length(), 98)) : lendingApplication.getShopNumber());
+                lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
+                lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
+            }
+
+            lendingApplicationDao.save(lendingApplication);
+            log.info("Shop address & business name updated for application: {}", lendingApplication.getId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Address & Business name updated successfully")); // 200 OK
+        } catch (Exception e) {
+            log.error("Exception while capturing address & business name for merchant : {}, {}, {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Internal server error"));
+        }
+    }
+
+    private ReqAddAddress createMerchantAddAddressRequest(Long merchantId, AddressDetails addressDetails) {
+        log.info("Create add address request for merchant: {}", merchantId);
+        ReqAddAddress reqAddAddress = new ReqAddAddress();
+        reqAddAddress.setPincode(addressDetails.getPincode());
+        reqAddAddress.setArea(addressDetails.getArea());
+        reqAddAddress.setCity(addressDetails.getCity());
+        reqAddAddress.setState(addressDetails.getState());
+        reqAddAddress.setAddress1(addressDetails.getAddress1());
+        reqAddAddress.setAddress2(addressDetails.getAddress2());
+        reqAddAddress.setLandmark(addressDetails.getLandmark());
+        reqAddAddress.setType("Shop/Office");
+        log.info("Add address request for merchant:{} {}", merchantId, reqAddAddress);
+        return reqAddAddress;
     }
 
     private boolean shouldSkipVkycVerificationForCS(LendingApplication lendingApplication, LendingApplicationVkycDetails vkycDetails) {

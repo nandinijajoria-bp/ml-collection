@@ -24,10 +24,7 @@ import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.MongoLogPublisher;
 import com.bharatpe.lending.common.service.PennyDropService;
-import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
-import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
+import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -44,6 +41,7 @@ import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -52,6 +50,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
@@ -437,6 +436,9 @@ public class LoanUtil {
 	String nbfcBaseUrl;
 	@Value("${fore.closure.charges.rollout.date.PIRAMAL:2025-02-20 00:00}")
 	String piramalForeClosureChargesRolloutDate;
+
+	@Value("${shopDetails.bankDisbursement.page.rollout:0}")
+	Integer shopDetailsOnBankDisbursementRolloutPercent;
 	@Autowired
 	PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 	@Autowired
@@ -463,6 +465,9 @@ public class LoanUtil {
 	@Autowired
 	@Qualifier("accountInfoTaskExecutor")
 	private Executor accountInfoExecutor;
+
+	@Autowired
+	LoanDetailsV3Service loanDetailsV3Service;
 
 	private Map<String, Double> nachBounceAmountConfig;
 
@@ -3750,5 +3755,115 @@ public class LoanUtil {
 		}
 		return DateTimeUtil.parseDate(property.trim(), "yyyy-MM-dd HH:mm:ss");
 	}
+
+	public boolean showShopDetailsOnBankDisbursementPage(String token, Long merchantId, LendingApplication lendingApplication, Map<String, Object> shopDetailsData) {
+		// Check rollout flag
+		if (!easyLoanUtil.percentScaleUp(merchantId, shopDetailsOnBankDisbursementRolloutPercent)) {
+			return false;
+		}
+
+		// Get Experian details
+		Experian experian = experianDao.getByMerchantId(merchantId);
+		if(ObjectUtils.isEmpty(experian) || ObjectUtils.isEmpty(experian.getPincode())) {
+			logger.info("Empty experian or pincode for merchant: {}", merchantId);
+			return false;
+		}
+
+		String businessName = getBusinessName(merchantId, lendingApplication);
+		AddressDetails addressDetails = fetchAddress(token, merchantId, lendingApplication, experian.getPincode().toString());
+
+		// ---------- Final check ----------
+		if (!ObjectUtils.isEmpty(businessName) && !ObjectUtils.isEmpty(addressDetails)) {
+			shopDetailsData.put("businessName", businessName);
+			shopDetailsData.put("address", addressDetails);
+			return true;
+		}
+		return false;
+	}
+
+	private AddressDetails fetchAddress(String token, Long merchantId, LendingApplication lendingApplication, String pincode) {
+		AddressDetails addressDetails = new AddressDetails();
+		if (lendingApplication == null) {
+			logger.info("Lending application is null. Fetching address from merchant service for merchant: {}", merchantId);
+			addressDetails = getAddressOfMerchant(token, merchantId, pincode);
+		} else {
+			if(loanDetailsV3Service.isAddressComplete(lendingApplication)) {
+				addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
+				addressDetails.setArea(lendingApplication.getArea());
+				addressDetails.setLandmark(lendingApplication.getLandmark());
+				addressDetails.setAddress2(lendingApplication.getStreetAddress());
+				addressDetails.setAddress1(lendingApplication.getShopNumber());
+				addressDetails.setCity(lendingApplication.getCity());
+				addressDetails.setState(lendingApplication.getState());
+				return addressDetails;
+			}
+		}
+		return addressDetails;
+	}
+
+	public String getBusinessName(Long merchantId, LendingApplication lendingApplication) {
+		String businessName = null;
+		if (lendingApplication == null || ObjectUtils.isEmpty(lendingApplication.getBusinessName())) {
+			logger.info("Business name not found in lending application. Fetching from merchant service for merchant: {}", merchantId);
+
+			MerchantDetailsDto merchantDetails = merchantService.fetchMerchantDetails(merchantId);
+			if (merchantDetails != null && merchantDetails.getMerchantDetail() != null) {
+				businessName = merchantDetails.getMerchantDetail().getBussinessName();
+			}
+
+			if (ObjectUtils.isEmpty(businessName)) {
+				logger.info("Business name not found in merchant service for merchant: {}", merchantId);
+			}
+		} else {
+			businessName = lendingApplication.getBusinessName();
+		}
+		return businessName;
+	}
+
+
+	public AddressDetails getAddressOfMerchant(String token, Long merchantId,String pincode) {
+		MerchantDto merchantDto = new MerchantDto();
+		merchantDto.setMerchantId(merchantId);
+		ListMerchantAddressResponseDto addressResponse = merchantService.getAddress(merchantDto, token);
+		logger.info("Address response from Merchant Service: {}", addressResponse);
+
+		if (!ObjectUtils.isEmpty(addressResponse) && !CollectionUtils.isEmpty(addressResponse.getAddress())) {
+			// Filter addresses that have required fields and matching pincode
+			Optional<Long> validAddressId = addressResponse.getAddress().stream()
+					.filter(address -> address.getAddress() != null &&
+							address.getAdd2() != null &&
+							address.getArea() != null &&
+							address.getPincode() != null &&
+							address.getPincode().equals(pincode))
+					.max(Comparator.comparing(ListMerchantAddressResponseDto.Address::getId))
+					.map(ListMerchantAddressResponseDto.Address::getId);
+			logger.info("Valid address ID with matching pincode: {}", validAddressId);
+
+			if (!validAddressId.isPresent()) {
+				logger.info("No valid address found with matching pincode: {}", pincode);
+				return null;
+			}
+
+			ListMerchantAddressResponseDto.Address latestAddress = addressResponse.getAddress().stream()
+					.filter(address -> address.getId().equals(validAddressId.get()))
+					.findFirst()
+					.orElse(null);
+			logger.info("Latest address: {}", latestAddress);
+
+			if (!ObjectUtils.isEmpty(latestAddress)) {
+				AddressDetails addressDetails = new AddressDetails();
+				addressDetails.setPincode(latestAddress.getPincode());
+				addressDetails.setAddress2(latestAddress.getAdd2());
+				addressDetails.setAddress1(latestAddress.getAddress());
+				addressDetails.setLandmark(latestAddress.getLandmark());
+				addressDetails.setCity(latestAddress.getCity());
+				addressDetails.setState(latestAddress.getState());
+				addressDetails.setArea(latestAddress.getArea());
+				return addressDetails;
+			}
+		}
+		return null;
+	}
+
 }
 
