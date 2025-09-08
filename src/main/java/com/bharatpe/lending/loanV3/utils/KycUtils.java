@@ -491,6 +491,9 @@ public class KycUtils {
                 lendingApplicationKycDetails.setPan(prevKycDetails.getPan());
                 lendingApplicationKycDetails.setPanApprovedAt(prevKycDetails.getPanApprovedAt());
                 lendingApplicationKycDetails.setKycInitiatedAt(prevKycDetails.getKycInitiatedAt());
+                lendingApplicationKycDetails.setConsentDate(prevKycDetails.getConsentDate());
+                lendingApplicationKycDetails.setSelfieImage(prevKycDetails.getSelfieImage());
+                lendingApplicationKycDetails.setPanUrl(prevKycDetails.getPanUrl());
             }
             lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
         }
