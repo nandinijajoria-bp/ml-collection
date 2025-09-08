@@ -966,15 +966,10 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Draft application not found");
             }
             else {
-                //ADD assign lender logic here to save the updated lender details
-                //lenderAssignService.assignLender(lendingApplication.getId(), merchant, applicationRequest);
-
-                Map<String, Object> response = assignLender(lendingApplication.getId(), merchant, applicationRequest);
-                if (Objects.nonNull(response) && response.containsKey("success") && response.get("success").equals(true)){
+                log.info("Draft application found for id:{}", applicationRequest.getApplicationId());
+                if(applicationRequest.getEligibleLoanDTO() != null) {
                     updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
-                    AsyncLoggerUtil.logInfo(log, "lender assigned successfully", response);
                 }
-                updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 AddressValidationDto addressValidationDto = null;
                 if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {
                     addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
@@ -1481,9 +1476,8 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setEmail(!StringUtils.isEmpty(additionalDetails.getEmail()) ? additionalDetails.getEmail() : lendingApplication.getEmail());
                 lendingApplication.setAlternateMobile(!StringUtils.isEmpty(additionalDetails.getAlternateContact()) ? additionalDetails.getAlternateContact() : lendingApplication.getAlternateMobile());
             }
-            LendingGstDetail lendingGstDetail = null;
             if (applicationRequest.getProfessionalDetails() != null) {
-                lendingGstDetail = saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
+                 saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
             }
             saveAddressQltyDetails(lendingApplication,addressValidationDto);
             lendingApplication.setBusinessName(
