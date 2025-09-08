@@ -22,6 +22,8 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -99,8 +101,10 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
                 eligibilityStateDTO.setExperian(experian);
 
                 Map<String, Object> shopDetailsData = new HashMap<>();
-                LendingApplication prevApplication = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(scopeDataArgs.getMerchant().getId(), Long.valueOf(experian.getPincode())).get(0);
-                boolean showShopDetailsOnBankDisbursementPage = loanUtil.showShopDetailsOnBankDisbursementPage(scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), prevApplication, shopDetailsData);
+                List<LendingApplication> prevApplications = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(scopeDataArgs.getMerchant().getId(), Long.valueOf(experian.getPincode()));
+                LendingApplication lendingApplication =
+                        CollectionUtils.isEmpty(prevApplications) ? null : prevApplications.get(0);
+                boolean showShopDetailsOnBankDisbursementPage = loanUtil.showShopDetailsOnBankDisbursementPage(scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), lendingApplication, shopDetailsData);
                 if(showShopDetailsOnBankDisbursementPage) {
                     eligibilityStateDTO.setShowShopDetailsOnBankDisbursementPage(true);
                     eligibilityStateDTO.setBusinessName((String) shopDetailsData.get("businessName"));

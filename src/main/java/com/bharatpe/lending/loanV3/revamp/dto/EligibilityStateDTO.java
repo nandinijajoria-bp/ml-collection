@@ -63,7 +63,7 @@ public class EligibilityStateDTO {
     private String dob;
     private Long refreshCountDownMinutes;
     private Long merchantId;
-    private Boolean showShopDetailsOnBankDisbursementPage;
+    private boolean showShopDetailsOnBankDisbursementPage;
     private AddressDetails addressDetails;
     private String businessName;
 
