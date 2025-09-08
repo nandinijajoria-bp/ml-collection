@@ -1297,7 +1297,7 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setOfferIncreased(eligibilityStateDTO.getOfferIncreased());
         loanDetailsV3Response.setPreviousFinalOffer(eligibilityStateDTO.getPreviousFinalOffer());
         loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
-        loanDetailsV3Response.setShowShopDetailsOnBankDisbursementPage(eligibilityStateDTO.getShowShopDetailsOnBankDisbursementPage());
+        loanDetailsV3Response.setShowShopDetailsOnBankDisbursementPage(eligibilityStateDTO.isShowShopDetailsOnBankDisbursementPage());
         loanDetailsV3Response.setAddressDetails(eligibilityStateDTO.getAddressDetails());
         loanDetailsV3Response.setBusinessName(eligibilityStateDTO.getBusinessName());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
