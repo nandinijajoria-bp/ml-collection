@@ -189,7 +189,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 {
                     if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), scopeDataArgs.getMerchant().getId()))){
                         if (loanUtil.isApplicableForAggregationFlow(scopeDataArgs.getMerchant().getId(), lendingApplication.getId())) {
-                            return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
+                            return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.KYC_PAGE);
                         }
                     }
 
