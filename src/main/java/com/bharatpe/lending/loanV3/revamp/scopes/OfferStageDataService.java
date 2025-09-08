@@ -66,7 +66,7 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
             lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_AGGREGATION);
         } else if(lendingStateDTO.getData().getIsPreapprovedRepeatLoan()){
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
-        } else if(lendingStateDTO.getData().getShowShopDetailsOnBankDisbursementPage()) {
+        } else if(lendingStateDTO.getData().isShowShopDetailsOnBankDisbursementPage()) {
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_PICTURES_PAGE);
         }else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
