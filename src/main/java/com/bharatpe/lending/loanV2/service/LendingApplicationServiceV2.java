@@ -720,14 +720,17 @@ public class LendingApplicationServiceV2 {
         }
 
         boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlowV2(merchant.getId(), null);
-        if (applicationRequest.getApplicationId() == null) {
-            if(isApplicableForAggregationFlow) {
+        LendingApplication inProgressLoanApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+        if (inProgressLoanApplication != null) {
+            // We have an in-progress application
+            if (isApplicableForAggregationFlow) {
                 updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 return createNewApplicationV2(merchant, applicationRequest);
-            }
-            else
+            } else {
                 return createNewApplication(merchant, applicationRequest);
+            }
         } else {
+            // No in-progress application exists
             if (isApplicableForAggregationFlow) {
                 return updateApplicationV2(merchant, applicationRequest);
             } else {
