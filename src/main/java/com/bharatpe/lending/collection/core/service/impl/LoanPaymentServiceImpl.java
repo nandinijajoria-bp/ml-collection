@@ -240,7 +240,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
         log.info("got order for loanId:{} orderId:{} order:{}", loan.getId(), payment.getOrderId(), order);
         ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getDescription(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
-        ledgerAdjustmentService.adjustPenaltyLedger(loan, otherAdjustment, payment.getSource(), false);
+        ledgerAdjustmentService.adjustPenaltyLedger(loan, otherAdjustment, payment.getSource(), false, payment.getTerminalOrderId());
         if (payment.isUpdateGlobalTxnlimit()) updateGlobaltxnLimit(loan.getMerchantId(), "CREDIT", otherAdjustment.getPrincipleSettled());
     }
 
@@ -391,7 +391,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             ledgerAdjustmentService.adjustNachLedger(lendingCollectionExcess, nachAdjustment);
             String terminalOrderId = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + lendingCollectionExcess.getDeductionCount().toString();
             ledgerAdjustmentService.adjustLendingLedger(loan, nachAdjustment, order, terminalOrderId, adjustmentMode, transferType, terminalOrderId);
-            ledgerAdjustmentService.adjustPenaltyLedger(loan, nachAdjustment, source, false);
+            ledgerAdjustmentService.adjustPenaltyLedger(loan, nachAdjustment, source, false, terminalOrderId);
         }
     }
 
@@ -675,7 +675,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             // Charges Apportionment Adjustment
             PaymentCalculation chargesAdjuest = adjustChargesService.checkAndAdjustChargesApportionment(loan, paidPenalty);
             chargesAdjuest.setPenaltySettled(paidPenalty);
-            ledgerAdjustmentService.adjustPenaltyLedger(loan, chargesAdjuest, payment.getSource(), false);
+            ledgerAdjustmentService.adjustPenaltyLedger(loan, chargesAdjuest, payment.getSource(), false, payment.getTerminalOrderId());
 
             if (surplusAmount > 0 && EDI_BY_EDI.name().equalsIgnoreCase(settlementMechanism) ) {
                 log.info("Extra principle received for loanId:{} and extra amount:{}", loan.getId(), surplusAmount);
