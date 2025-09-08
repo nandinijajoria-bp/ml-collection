@@ -288,13 +288,13 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
 
     @Override
-    public void adjustPenaltyLedger(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation, String source, boolean waveOff) {
+    public void adjustPenaltyLedger(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation, String source, boolean waveOff, String terminalOrderId) {
         double amount = paymentCalculation.getPenaltySettled();
 
         // New flow Save PenaltyFeeLedger and penal charges with apportionment
         if (paymentCalculation.isChargeApportioned() && amount > 0.5) {
             PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), amount, source,
-                    waveOff, loan.getNbfc(), paymentCalculation.getNachBounceSettled(), paymentCalculation.getPenalChargesSettled());
+                    waveOff, loan.getNbfc(), paymentCalculation.getNachBounceSettled(), paymentCalculation.getPenalChargesSettled(), terminalOrderId);
             penaltyFeeLedgerDao.save(penaltyFeeLedger);
             savePenalChargesWithApportionment(loan, paymentCalculation);
         } else if (amount > 0.5) {
