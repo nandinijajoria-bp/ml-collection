@@ -784,8 +784,8 @@ public class MerchantLoansService {
                 .collect(Collectors.toList());
         log.info("Topup loans eligibility for merchant: {} is: {}",merchantId, topUpLoans);
         if (!topUpLoans.isEmpty()) {
-            Double foreclosureAmount = getForeclosureAmount(merchantId);
-            Double minimumAllowedAmount = getMinimumAllowedAmount(foreclosureAmount,lendingPaymentSchedule.getNbfc());
+            int foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+            Double minimumAllowedAmount = getMinimumAllowedAmount((double) foreclosureAmount,lendingPaymentSchedule.getNbfc());
             Double minimumAmount = 10000 * Math.ceil(minimumAllowedAmount / 10000.0);
             Double highestAmount = getHighestAmount(topUpLoans);
             List<String> tenures = topUpLoans.stream()
@@ -2175,9 +2175,9 @@ public class MerchantLoansService {
                     return eligibility;
                 }
 
+                int foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                 if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
-                    int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-                    if (eligibleAmount - posAmount < 10000) {
+                    if (eligibleAmount - foreclosureAmount < 10000) {
                         addRejectionReason(eligibility, "Outstanding amount less than 10k");
                         log.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
                         return eligibility;
@@ -2200,8 +2200,7 @@ public class MerchantLoansService {
                     }
                 }
 
-                Double foreclosureAmount = getForeclosureAmount(lendingApplication.getMerchantId());
-                Double minimumAllowedAmount = getMinimumAllowedAmount(foreclosureAmount,lendingPaymentSchedule.getNbfc());
+                Double minimumAllowedAmount = getMinimumAllowedAmount((double)foreclosureAmount,lendingPaymentSchedule.getNbfc());
                 Double minimumAmount = 10000 * Math.ceil(minimumAllowedAmount / 10000.0);
                 List<LendingEligibleLoan> loansByMinimumAmount = loanDetailsServiceV2.recomputeEligibleLoanV2(globalLimitResponse, minimumAmount, lendingPaymentSchedule.getMerchantId());
 
