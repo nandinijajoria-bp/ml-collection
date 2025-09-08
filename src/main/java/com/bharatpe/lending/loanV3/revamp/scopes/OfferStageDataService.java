@@ -2,9 +2,12 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -13,6 +16,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -47,6 +54,9 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
     @Override
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -54,7 +64,9 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
             lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_AGGREGATION);
         } else if(lendingStateDTO.getData().getIsPreapprovedRepeatLoan()){
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
-        } else{
+        } else if(lendingStateDTO.getData().getShowShopDetailsOnBankDisbursementPage()) {
+            lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_PICTURES_PAGE);
+        }else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
         }
         return lendingStateDTO;
@@ -85,10 +97,19 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
                 eligibilityStateDTO.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
                 eligibilityStateDTO.setHasExperian(true);
                 eligibilityStateDTO.setExperian(experian);
+
+                Map<String, Object> shopDetailsData = new HashMap<>();
+                LendingApplication prevApplication = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(scopeDataArgs.getMerchant().getId(), Long.valueOf(experian.getPincode())).get(0);
+                boolean showShopDetailsOnBankDisbursementPage = loanUtil.showShopDetailsOnBankDisbursementPage(scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), prevApplication, shopDetailsData);
+                if(showShopDetailsOnBankDisbursementPage) {
+                    eligibilityStateDTO.setShowShopDetailsOnBankDisbursementPage(true);
+                    eligibilityStateDTO.setBusinessName((String) shopDetailsData.get("businessName"));
+                    eligibilityStateDTO.setAddressDetails((AddressDetails) shopDetailsData.get("address"));
+                }
             }
             eligibilityStateDTO.setKycPanStatus(kycHandler.getPanStatus(scopeDataArgs.getMerchant().getId()));
-
             eligibilityStateDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(scopeDataArgs.getMerchant().getId()));
+
             eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
 
             if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){

@@ -271,4 +271,17 @@ public class LoanDetailsControllerV2 {
         return ResponseEntity.ok(loanDetailsServiceV2.updateDocSkipData(merchant, docSkip));
     }
 
+
+    @GetMapping(value = "/additional-details/version")
+    public ResponseEntity<?> getAdditionalDetails(@RequestHeader(value = "token", required = false) String token,
+                                                  @RequestAttribute(required = true) BasicDetailsDto merchant) {
+        if (Objects.isNull(merchant) || Objects.isNull(merchant.getId())) {
+            log.info("Incorrect request details");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, "Invalid merchant details"));
+        }
+        log.info("Fetching version details for merchant : {}", merchant.getId());
+        return loanDetailsServiceV2.getAdditionalDetailsVersion(merchant.getId(), token);
+    }
+
 }

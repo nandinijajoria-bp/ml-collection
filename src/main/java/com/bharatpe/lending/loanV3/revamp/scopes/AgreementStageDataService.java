@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.AgreementResponse;
 import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
@@ -68,6 +69,8 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         LoanInsuranceDTO insuranceDetails = insuranceService.fetchLenderInsurancePremiumDetails(lendingApplication);
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+        Map<String, Object> shopDetailsData = new HashMap<>();
+        boolean showShopDetails = showShopDetails(scopeDataArgs.getLoanDetailsV3Request().getVersion(), lendingApplication, scopeDataArgs.getToken(), shopDetailsData);
         AgreementStateDTO agreementResponseV3 = AgreementStateDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender(lendingApplication.getLender())
@@ -85,6 +88,10 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                         .interest(lendingApplication.getRepayment() - lendingApplication.getLoanAmount())
                         .total(lendingApplication.getRepayment())
                         .build())
+                .businessName(showShopDetails ? (String) shopDetailsData.get("businessName") : null)
+                .addressDetails(showShopDetails
+                        ? (AddressDetails) shopDetailsData.get("address")
+                        : null)
                 .accountDetails(loanUtil.getAccountDetails(lendingApplication.getMerchantId()))
                 .enachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId()))
                 .loanInsurances(insuranceDetails.getInsurances())
@@ -107,4 +114,10 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         }
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.KEY_FACTOR_STATEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
     }
+
+    private boolean showShopDetails(String version, LendingApplication lendingApplication, String token, Map<String, Object> shopDetailsData) {
+        return "v2".equalsIgnoreCase(version) &&
+                loanUtil.showShopDetailsOnBankDisbursementPage(token, lendingApplication.getMerchantId(), lendingApplication, shopDetailsData);
+    }
+
 }

@@ -31,6 +31,7 @@ public class LoanDetailsV3Request {
     private boolean kycSuccess;
 
     private boolean isShopPhotoStepCompleted;
+    private String version;
 
 //    private boolean isIOS = false;
 }
