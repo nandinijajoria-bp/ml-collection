@@ -156,9 +156,10 @@ public class NbfcUtils {
         boolean isApplicableForAggregationFlow =
                 !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(lendingApplication.getId(), lendingApplication.getMerchantId()))
                         || !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), lendingApplication.getMerchantId()));
+        log.info("isApplicableForAggregationFlow {} for applicationId {} and lender {}", isApplicableForAggregationFlow, lendingApplication.getId(), lendingApplication.getLender());
         if (enableLenderChange) {
             log.info("changing lender for the application {}", lendingApplication.getId());
-            if(!Arrays.asList(LendingViewStates.SHOP_DETAILS_PAGE.name(), LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
+            if(!Arrays.asList(LendingViewStates.LENDER_AGGREGATION.name(),LendingViewStates.OFFER_EVALUATION_PAGE.name(),LendingViewStates.SHOP_DETAILS_PAGE.name(), LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
                     || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                 log.info("skipping lender change and rejecting application as agreement already done / lendingViewState {} for application is not correct for applicationId {}", lendingApplicationDetails.getApplicationViewState(), lendingApplication.getId());
                 lendingApplication.setStatus("rejected");

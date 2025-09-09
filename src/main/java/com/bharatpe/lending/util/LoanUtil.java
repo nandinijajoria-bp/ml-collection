@@ -3126,6 +3126,7 @@ public class LoanUtil {
 			if(applicationId != null) {
 				LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.OFFER_EVALUATION_PAGE.name());
 				if(!ObjectUtils.isEmpty(lendingAuditTrial) && !StringUtils.isEmpty(lendingAuditTrial.getOldStatus())) {
+					logger.info("Lender aggregation screen already shown for applicationId {} is {}", applicationId, lendingAuditTrial.getOldStatus());
 					return lendingAuditTrial.getOldStatus();
 				}
 			}
@@ -3134,12 +3135,13 @@ public class LoanUtil {
 			if(ObjectUtils.isEmpty(experimentConfigResponseDTO)) {
 				return null;
 			} else {
+				logger.info("Lender aggregation screen for applicationId {} is {}", applicationId, experimentConfigResponseDTO.getVariationId());
 				return experimentConfigResponseDTO.getVariationId();
 			}
 		} catch (Exception ex) {
 			logger.error("Exception occurred while getting lender aggregation screen: {}", ex.getMessage());
-			return null;
 		}
+		return null;
 	}
 
 	public String getLenderAggregationScreen(Long applicationId, Long MerchantId) {
