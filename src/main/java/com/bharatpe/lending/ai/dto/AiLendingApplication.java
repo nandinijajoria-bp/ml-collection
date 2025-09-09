@@ -13,7 +13,6 @@ import java.util.Date;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AiLendingApplication extends AiBaseEntity {
     private Long merchantId;
-    private String email;
     private String shopNumber;
     private String streetAddress;
     private String area;
@@ -99,7 +98,6 @@ public class AiLendingApplication extends AiBaseEntity {
         super(lendingApplication);
         if (lendingApplication != null) {
             this.merchantId = lendingApplication.getMerchantId();
-            this.email = lendingApplication.getEmail();
             this.shopNumber = lendingApplication.getShopNumber();
             this.streetAddress = lendingApplication.getStreetAddress();
             this.area = lendingApplication.getArea();
