@@ -3124,7 +3124,8 @@ public class LoanUtil {
 	public String getLenderAggregationScreenV2(Long applicationId, Long merchantId) {
 		try {
 			if(applicationId != null) {
-				LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.OFFER_EVALUATION_PAGE.name());
+				LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findTopByApplicationIdAndType(applicationId, LendingViewStates.OFFER_EVALUATION_PAGE.name());
+
 				if(!ObjectUtils.isEmpty(lendingAuditTrial) && !StringUtils.isEmpty(lendingAuditTrial.getOldStatus())) {
 					logger.info("Lender aggregation screen already shown for applicationId {} is {}", applicationId, lendingAuditTrial.getOldStatus());
 					return lendingAuditTrial.getOldStatus();
