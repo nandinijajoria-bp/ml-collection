@@ -944,6 +944,11 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if(lendingApplication.isPresent()){
 
+            if(loanUtil.isApplicableForAggregationFlowV2(applicationId,lendingApplication.get().getMerchantId())){
+                log.info("Lender aggregation screen v2 is enabled for application id : {} and merchant id : {}", applicationId, lendingApplication.get().getMerchantId());
+                return null;
+            }
+
             log.info("EDI MODEL -> {}", EdiModel.valueOf(ediModel));
             return assignLender(lendingApplication.get(), EdiModel.valueOf(ediModel), null, isApplicableForAggregationFlow).getLender();
 //            return null;
