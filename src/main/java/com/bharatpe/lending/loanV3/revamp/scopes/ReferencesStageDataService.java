@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.HashMap;
 
 @Component
 @Slf4j
@@ -81,8 +82,12 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 log.info("Lending Application Details not found for applicationId: {}", lendingApplication.getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
             }
-            referenceStateDTO.setIsAadhaarAddressVerified(!ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
-            referenceStateDTO.setLoanPurpose(lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
+
+            boolean showShopDetails = loanUtil.showShopDetailsOnBankDisbursementPage(
+                    scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), lendingApplication, new HashMap<>());
+
+            referenceStateDTO.setIsAadhaarAddressVerified(showShopDetails || !ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
+            referenceStateDTO.setLoanPurpose(!showShopDetails && lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
 
             if(!ObjectUtils.isEmpty(scopeDataArgs.getMerchant())) {
                 referenceStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));

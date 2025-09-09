@@ -34,7 +34,7 @@ public interface LoanPaymentLedgerAdjustmentService {
 
     void settleExcessCollectionBalance(Long loanId, List<LendingCollectionExcess> lendingCollectionExcessList);
 
-    void adjustPenaltyLedger(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation, String source, boolean waveOff);
+    void adjustPenaltyLedger(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation, String source, boolean waveOff, String terminalOrderId);
 
 
     void createAutoPayUpiExcessCreditAuditEntry(LendingCollectionExcess lendingCollectionExcess, LendingPaymentSchedule lendingPaymentSchedule, Double refundAmount);

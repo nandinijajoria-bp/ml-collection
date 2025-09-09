@@ -30,10 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -134,10 +131,14 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
 
 
         loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
-        return new LendingStateDTO<>(responseDto, getNextLendingViewState(lendingApplication), LendingViewStates.LENDER_AGGREGATION);
+        return new LendingStateDTO<>(responseDto, getNextLendingViewState(scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), lendingApplication), LendingViewStates.LENDER_AGGREGATION);
     }
 
-    private LendingViewStates getNextLendingViewState(LendingApplication lendingApplication) {
+    private LendingViewStates getNextLendingViewState(String token, Long merchantId, LendingApplication lendingApplication) {
+        boolean showShopDetailsOnBankDisbursement = loanUtil.showShopDetailsOnBankDisbursementPage(token, merchantId, lendingApplication, new HashMap<>());
+        if(showShopDetailsOnBankDisbursement) {
+            return LendingViewStates.SHOP_PICTURES_PAGE;
+        }
         boolean isAddressPresent = commonUtil.doesApplicationHaveCompleteAddress(lendingApplication);
         if (!isAddressPresent) {
             return LendingViewStates.SHOP_DETAILS_PAGE;

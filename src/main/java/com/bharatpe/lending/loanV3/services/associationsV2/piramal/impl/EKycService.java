@@ -192,7 +192,7 @@ public class EKycService {
                     commonService.manageApplicationState(lenderAssociationDetailsRequest);
                     log.info("invoking selfie upload to piramal after EKyc success for applicationId {}", lendingApplication.getId());
                     List<String> stagesToBeInvokedInOrder = new ArrayList<>(Collections.singletonList(LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD.name()));
-                    if(lendingApplication.getLoanAmount() >= piramalShopPhotoPreBreThreshold) {
+                    if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount() >= piramalShopPhotoPreBreThreshold) {
                         stagesToBeInvokedInOrder.add(DocType.SHOP_STOCK.name());
                         stagesToBeInvokedInOrder.add(DocType.SHOP_PHOTO.name());
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStages.SHOP_PHOTO_UPLOAD.name());

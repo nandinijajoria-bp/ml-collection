@@ -54,6 +54,8 @@ import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
+import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
@@ -76,6 +78,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Pair;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -3443,5 +3447,24 @@ public class LoanDetailsServiceV2 {
         lendingApplicationDetails.setIsDocSkip(docSkip);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
         return new ApiResponse<>(Boolean.TRUE, "Doc skipped data updated successfully");
+    }
+
+
+    public ResponseEntity<ApiResponse<MerchantRedirectToNewRefResponseDto>> getAdditionalDetailsVersion(Long merchantId, String token) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if (Objects.isNull(lendingApplication) || Objects.isNull(lendingApplication.getId())) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ApiResponse<>(false, LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage()));
+            }
+
+            MerchantRedirectToNewRefResponseDto merchantRedirectToNewRefResponseDto = new MerchantRedirectToNewRefResponseDto();
+            merchantRedirectToNewRefResponseDto.setVersion(loanUtil.showShopDetailsOnBankDisbursementPage(token, merchantId, lendingApplication, new HashMap<>()) ? "v2" : "v1");
+            return ResponseEntity.ok(new ApiResponse<>(merchantRedirectToNewRefResponseDto));
+        }catch (Exception e) {
+            log.error("Error while fetching additional-details version for merchantId: {}", merchantId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Something went wrong"));
+        }
     }
 }

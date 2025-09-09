@@ -526,6 +526,15 @@ public class AssociationServiceUtil {
         }
     }
 
+    public Double getPrincipalOutstandingAmount(String lender, Long applicationId) {
+        switch(lender) {
+            case "PAYU":
+                return payUForeclosureService.getPrincipalOutstandingForeclosureDetails(applicationId);
+            default:
+                return 0D;
+        }
+    }
+
     public Boolean invokeCreateClientService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "TRILLIONLOANS":
