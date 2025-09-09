@@ -5413,7 +5413,11 @@ public class LendingApplicationServiceV2 {
 
             if (Objects.nonNull(saveMerchantDetailsDto.getAddressDetails())) {
                 ReqAddAddress reqAddAddress = createMerchantAddAddressRequest(merchant.getId(), saveMerchantDetailsDto.getAddressDetails());
-                merchantService.addAddress(merchant.getId(), reqAddAddress);
+                try {
+                    merchantService.addAddress(merchant.getId(), reqAddAddress);
+                }catch (Exception e) {
+                    log.error("Error while saving address while calling addAddress for merchant: {}", merchant.getId());
+                }
 
                 AddressDetails addressDetails = saveMerchantDetailsDto.getAddressDetails();
                 lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
