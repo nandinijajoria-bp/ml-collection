@@ -57,6 +57,7 @@ public class SmfgConfig {
     private String foreclosureTopic = "smfg-loan-receipt";
     private Double shopInferredDistanceThreshold = 2500D;
     private Double maxProcessingFee = 6.0D;
+    private Integer docUploadSessionTimeout = 40000;
 
     //LMS
     private String LmsAppName;
