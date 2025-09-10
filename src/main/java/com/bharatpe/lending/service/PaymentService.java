@@ -621,6 +621,8 @@ public class PaymentService {
                     return new InitiatePaymentResponseDTO("Advance edi amount is not correct");
                 }
             }
+            //Creating temporary loan payment order
+            String preOrderId = "LPS" + activeLoan.getId() + System.currentTimeMillis();
             LoanPaymentOrder order = new LoanPaymentOrder();
 
             // TODO : remove this and use api
@@ -630,6 +632,7 @@ public class PaymentService {
 
             order.setOwner("lending_payment_schedule");
             order.setOwnerId(activeLoan.getId());
+            order.setOrderId(preOrderId);
             order.setAmount(Double.valueOf(amount));
             order.setStatus(CreditConstants.PaymentStatus.INIT.name());
             if (request.getPayload().getSource() != null) {
