@@ -3139,7 +3139,7 @@ public class LoanUtil {
 				logger.info("Lender aggregation screen for applicationId {} is {}", applicationId, experimentConfigResponseDTO.getVariationId());
 				return experimentConfigResponseDTO.getVariationId();
 			}
-			
+
 		} catch (Exception ex) {
 			logger.error("Exception occurred while getting lender aggregation screen: {}", ex.getMessage());
 		}

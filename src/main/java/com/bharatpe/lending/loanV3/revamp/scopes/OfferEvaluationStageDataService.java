@@ -108,9 +108,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             Long merchantId = scopeDataArgs.getMerchant().getId();
 
             String screenType = loanUtil.getLenderAggregationScreenV2(applicationId, merchantId);
-            if (ObjectUtils.isEmpty(screenType)) {
-                screenType = loanUtil.getLenderAggregationScreen(applicationId, merchantId);
-            }
+
             log.info("Lender Aggregation Screen for merchantId {} is {}", merchantId, screenType);
             eligibilityStateDTO.setScreenType(screenType);
 
