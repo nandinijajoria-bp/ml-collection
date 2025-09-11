@@ -818,7 +818,7 @@ public class LoanEligibleService {
 
 
                         if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-                            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","))
+                            List<String> ineligibleLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","))
                                     .stream()
                                     .map(String::trim)
                                     .collect(Collectors.toList());
@@ -826,8 +826,8 @@ public class LoanEligibleService {
                             // Process each lender to see if it's rejected
                             List<String> lendersToRemove = new ArrayList<>();
                             for (String lender : lenderNames) {
-                                if (rejectedLendersArray.contains(loanUtil.getLenderRejectedMapping(lender.toUpperCase()))) {
-                                    AsyncLoggerUtil.logInfo(logger, "Skipping {} due to lender in rejected lender list for merchant: {}",
+                                if (ineligibleLendersArray.contains(loanUtil.getLenderRejectedMapping(lender.toUpperCase()))) {
+                                    AsyncLoggerUtil.logInfo(logger, "Skipping {} due to lender in rejected lender list in lending risk variables for merchant: {}",
                                             lender, merchantId);
                                     String remarks = "Skipping " + lender + " due to lender in rejected lender list in lending risk variables";
                                     createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
@@ -856,22 +856,69 @@ public class LoanEligibleService {
 
                         List<LenderMetricsHistory> lenderMetricsHistoryList = lenderMetricsHistoryDao.findByLenderInAndIsLenderSwitchedOffFalse(lenderNames);
 
+                        int initialLendersCount = 0;
+                        int initialMatchingLendersCount = 0;
+                        int fallbackMatchingLendersCount = 0;
+                        List<String> initialLendersAssigned = new ArrayList<>();
+                        List<String> fallbackLendersAssigned = new ArrayList<>();
+                        LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByApplicationIdAndType(merchantId, "INITIAL_LENDERS");
+
+                        if (lendingAuditTrialInitial != null && !StringUtils.isEmpty(lendingAuditTrialInitial.getRemarks())) {
+                            initialLendersAssigned = Arrays.asList(lendingAuditTrialInitial.getRemarks().split(","));
+                            initialLendersCount = initialLendersAssigned.size();
+                            AsyncLoggerUtil.logInfo(logger, "Initial lenders from audit trail: {}, count: {}", initialLendersAssigned, initialLendersCount);
+
+                            // Check for matches between alreadyAssignedLender (rejectedLenders) and initialLendersAssigned
+                            List<String> matchingLenders = new ArrayList<>();
+                            if (rejectedLenders != null && !rejectedLenders.isEmpty()) {
+                                for (String lender : rejectedLenders) {
+                                    if (initialLendersAssigned.contains(lender)) {
+                                        matchingLenders.add(lender);
+                                    }
+                                }
+                                initialMatchingLendersCount = matchingLenders.size();
+                                AsyncLoggerUtil.logInfo(logger, "Matching lenders found in both rejected and initial lists: {}, matching count: {}",
+                                        matchingLenders, initialMatchingLendersCount);
+                            }
+                        }
+
+                        LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(merchantId, "FALLBACK_LENDERS");
+
+                        if (lendingAuditTrialFallback != null && !StringUtils.isEmpty(lendingAuditTrialFallback.getRemarks())) {
+                            fallbackLendersAssigned = Arrays.asList(lendingAuditTrialFallback.getRemarks().split(","));
+                            fallbackMatchingLendersCount = fallbackLendersAssigned.size();
+                            AsyncLoggerUtil.logInfo(logger, "Initial lenders from audit trail: {}, count: {}", fallbackLendersAssigned, fallbackMatchingLendersCount);
+
+                            // Check for matches between alreadyAssignedLender (rejectedLenders) and initialLendersAssigned
+                            List<String> matchingLenders = new ArrayList<>();
+                            if (rejectedLenders != null && !rejectedLenders.isEmpty()) {
+                                for (String lender : rejectedLenders) {
+                                    if (fallbackLendersAssigned.contains(lender)) {
+                                        matchingLenders.add(lender);
+                                    }
+                                }
+                                fallbackMatchingLendersCount = matchingLenders.size();
+                                AsyncLoggerUtil.logInfo(logger, "Matching lenders found in both rejected and initial lists: {}, matching count: {}",
+                                        matchingLenders, fallbackMatchingLendersCount);
+                            }
+                        }
 
                         List<OfferRankingConfig> initialOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
                         List<String> initialLendersList = lenderRankingEngine.rankLenders(
                                 lenderMetricsHistoryList,
                                 initialOfferRankingConfigs,
                                 RankingType.INITIAL,
-                                initalLendersLimit,
+                                initalLendersLimit - initialMatchingLendersCount,
                                 merchantId,
                                 loan.getTenureInMonths());
+
 
                         if(openApplication == null) {
                             createAndSaveLendingAuditTrial(
                                     merchantId,
                                     null,
                                     "INITIAL_LENDERS",
-                                    "Initial lenders: " + String.join(",", initialLendersList),
+                                    String.join(",", initialLendersList),
                                     evaluationId
                             );
                         }
@@ -891,7 +938,7 @@ public class LoanEligibleService {
                                         fallbackCandidates,
                                         fallbackOfferRankingConfigs,
                                         RankingType.FALLBACK,
-                                        fallbackLendersLimit,
+                                        fallbackLendersLimit - fallbackMatchingLendersCount,
                                         merchantId,
                                         loan.getTenureInMonths());
 
@@ -900,7 +947,7 @@ public class LoanEligibleService {
                                     merchantId,
                                     null,
                                     "FALLBACK_LENDERS",
-                                    "Fallback lenders: " + String.join(",", fallbackLendersList),
+                                    String.join(",", fallbackLendersList),
                                     evaluationId
                             );
                         }
