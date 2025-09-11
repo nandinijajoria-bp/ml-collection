@@ -4,13 +4,16 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.OfferEvaluationRequestDTO;
@@ -71,6 +74,9 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     @Autowired
     LendingApplicationServiceV3Base lendingApplicationServiceV3Base;
 
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
 
@@ -114,6 +120,11 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             if (scopeDataArgs.getLoanDetailsV3Request() != null ) {
                 eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
+                if(requestData.getLendingRiskVariablesSnapshot()!=null && requestData.getLendingRiskVariablesSnapshot().getRegularLimit() != null) {
+                    Eligibility eligibility = eligibilityStateDTO.getEligibility();
+                    eligibility.setMaxOfferAmount(requestData.getLendingRiskVariablesSnapshot().getRegularLimit());
+                }
+
             } else {
                 log.warn("LoanDetailsV3Request is null for merchant: {}", scopeDataArgs.getMerchant().getId());
             }
@@ -162,10 +173,12 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 scopeDataArgs.getMerchant().getId(), "draft");
 
         if (lendingApplication != null) {
+            LendingRiskVariablesSnapshot riskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             builder.lendingApplication(lendingApplication)
                     .previousLenders(lendingApplicationLenderDetailsDao.findPreviousLenders(lendingApplication.getId()))
                     .isRepeatLoan(loanUtil.isRepeatLoan(lendingApplication.getMerchantId()))
-                    .lenderAggregationScreen(loanUtil.getLenderAggregationScreenV2(lendingApplication.getId(), lendingApplication.getMerchantId()));
+                    .lenderAggregationScreen(loanUtil.getLenderAggregationScreenV2(lendingApplication.getId(), lendingApplication.getMerchantId()))
+                    .lendingRiskVariablesSnapshot(riskVariablesSnapshot);
         }
 
         return builder.build();

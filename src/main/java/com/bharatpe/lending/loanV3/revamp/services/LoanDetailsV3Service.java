@@ -14,6 +14,7 @@ import com.bharatpe.lending.enums.LoanSegment;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
+import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.dto.UpiAutopayApplicationDetailsDTO;
