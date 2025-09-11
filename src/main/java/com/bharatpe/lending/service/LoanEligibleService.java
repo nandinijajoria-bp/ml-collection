@@ -1729,10 +1729,12 @@ public class LoanEligibleService {
                 Double apr;
                 Double irr = null;
                 Double interestRate = null;
+                DecimalFormat df = new DecimalFormat("0.00");
                 Double edi;
                 Double processingFee;
                 if(!ObjectUtils.isEmpty(pricingExperiment)) {
-                    interestRate = pricingExperiment.getInterestRate();
+                    String formattedRate = df.format(pricingExperiment.getInterestRate());
+                    interestRate = Double.parseDouble(formattedRate);
                     processingFee = Math.ceil(amount * (pricingExperiment.getProcessingFeeRate() / 100));
                     Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
                     Double interestAmt = (amount * (pricingExperiment.getInterestRate() * tenureInMonths) / 100) ;
@@ -1743,7 +1745,8 @@ public class LoanEligibleService {
                 }
                 else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
                     processingFee =Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100));
-                    interestRate = lendingLenderPricing.getInterestRate();
+                    String formattedRate = df.format(lendingLenderPricing.getInterestRate());
+                    interestRate = Double.parseDouble(formattedRate);
                     Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
                     Double interestAmt = (amount * (lendingLenderPricing.getInterestRate() * tenureInMonths) / 100) ;
                     Double ediAmount = ((amount + interestAmt) / payableDays);
@@ -1753,7 +1756,8 @@ public class LoanEligibleService {
                 }
                 else{
                     processingFee =Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100));
-                    interestRate = lendingLenderPricing.getInterestRate();
+                    String formattedRate = df.format(lendingLenderPricing.getInterestRate());
+                    interestRate = Double.parseDouble(formattedRate);
                     Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
                     Double interestAmt = (amount * (lendingLenderPricing.getInterestRate() * tenureInMonths) / 100) ;
                     Double ediAmount = ((amount + interestAmt) / payableDays);
