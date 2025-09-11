@@ -1399,7 +1399,7 @@ public class LoanEligibleService {
             }
         }
 
-        switch (lenderEnum) {
+        /*switch (lenderEnum) {
             case CAPRI:
                 if (edi > summaryTpv) {
                     response = "skipping capri for merchantId : " + merchantId + " due to merchant edi: " + edi + " is greater than summaryTpv: " + summaryTpv;
@@ -1491,7 +1491,7 @@ public class LoanEligibleService {
                 break;
             default:
                 AsyncLoggerUtil.logDebug(logger,"No specific checks found for lender : {} for merchantId : {}", lender, merchantId);
-        }
+        }*/
 
         return new ImmutablePair<>(success, response);
     }
