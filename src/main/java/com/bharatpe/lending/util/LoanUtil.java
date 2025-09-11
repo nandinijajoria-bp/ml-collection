@@ -3131,6 +3131,15 @@ public class LoanUtil {
 					return lendingAuditTrial.getOldStatus();
 				}
 			}
+
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = getLenderAggregationScreenType(merchantId, applicationId);
+			if(ObjectUtils.isEmpty(experimentConfigResponseDTO)) {
+				return null;
+			} else {
+				logger.info("Lender aggregation screen for applicationId {} is {}", applicationId, experimentConfigResponseDTO.getVariationId());
+				return experimentConfigResponseDTO.getVariationId();
+			}
+			
 		} catch (Exception ex) {
 			logger.error("Exception occurred while getting lender aggregation screen: {}", ex.getMessage());
 		}
@@ -3269,6 +3278,45 @@ public class LoanUtil {
 		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
 		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
 		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
+		eligibleLoanDao.save(eligibleLoan);
+	}
+
+	public void setAndUpdateEligibleLoan(EligibleLoanDTO eligibleLoanDTO, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender) {
+
+		eligibleLoanDTO.setRateOfInterest(interestRate);
+		Double interestAmt = (eligibleLoanDTO.getAmount() * (eligibleLoanDTO.getRateOfInterest() * eligibleLoanDTO.getTenureInMonths()) / 100);
+		double ediAmount = ((eligibleLoanDTO.getAmount() + interestAmt) / eligibleLoanDTO.getEdiCount());
+
+		if (!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)) {
+			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.floor(ediAmount);
+		} else {
+			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.ceil(ediAmount);
+		}
+
+		Double repayment = ediAmount * eligibleLoanDTO.getEdiCount();
+		eligibleLoanDTO.setProcessingFee(processingFee.intValue());
+		eligibleLoanDTO.setRepayment(repayment.intValue());
+		eligibleLoanDTO.setEdi((int) ediAmount);
+		eligibleLoanDTO.setIrr(lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount(), Double.valueOf(eligibleLoanDTO.getEdi()), loanAmount, eligibleLoanDTO.getMerchantId(), null));
+		eligibleLoanDTO.setApr(lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount(), Double.valueOf(eligibleLoanDTO.getEdi()), loanAmount - processingFee.intValue(), eligibleLoanDTO.getMerchantId(), null));
+
+		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoanDTO.getApr(), eligibleLoanDTO.getIrr(), eligibleLoanDTO.getProcessingFee(), eligibleLoanDTO.getRateOfInterest(), eligibleLoanDTO.getRepayment(), eligibleLoanDTO.getEdi());
+
+		LendingEligibleLoan eligibleLoan = new LendingEligibleLoan();
+		eligibleLoan.setMerchantId(eligibleLoanDTO.getMerchantId());
+		eligibleLoan.setAmount(eligibleLoanDTO.getAmount());
+		eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
+		eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
+		eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
+		eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
+		eligibleLoan.setRepayment(eligibleLoanDTO.getRepayment());
+		eligibleLoan.setEdi(eligibleLoanDTO.getEdi());
+		eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
+		eligibleLoan.setApr(eligibleLoanDTO.getApr());
+
+		// Save the entity
 		eligibleLoanDao.save(eligibleLoan);
 	}
 

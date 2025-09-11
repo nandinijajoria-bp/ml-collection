@@ -661,6 +661,17 @@ public class LendingApplicationServiceV2 {
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
     }
 
+    private void saveAuditTrail(LendingApplication lendingApplication, String type, String oldStatus, String newStatus) {
+        LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+        lendingAuditTrial.setApplicationId(lendingApplication.getId());
+        lendingAuditTrial.setLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId()) ? "" : lendingApplication.getExternalLoanId());
+        lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+        lendingAuditTrial.setType(type);
+        lendingAuditTrial.setOldStatus(oldStatus);
+        lendingAuditTrial.setNewStatus(newStatus);
+        lendingAuditTrialDao.save(lendingAuditTrial);
+    }
+
     public void updateEligibleLoan(Long merchantId, EligibleLoanDTO eligibleLoanDTO) {
         log.info("Updating eligible loan for merchantId: {}", merchantId);
 
@@ -971,6 +982,11 @@ public class LendingApplicationServiceV2 {
             else {
                 log.info("Draft application found for id:{}", applicationRequest.getApplicationId());
                 if(applicationRequest.getEligibleLoanDTO() != null) {
+                    saveAuditTrail(lendingApplication,
+                            "OFFER_MODIFIED_LENDER_CHANGE",
+                            "OLD_LENDER_" + lendingApplication.getLender(),
+                            "NEW_LENDER_" + applicationRequest.getEligibleLoanDTO().getLender());
+                    updateLendingApplicationV2(merchant, applicationRequest.getEligibleLoanDTO(), applicationRequest);
                     updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 }
                 AddressValidationDto addressValidationDto = null;
@@ -1140,6 +1156,94 @@ public class LendingApplicationServiceV2 {
         loanUtil.createLendingAuditTrailDTO(lendingApplication);
         return lendingApplication;
     }
+
+    private LendingApplication  updateLendingApplicationV2(BasicDetailsDto merchantBasicDetails,  EligibleLoanDTO eligibleLoan, CreateApplicationRequest lendingApplicationRequest) {
+        LendingApplication lendingApplication = new LendingApplication();
+        BigDecimal processingFee;
+        BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+        MaxPricingValuesDTO maxPricingValuesDTO = null;
+        if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantBasicDetails.getId());
+            maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, eligibleLoan.getTenureInMonths());
+        }
+        if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
+            BigDecimal maxProcessingFeeRateBD = BigDecimal.valueOf(maxPricingValuesDTO.getMaxProcessingFeeRate());
+            processingFee = maxProcessingFeeRateBD.multiply(amountBD)
+                    .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
+        }
+        else {
+            if(eligibleLoan.getProcessingFee() != null) {
+                processingFee = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+
+            }else{
+                throw new NullPointerException("processing fee cannot be null for eligible loan");
+            }
+
+        }
+        if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
+            loanUtil.setAndUpdateEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
+        }
+
+        lendingApplication.setLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
+        lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
+        lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
+        lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
+        lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
+        lendingApplication.setProcessingFee(processingFee.doubleValue());
+        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee.intValue());
+        lendingApplication.setMode("AUTO");
+        lendingApplication.setLoanAmount(eligibleLoan.getAmount());
+        lendingApplication.setCategory(eligibleLoan.getCategory());
+        lendingApplication.setTenure(eligibleLoan.getTenure());
+        lendingApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+        lendingApplication.setPayableDays(Long.valueOf(eligibleLoan.getEdiCount()));
+        lendingApplication.setEdiFreeDays(0);
+        lendingApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
+        lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
+        lendingApplication.setLoanType(eligibleLoan.getLoanType());
+        lendingApplication.setTotalLoansCount(loanUtil.getPreviousLoans(merchantBasicDetails.getId()).size());
+        lendingApplication.setCkycId(String.valueOf(merchantBasicDetails.getId()));
+        lendingApplication.setEdiFreeDays(eligibleLoan.getEdiCount() % 30 == 0 ? 0 : 1);
+        lendingApplication.setIp(Optional.ofNullable(lendingApplication.getIp()).orElse(lendingApplicationRequest.getIp()));
+        lendingApplication = lendingApplicationDao.save(lendingApplication);
+
+        if (lendingApplicationRequest != null) {
+            BusinessDetailsDTO businessDetailsDTO = BusinessDetailsDTO.builder()
+                    .businessCategory(lendingApplicationRequest.getCategory())
+                    .businessName(lendingApplicationRequest.getBusinessName())
+                    .build();
+
+            if (businessDetailsDTO != null) {
+                addBusinessDetails(businessDetailsDTO, merchantBasicDetails);
+            }
+
+            if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
+                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+            }
+        }
+
+        if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) || (eligibleLoan.getEdiCount() % 30 == 0)) {
+            DateFormat df = new SimpleDateFormat("ddMMyy");
+            Date dateobj = new Date();
+            String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
+            lendingApplication.setExternalLoanId(loanId);
+            lendingApplication = lendingApplicationDao.save(lendingApplication);
+        }
+
+        LendingApplicationDetails lendingApplicationDetails = new LendingApplicationDetails();
+
+        lendingApplicationDetailsDao.save(lendingApplicationDetails);
+
+        loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
+
+        if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+            rejectApplicationForIncorrectLender(lendingApplication);
+            return lendingApplication;
+        }
+        loanUtil.createLendingAuditTrailDTO(lendingApplication);
+        return lendingApplication;
+    }
+
 
     private void updateLendingAuditTrial(Long merchantId, LendingApplication lendingApplication) {
         try {
