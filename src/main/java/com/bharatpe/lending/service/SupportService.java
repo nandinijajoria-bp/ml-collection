@@ -1061,7 +1061,7 @@ public class SupportService {
                     Double dueAmount = 0D;
                     for (LendingLedger lendingLedger1 : lendingLedgerList) {
                         Map<String, Object> lendingLedgerDetail = new HashMap<>();
-                        lendingLedgerDetail.put("createdAt", lendingLedger1.getDate() == null ? lendingLedger1.getCreatedAt().toString() : lendingLedger1.getDate().toString());
+                        lendingLedgerDetail.put("createdAt", DateUtils.formatDateTime_DYYYY_MM_DD_HH_mm_ss_S(lendingLedger1.getCreatedAt()));
                         lendingLedgerDetail.put("id", lendingLedger1.getId());
                         lendingLedgerDetail.put("transactionType", getLedgerTransactionType(lendingLedger1));
                         if(lendingLedger1.getAmount() < 0){
