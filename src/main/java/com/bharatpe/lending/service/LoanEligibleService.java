@@ -887,7 +887,7 @@ public class LoanEligibleService {
                         if (lendingAuditTrialFallback != null && !StringUtils.isEmpty(lendingAuditTrialFallback.getRemarks())) {
                             fallbackLendersAssigned = Arrays.asList(lendingAuditTrialFallback.getRemarks().split(","));
                             fallbackMatchingLendersCount = fallbackLendersAssigned.size();
-                            AsyncLoggerUtil.logInfo(logger, "Initial lenders from audit trail: {}, count: {}", fallbackLendersAssigned, fallbackMatchingLendersCount);
+                            AsyncLoggerUtil.logInfo(logger, "Fallback lenders from audit trail: {}, count: {}", fallbackLendersAssigned, fallbackMatchingLendersCount);
 
                             // Check for matches between alreadyAssignedLender (rejectedLenders) and initialLendersAssigned
                             List<String> matchingLenders = new ArrayList<>();
@@ -912,8 +912,6 @@ public class LoanEligibleService {
                                 merchantId,
                                 loan.getTenureInMonths());
 
-
-                        if(openApplication == null) {
                             createAndSaveLendingAuditTrial(
                                     merchantId,
                                     null,
@@ -921,7 +919,6 @@ public class LoanEligibleService {
                                     String.join(",", initialLendersList),
                                     evaluationId
                             );
-                        }
 
                         AsyncLoggerUtil.logInfo(logger, "Initial lenders for loan with tenure {} months: {} for merchantId: {}",
                                 loan.getTenureInMonths(), initialLendersList, merchantId);
@@ -942,7 +939,6 @@ public class LoanEligibleService {
                                         merchantId,
                                         loan.getTenureInMonths());
 
-                        if(openApplication == null) {
                             createAndSaveLendingAuditTrial(
                                     merchantId,
                                     null,
@@ -950,7 +946,6 @@ public class LoanEligibleService {
                                     String.join(",", fallbackLendersList),
                                     evaluationId
                             );
-                        }
 
                         AsyncLoggerUtil.logInfo(logger, "Fallback lenders for loan with tenure {} months: {} for merchantId: {}",
                                 loan.getTenureInMonths(), fallbackLendersList, merchantId);
