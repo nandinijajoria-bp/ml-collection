@@ -226,7 +226,7 @@ public class LoanEligibleService {
     @Value("${inital.lenders.limit:3}")
     int initalLendersLimit;
 
-    @Value("${fallback.lenders.limit:4}")
+    @Value("${fallback.lenders.limit:6}")
     int fallbackLendersLimit;
 
     @Value("${new.eligibility.refresh.window.rollout.percent:0}")
@@ -861,7 +861,17 @@ public class LoanEligibleService {
                         int fallbackMatchingLendersCount = 0;
                         List<String> initialLendersAssigned = new ArrayList<>();
                         List<String> fallbackLendersAssigned = new ArrayList<>();
-                        LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByApplicationIdAndType(merchantId, "INITIAL_LENDERS");
+                        LendingAuditTrial lendingAuditTrialInitial = null;
+                        if(openApplication != null) {
+                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for open applicationId: {} and merchantId: {}",
+                                    openApplication.getId(), merchantId);
+                            lendingAuditTrialInitial = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "INITIAL_LENDERS");
+                        }
+                        else {
+                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId applicationId: {} and merchantId: {}",
+                                    openApplication.getId(), merchantId);
+                            lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+                        }
                         AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for INITIAL_LENDERS: {} for merchantId: {}",
                                 lendingAuditTrialInitial, merchantId);
 
@@ -884,9 +894,20 @@ public class LoanEligibleService {
                             }
                         }
 
-                        LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(merchantId, "FALLBACK_LENDERS");
-                        AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for FALLBACK_LENDERS: {} for merchantId: {}",
-                                lendingAuditTrialInitial, merchantId);
+                        LendingAuditTrial lendingAuditTrialFallback = null;
+
+                        if(openApplication != null) {
+                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for open applicationId: {} and merchantId: {}",
+                                    openApplication.getId(), merchantId);
+                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "INITIAL_LENDERS");
+                        }
+                        else {
+                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId applicationId: {} and merchantId: {}",
+                                    openApplication.getId(), merchantId);
+                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+                        }
+                         AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for FALLBACK_LENDERS: {} for merchantId: {}",
+                                 lendingAuditTrialFallback, merchantId);
 
                         if (lendingAuditTrialFallback != null && !StringUtils.isEmpty(lendingAuditTrialFallback.getRemarks())) {
                             fallbackLendersAssigned = Arrays.asList(lendingAuditTrialFallback.getRemarks().split(","));
@@ -916,6 +937,7 @@ public class LoanEligibleService {
                                 merchantId,
                                 loan.getTenureInMonths());
 
+                        if(openApplication == null) {
                             createAndSaveLendingAuditTrial(
                                     merchantId,
                                     null,
@@ -923,6 +945,7 @@ public class LoanEligibleService {
                                     String.join(",", initialLendersList),
                                     evaluationId
                             );
+                        }
 
                         AsyncLoggerUtil.logInfo(logger, "Initial lenders for loan with tenure {} months: {} for merchantId: {}",
                                 loan.getTenureInMonths(), initialLendersList, merchantId);
@@ -943,6 +966,7 @@ public class LoanEligibleService {
                                         merchantId,
                                         loan.getTenureInMonths());
 
+                        if(openApplication == null) {
                             createAndSaveLendingAuditTrial(
                                     merchantId,
                                     null,
@@ -950,6 +974,7 @@ public class LoanEligibleService {
                                     String.join(",", fallbackLendersList),
                                     evaluationId
                             );
+                        }
 
                         AsyncLoggerUtil.logInfo(logger, "Fallback lenders for loan with tenure {} months: {} for merchantId: {}",
                                 loan.getTenureInMonths(), fallbackLendersList, merchantId);
@@ -1919,6 +1944,13 @@ public class LoanEligibleService {
         }
         List<String> eligibleLenders = new ArrayList<>(eligibleLendersSet);
         AsyncLoggerUtil.logInfo(logger,"Eligible Lenders: {}", eligibleLenders);
+        createAndSaveLendingAuditTrial(
+                merchantId,
+                null,
+                "ELIGIBLE_LENDERS",
+                String.join(",", eligibleLenders),
+                evaluationId
+        );
         return eligibleLenders;
     }
 
