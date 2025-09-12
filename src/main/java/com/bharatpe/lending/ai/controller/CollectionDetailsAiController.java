@@ -1,10 +1,12 @@
 package com.bharatpe.lending.ai.controller;
 
 import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingLedgerDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,22 +30,29 @@ public class CollectionDetailsAiController {
     @Autowired
     LendingCollectionExcessDao lendingCollectionExcessDao;
 
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
 
     @GetMapping(value = "/ledger",produces = "application/json")
     public ResponseEntity<ApiResponse<List<LendingLedger>>> getApplicationDetail(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
-            @RequestParam(required = false) Long merchantId,
-            @RequestParam(required = false) String date) {
+            @RequestParam(required = false) Long merchantId) {
         if(merchant!=null){
             merchantId=merchant.getId();
         }
-        log.info("Request received to get loan application details for merchantId: {}", merchantId);
-        Date parsedDate = getParsedDate(date);
-        if(parsedDate==null){
-            log.info("Invalid date format provided: {}", date);
-            return ResponseEntity.badRequest().body(new ApiResponse<>(false, "Invalid date format. Please use 'yyyy-MM-dd'."));
+        if(merchantId == null)
+        {
+            log.info("merchant is null : {}", merchantId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "merchantId is null"));
         }
-        List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByMerchantIdAndDateOrderByDateDesc(merchantId,parsedDate);
+//        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchantId);
+//        if (lendingPaymentSchedule == null) {
+//            log.info("No active loan found for merchantId: {}", merchantId);
+//            return ResponseEntity.ok(new ApiResponse<>(true, "no active loan found"));
+//        }
+
+        List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByMerchantIdOrderByDateDesc(merchantId);
         if(lendingLedgerList==null){
             log.info("No loan application details found for merchantId: {}", merchantId);
             return ResponseEntity.ok(new ApiResponse<>(true, "no loan application found"));
@@ -55,17 +64,26 @@ public class CollectionDetailsAiController {
     @GetMapping(value = "/excess", produces = "application/json")
     public ResponseEntity<ApiResponse<List<LendingCollectionExcess>>> getExcessDetails(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
-            @RequestParam(required = false) Long merchantId,
-            @RequestParam(required = false) Long loanId) {
+            @RequestParam(required = false) Long merchantId) {
 
         if (merchant != null) {
             merchantId = merchant.getId();
         }
         log.info("Request received to get excess details for merchantId: {}", merchantId);
+        if(merchantId == null)
+        {
+            log.info("merchant is null : {}", merchantId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "merchantId is null"));
+        }
 
+        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchantId);
+        if (lendingPaymentSchedule == null) {
+            log.info("No active loan found for merchantId: {}", merchantId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "no active loan found"));
+        }
 
         List<LendingCollectionExcess> excessList =
-                lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(merchantId, loanId);
+                lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(merchantId, lendingPaymentSchedule.getId());
 
         if (excessList == null || excessList.isEmpty()) {
             log.info("No excess details found for merchantId: {}", merchantId);
@@ -74,21 +92,6 @@ public class CollectionDetailsAiController {
 
         log.info("Fetched excess details for merchantId: {}, details: {}", merchantId, excessList);
         return ResponseEntity.ok(new ApiResponse<>(excessList));
-    }
-
-
-
-    private Date getParsedDate(String date) {
-        Date parsedDate = null;
-        if (date != null) {
-            try {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd"); // adjust format as needed
-                parsedDate = sdf.parse(date);
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        return parsedDate;
     }
 
 }
