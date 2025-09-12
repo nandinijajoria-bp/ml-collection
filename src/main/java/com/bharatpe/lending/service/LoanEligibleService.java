@@ -862,6 +862,8 @@ public class LoanEligibleService {
                         List<String> initialLendersAssigned = new ArrayList<>();
                         List<String> fallbackLendersAssigned = new ArrayList<>();
                         LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByApplicationIdAndType(merchantId, "INITIAL_LENDERS");
+                        AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for INITIAL_LENDERS: {} for merchantId: {}",
+                                lendingAuditTrialInitial, merchantId);
 
                         if (lendingAuditTrialInitial != null && !StringUtils.isEmpty(lendingAuditTrialInitial.getRemarks())) {
                             initialLendersAssigned = Arrays.asList(lendingAuditTrialInitial.getRemarks().split(","));
@@ -883,6 +885,8 @@ public class LoanEligibleService {
                         }
 
                         LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(merchantId, "FALLBACK_LENDERS");
+                        AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for FALLBACK_LENDERS: {} for merchantId: {}",
+                                lendingAuditTrialInitial, merchantId);
 
                         if (lendingAuditTrialFallback != null && !StringUtils.isEmpty(lendingAuditTrialFallback.getRemarks())) {
                             fallbackLendersAssigned = Arrays.asList(lendingAuditTrialFallback.getRemarks().split(","));
