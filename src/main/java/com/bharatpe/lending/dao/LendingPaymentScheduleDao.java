@@ -93,4 +93,7 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 			"AND autopay.status = 'ACTIVE'",
 			nativeQuery = true )
 	Long countLmsAutoPayApplication();
+
+	@Query(value="SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId  ORDER BY ID DESC",nativeQuery=true)
+	List<LendingPaymentSchedule> findAllLendingPaymentScheduleByMerchantId(Long merchantId);
 }

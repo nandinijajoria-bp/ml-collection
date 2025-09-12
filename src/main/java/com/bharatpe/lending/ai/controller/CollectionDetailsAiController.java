@@ -11,17 +11,16 @@ import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestAttribute;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 @Slf4j
 @RestController
+@RequestMapping("ai/collection")
 public class CollectionDetailsAiController {
 
     @Autowired
@@ -35,7 +34,7 @@ public class CollectionDetailsAiController {
 
 
     @GetMapping(value = "/ledger",produces = "application/json")
-    public ResponseEntity<ApiResponse<List<LendingLedger>>> getApplicationDetail(
+    public ResponseEntity<ApiResponse<List<List<LendingLedger>>>> getLendingLedger(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
             @RequestParam(required = false) Long merchantId) {
         if(merchant!=null){
@@ -46,23 +45,29 @@ public class CollectionDetailsAiController {
             log.info("merchant is null : {}", merchantId);
             return ResponseEntity.ok(new ApiResponse<>(true, "merchantId is null"));
         }
-//        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchantId);
-//        if (lendingPaymentSchedule == null) {
-//            log.info("No active loan found for merchantId: {}", merchantId);
-//            return ResponseEntity.ok(new ApiResponse<>(true, "no active loan found"));
-//        }
-
-        List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByMerchantIdOrderByDateDesc(merchantId);
-        if(lendingLedgerList==null){
-            log.info("No loan application details found for merchantId: {}", merchantId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "no loan application found"));
+        List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findAllLendingPaymentScheduleByMerchantId(merchantId);
+        if (lendingPaymentScheduleList.isEmpty()) {
+            log.info("No active loan found for merchantId: {}", merchantId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "no  loan found"));
         }
-        log.info("Fetched loan application details for merchantId: {}, details are: {}", merchantId, lendingLedgerList);
-        return ResponseEntity.ok(new ApiResponse<>(lendingLedgerList));
+
+        List<List<LendingLedger>> allLendingLedgerList = new ArrayList<>();
+        for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
+            List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule);
+            if(!lendingLedgerList.isEmpty()){
+                allLendingLedgerList.add(lendingLedgerList);
+            }
+        }
+        if(allLendingLedgerList.isEmpty()){
+            log.info("No ledger records found for merchantId: {}", merchantId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "no ledger records found"));
+        }
+        log.info("Fetched loan application details for merchantId: {}, details are: {}", merchantId, allLendingLedgerList);
+        return ResponseEntity.ok(new ApiResponse<>(allLendingLedgerList));
     }
 
     @GetMapping(value = "/excess", produces = "application/json")
-    public ResponseEntity<ApiResponse<List<LendingCollectionExcess>>> getExcessDetails(
+    public ResponseEntity<ApiResponse<List<List<LendingCollectionExcess>>>> getExcessDetails(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
             @RequestParam(required = false) Long merchantId) {
 
@@ -76,22 +81,29 @@ public class CollectionDetailsAiController {
             return ResponseEntity.ok(new ApiResponse<>(true, "merchantId is null"));
         }
 
-        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchantId);
-        if (lendingPaymentSchedule == null) {
+        List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findAllLendingPaymentScheduleByMerchantId(merchantId);
+        if (lendingPaymentScheduleList.isEmpty()) {
             log.info("No active loan found for merchantId: {}", merchantId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "no active loan found"));
+            return ResponseEntity.ok(new ApiResponse<>(true, "no  loan found"));
         }
 
-        List<LendingCollectionExcess> excessList =
-                lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(merchantId, lendingPaymentSchedule.getId());
+        List<List<LendingCollectionExcess>> allExcessList = new ArrayList<>();
+        for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
+            List<LendingCollectionExcess> excessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(merchantId, lendingPaymentSchedule.getId());
+            if(!excessList.isEmpty()){
+                allExcessList.add(excessList);
+            }
+        }
 
-        if (excessList == null || excessList.isEmpty()) {
+
+
+        if ( allExcessList.isEmpty()) {
             log.info("No excess details found for merchantId: {}", merchantId);
             return ResponseEntity.ok(new ApiResponse<>(true, "no excess records found"));
         }
 
-        log.info("Fetched excess details for merchantId: {}, details: {}", merchantId, excessList);
-        return ResponseEntity.ok(new ApiResponse<>(excessList));
+        log.info("Fetched excess details for merchantId: {}, details: {}", merchantId, allExcessList);
+        return ResponseEntity.ok(new ApiResponse<>(allExcessList));
     }
 
 }
