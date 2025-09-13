@@ -761,6 +761,16 @@ public class LoanEligibleService {
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders = new ArrayList<>();
 
             LendingApplication openApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.DRAFT.name());
+            if(openApplication != null)
+            {
+               LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+               lendingAuditTrialFallback.setApplicationId(openApplication.getId());
+               lendingAuditTrialDao.save(lendingAuditTrialFallback);
+
+                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "FINAL_LENDERS");
+                lendingAuditTrialInitial.setApplicationId(openApplication.getId());
+                lendingAuditTrialDao.save(lendingAuditTrialInitial);
+            }
 
             List<LenderMetricsHistory> switchedOffLenders = lenderMetricsHistoryDao.findByIsLenderSwitchedOff(Boolean.TRUE);
 
