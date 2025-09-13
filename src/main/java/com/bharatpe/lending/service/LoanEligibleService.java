@@ -899,7 +899,7 @@ public class LoanEligibleService {
                         if(openApplication != null) {
                             AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for open applicationId: {} and merchantId: {}",
                                     openApplication.getId(), merchantId);
-                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "INITIAL_LENDERS");
+                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "FALLBACK_LENDERS");
                         }
                         else {
                             AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId applicationId: {} and merchantId: {}",
@@ -1944,13 +1944,6 @@ public class LoanEligibleService {
         }
         List<String> eligibleLenders = new ArrayList<>(eligibleLendersSet);
         AsyncLoggerUtil.logInfo(logger,"Eligible Lenders: {}", eligibleLenders);
-        createAndSaveLendingAuditTrial(
-                merchantId,
-                null,
-                "ELIGIBLE_LENDERS",
-                String.join(",", eligibleLenders),
-                evaluationId
-        );
         return eligibleLenders;
     }
 
