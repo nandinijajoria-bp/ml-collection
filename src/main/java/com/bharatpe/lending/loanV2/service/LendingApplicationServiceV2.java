@@ -1144,6 +1144,7 @@ public class LendingApplicationServiceV2 {
         updateApplicationDataV2(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(merchantBasicDetails,lendingApplication);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
+        lenderAssignService.saveLenderChangeAudit(lendingApplication, lendingApplication.getLender(), null);
         updateLendingAuditTrial(merchantBasicDetails.getId(), lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));
