@@ -816,6 +816,9 @@ public class LoanEligibleService {
                                 .map(EligibleOffersResponseDTO.LenderData::getLenderName)
                                 .collect(Collectors.toList());
 
+                        AsyncLoggerUtil.logInfo(logger, "eligible lenders for tenure {} months: {}",
+                                loan.getTenureInMonths(), lenderNames);
+
 
                         if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
                             List<String> ineligibleLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","))
@@ -868,8 +871,8 @@ public class LoanEligibleService {
                             lendingAuditTrialInitial = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "INITIAL_LENDERS");
                         }
                         else {
-                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId applicationId: {} and merchantId: {}",
-                                    openApplication.getId(), merchantId);
+                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId merchantId: {} and merchantId: {}",
+                                    merchantId, merchantId);
                             lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
                         }
                         AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for INITIAL_LENDERS: {} for merchantId: {}",
@@ -902,8 +905,8 @@ public class LoanEligibleService {
                             lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "FALLBACK_LENDERS");
                         }
                         else {
-                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId applicationId: {} and merchantId: {}",
-                                    openApplication.getId(), merchantId);
+                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId merchantId: {} and merchantId: {}",
+                                    merchantId, merchantId);
                             lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
                         }
                          AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for FALLBACK_LENDERS: {} for merchantId: {}",
