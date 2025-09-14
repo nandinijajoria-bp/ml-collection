@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -179,6 +180,7 @@ public class LoanDetailsV3Service {
             if(nextState.name().equalsIgnoreCase(lendingApplicationDetails1.getApplicationViewState()))return;
 
             lendingApplicationDetails1.setApplicationViewState(nextState.name());
+            lendingApplicationDetails1.setStage(LenderAssociationStages.INIT.name());
             lendingApplicationDetailsDao.save(lendingApplicationDetails1);
         }
         catch (Exception e){

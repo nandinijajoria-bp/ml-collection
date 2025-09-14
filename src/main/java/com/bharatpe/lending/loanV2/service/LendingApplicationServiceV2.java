@@ -900,17 +900,25 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "eligible loan not found");
             }
             LendingApplication lendingApplication = saveLendingApplicationV2(merchant, eligibleLoan, applicationRequest, addressValidationDto);
-            if(lendingApplication != null)
-            {
-                String evaluationId = merchant.getId() +"_" +lendingApplication.getLoanAmount().intValue();
-                log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
-                LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
-                lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
-                lendingAuditTrialDao.save(lendingAuditTrialFallback);
+            String evaluationId = merchant.getId() +"_" +lendingApplication.getLoanAmount().intValue();
+            log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
 
-                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+            LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+            if (lendingAuditTrialInitial != null) {
                 lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
                 lendingAuditTrialDao.save(lendingAuditTrialInitial);
+                log.info("Updated initial lenders audit trail with applicationId: {}", lendingApplication.getId());
+            } else {
+                log.error("No initial lenders audit trail found for evaluationId: {}", evaluationId);
+            }
+
+            LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+            if (lendingAuditTrialFallback != null) {
+                lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
+                lendingAuditTrialDao.save(lendingAuditTrialFallback);
+                log.info("Updated fallback lenders audit trail with applicationId: {}", lendingApplication.getId());
+            } else {
+                log.error("No fallback lenders audit trail found for evaluationId: {}", evaluationId);
             }
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
 
