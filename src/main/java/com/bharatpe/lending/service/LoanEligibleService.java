@@ -889,6 +889,8 @@ public class LoanEligibleService {
                                 lendingAuditTrialInitial, merchantId);
 
                         if (lendingAuditTrialInitial != null && !StringUtils.isEmpty(lendingAuditTrialInitial.getRemarks())) {
+                            AsyncLoggerUtil.logInfo(logger, "Initial lenders remarks from audit trial: {} for merchantId: {}",
+                                    lendingAuditTrialInitial.getRemarks(), merchantId);
                             initialLendersAssigned = Arrays.asList(lendingAuditTrialInitial.getRemarks().split(","));
                             initialLendersCount = initialLendersAssigned.size();
                             AsyncLoggerUtil.logInfo(logger, "Initial lenders from audit trail: {}, count: {}", initialLendersAssigned, initialLendersCount);
@@ -917,12 +919,14 @@ public class LoanEligibleService {
                         else {
                             AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId merchantId: {} and merchantId: {}",
                                     merchantId, merchantId);
-                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
                         }
                          AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for FALLBACK_LENDERS: {} for merchantId: {}",
                                  lendingAuditTrialFallback, merchantId);
 
                         if (lendingAuditTrialFallback != null && !StringUtils.isEmpty(lendingAuditTrialFallback.getRemarks())) {
+                            AsyncLoggerUtil.logInfo(logger, "Initial lenders remarks from audit trial: {} for merchantId: {}",
+                                    lendingAuditTrialFallback.getRemarks(), merchantId);
                             fallbackLendersAssigned = Arrays.asList(lendingAuditTrialFallback.getRemarks().split(","));
                             fallbackMatchingLendersCount = fallbackLendersAssigned.size();
                             AsyncLoggerUtil.logInfo(logger, "Fallback lenders from audit trail: {}, count: {}", fallbackLendersAssigned, fallbackMatchingLendersCount);

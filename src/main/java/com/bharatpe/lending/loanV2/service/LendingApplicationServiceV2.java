@@ -900,7 +900,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "eligible loan not found");
             }
             LendingApplication lendingApplication = saveLendingApplicationV2(merchant, eligibleLoan, applicationRequest, addressValidationDto);
-            String evaluationId = merchant.getId() +"_" +lendingApplication.getLoanAmount().intValue();
+            String evaluationId = merchant.getId() +"_" + lendingApplication.getLoanAmount().intValue();
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
 
             LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
@@ -931,7 +931,6 @@ public class LendingApplicationServiceV2 {
             if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
                 return new ApiResponse<>(true, "No lender assigned, application rejected");
             }
-            loanUtil.isApplicableForAggregationFlowV2(lendingApplication.getMerchantId(), lendingApplication.getId()); // For saving screen type if lender aggregation is applicable.
 
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
@@ -1616,6 +1615,7 @@ public class LendingApplicationServiceV2 {
             lendingApplicationDao.save(lendingApplication);
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(applicationRequest.getCurrentAddressSameAsPermanentAddress());
+            lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
         } catch (Exception e) {
