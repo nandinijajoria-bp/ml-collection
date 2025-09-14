@@ -886,13 +886,19 @@ public class LoanEligibleService {
                             lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
                         }
                         AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for INITIAL_LENDERS: {} for merchantId: {}",
-                                lendingAuditTrialInitial, merchantId);
+                                lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
 
                         if (lendingAuditTrialInitial != null && !StringUtils.isEmpty(lendingAuditTrialInitial.getRemarks())) {
-                            AsyncLoggerUtil.logInfo(logger, "Initial lenders remarks from audit trial: {} for merchantId: {}",
-                                    lendingAuditTrialInitial.getRemarks(), merchantId);
-                            initialLendersAssigned = Arrays.asList(lendingAuditTrialInitial.getRemarks().split(","));
-                            initialLendersCount = initialLendersAssigned.size();
+                            String remarks = lendingAuditTrialInitial.getRemarks();
+
+                            if (remarks.startsWith("Initial lenders:")) {
+                                remarks = remarks.substring("Initial lenders:".length()).trim();
+                            }
+
+                            initialLendersAssigned = Arrays.asList(remarks.split(","));
+                            AsyncLoggerUtil.logInfo(logger, "Initial lenders after parsing: {}, count: {}",
+                                    initialLendersAssigned, initialLendersAssigned.size());
+                             initialLendersCount = initialLendersAssigned.size();
                             AsyncLoggerUtil.logInfo(logger, "Initial lenders from audit trail: {}, count: {}", initialLendersAssigned, initialLendersCount);
 
                             // Check for matches between alreadyAssignedLender (rejectedLenders) and initialLendersAssigned
