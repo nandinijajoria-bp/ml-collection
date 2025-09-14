@@ -905,6 +905,7 @@ public class LendingApplicationServiceV2 {
 
             LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "INITIAL_LENDERS");
             if (lendingAuditTrialInitial != null) {
+                log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
                 lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
                 lendingAuditTrialDao.save(lendingAuditTrialInitial);
                 log.info("Updated initial lenders audit trail with applicationId: {}", lendingApplication.getId());
@@ -914,6 +915,7 @@ public class LendingApplicationServiceV2 {
 
             LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
             if (lendingAuditTrialFallback != null) {
+                log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
                 lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
                 lendingAuditTrialDao.save(lendingAuditTrialFallback);
                 log.info("Updated fallback lenders audit trail with applicationId: {}", lendingApplication.getId());
