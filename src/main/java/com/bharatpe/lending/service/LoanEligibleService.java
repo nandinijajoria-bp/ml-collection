@@ -767,7 +767,7 @@ public class LoanEligibleService {
                lendingAuditTrialFallback.setApplicationId(openApplication.getId());
                lendingAuditTrialDao.save(lendingAuditTrialFallback);
 
-                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "FINAL_LENDERS");
+                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
                 lendingAuditTrialInitial.setApplicationId(openApplication.getId());
                 lendingAuditTrialDao.save(lendingAuditTrialInitial);
             }

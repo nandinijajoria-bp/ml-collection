@@ -900,6 +900,18 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "eligible loan not found");
             }
             LendingApplication lendingApplication = saveLendingApplicationV2(merchant, eligibleLoan, applicationRequest, addressValidationDto);
+            if(lendingApplication != null)
+            {
+                String evaluationId = merchant.getId() +"_" +lendingApplication.getLoanAmount().intValue();
+                log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
+                LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+                lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
+                lendingAuditTrialDao.save(lendingAuditTrialFallback);
+
+                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByevaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+                lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
+                lendingAuditTrialDao.save(lendingAuditTrialInitial);
+            }
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
 
             final boolean rejected = checkAndRejectPilotIdentifierApplication(lendingApplication);
