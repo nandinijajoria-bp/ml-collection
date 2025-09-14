@@ -1252,7 +1252,7 @@ public class LendingApplicationServiceV2 {
         }
 
         LendingApplicationDetails lendingApplicationDetails = new LendingApplicationDetails();
-
+        lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
         loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.OFFER_EVALUATION_PAGE);

@@ -180,7 +180,6 @@ public class LoanDetailsV3Service {
             if(nextState.name().equalsIgnoreCase(lendingApplicationDetails1.getApplicationViewState()))return;
 
             lendingApplicationDetails1.setApplicationViewState(nextState.name());
-            lendingApplicationDetails1.setStage(LenderAssociationStages.INIT.name());
             lendingApplicationDetailsDao.save(lendingApplicationDetails1);
         }
         catch (Exception e){
