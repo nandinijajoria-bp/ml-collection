@@ -760,7 +760,7 @@ public class LoanEligibleService {
 
             LenderDataCache cache = preloadLenderData(merchantId, evaluationId, eligibleOffersWithLenders);
 
-            filterSwitchedOffLenders(eligibleOffersWithLenders, cache.switchedOffLenderNames);
+            filterSwitchedOffLenders(eligibleOffersWithLenders, cache.switchedOffLenderNames, merchantId);
 
             List<String> rejectedLenders = processRejectedLenders(merchantId, eligibleOffersWithLenders, cache.openApplication);
 
@@ -836,7 +836,7 @@ public class LoanEligibleService {
     }
 
 
-    private void filterSwitchedOffLenders(List<EligibleLoanDTO> eligibleOffersWithLenders, Set<String> switchedOffLenderNames) {
+    private void filterSwitchedOffLenders(List<EligibleLoanDTO> eligibleOffersWithLenders, Set<String> switchedOffLenderNames, Long merchantId) {
         if (switchedOffLenderNames.isEmpty()) {
             AsyncLoggerUtil.logInfo(logger, "No lenders are switched off, skipping filtering step");
             return;
@@ -899,13 +899,15 @@ public class LoanEligibleService {
             fallbackAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
         }
 
+        LendingAuditTrial finalInitialAuditTrial = initialAuditTrial;
+        LendingAuditTrial finalFallbackAuditTrial = fallbackAuditTrial;
         return eligibleOffersWithLenders.parallelStream()
                 .filter(loan -> !CollectionUtils.isEmpty(loan.getEligibleLenders()))
                 .map(loan -> {
                     try {
                         return processSingleLoanOptimized(
                                 merchantId, loan, lendingRiskVariables, evaluationId, rejectedLenders,
-                                rejectedLendersSet, cache, initialAuditTrial, fallbackAuditTrial);
+                                rejectedLendersSet, cache, finalInitialAuditTrial, finalFallbackAuditTrial);
                     } catch (Exception e) {
                         AsyncLoggerUtil.logError(logger, "Error processing lender data for loan with tenure {} months: {}",
                                 loan.getTenureInMonths(), e.getMessage());
