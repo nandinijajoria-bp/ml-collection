@@ -895,8 +895,8 @@ public class LoanEligibleService {
             initialAuditTrial = lendingAuditTrialDao.findTopByApplicationIdAndType(cache.openApplication.getId(), "INITIAL_LENDERS");
             fallbackAuditTrial = lendingAuditTrialDao.findTopByApplicationIdAndType(cache.openApplication.getId(), "FALLBACK_LENDERS");
         } else {
-            initialAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "INITIAL_LENDERS");
-            fallbackAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+            initialAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
+            fallbackAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
         }
 
         LendingAuditTrial finalInitialAuditTrial = initialAuditTrial;
@@ -1169,11 +1169,11 @@ public class LoanEligibleService {
             LendingApplication openApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.DRAFT.name());
             if(openApplication != null)
             {
-               LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+               LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
                lendingAuditTrialFallback.setApplicationId(openApplication.getId());
                lendingAuditTrialDao.save(lendingAuditTrialFallback);
 
-                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
                 lendingAuditTrialInitial.setApplicationId(openApplication.getId());
                 lendingAuditTrialDao.save(lendingAuditTrialInitial);
             }
@@ -1289,7 +1289,7 @@ public class LoanEligibleService {
                         else {
                             AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId merchantId: {} and merchantId: {}",
                                     merchantId, merchantId);
-                            lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+                            lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
                         }
                         AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for INITIAL_LENDERS: {} for merchantId: {}",
                                 lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
@@ -1331,7 +1331,7 @@ public class LoanEligibleService {
                         else {
                             AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId merchantId: {} and merchantId: {}",
                                     merchantId, merchantId);
-                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
                         }
                          AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for FALLBACK_LENDERS: {} for merchantId: {}",
                                  lendingAuditTrialFallback, lendingAuditTrialFallback.getId());

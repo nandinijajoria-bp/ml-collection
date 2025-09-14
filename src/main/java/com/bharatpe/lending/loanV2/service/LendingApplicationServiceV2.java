@@ -903,7 +903,7 @@ public class LendingApplicationServiceV2 {
             String evaluationId = merchant.getId() +"_" + lendingApplication.getLoanAmount().intValue();
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
 
-            LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "INITIAL_LENDERS");
+            LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
             if (lendingAuditTrialInitial != null) {
                 log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
                 lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
@@ -913,7 +913,7 @@ public class LendingApplicationServiceV2 {
                 log.error("No initial lenders audit trail found for evaluationId: {}", evaluationId);
             }
 
-            LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+            LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
             if (lendingAuditTrialFallback != null) {
                 log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
                 lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());

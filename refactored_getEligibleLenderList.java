@@ -178,8 +178,8 @@ private List<EligibleOffersResponseDTO.TenureWithLender> processEligibleLoansOpt
         initialAuditTrial = lendingAuditTrialDao.findTopByApplicationIdAndType(cache.openApplication.getId(), "INITIAL_LENDERS");
         fallbackAuditTrial = lendingAuditTrialDao.findTopByApplicationIdAndType(cache.openApplication.getId(), "FALLBACK_LENDERS");
     } else {
-        initialAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "INITIAL_LENDERS");
-        fallbackAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndType(evaluationId, "FALLBACK_LENDERS");
+        initialAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
+        fallbackAuditTrial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
     }
 
     // PERFORMANCE IMPROVEMENT: Use parallel processing for loan processing where safe
