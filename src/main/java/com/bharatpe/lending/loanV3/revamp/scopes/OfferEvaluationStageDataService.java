@@ -4,8 +4,10 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -29,10 +31,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @Slf4j
@@ -76,6 +82,9 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    LendingRiskVariablesDao lendingRiskVariablesDao;
 
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
@@ -129,7 +138,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 log.warn("LoanDetailsV3Request is null for merchant: {}", scopeDataArgs.getMerchant().getId());
             }
 
-            if (isMaxLenderAttemptsReached(requestData)) {
+            if (isMaxLenderAttemptsReached(requestData, scopeDataArgs.getMerchant().getId())) {
                 handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(scopeDataArgs.getMerchant().getId()));
                 return new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
             }
@@ -194,13 +203,22 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         }
     }
 
-    private boolean isMaxLenderAttemptsReached(OfferEvaluationRequestDTO requestData) {
+    private boolean isMaxLenderAttemptsReached(OfferEvaluationRequestDTO requestData, Long merchantId) {
         LendingApplication lendingApplication = requestData.getLendingApplication();
         if (lendingApplication == null) {
             return false;
         }
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        Set<String> allAttemptedLenders = new HashSet<>(requestData.getPreviousLenders());
 
-        return requestData.getPreviousLenders().size() >= activeLenders.size();
+        if (lendingRiskVariables != null && !StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
+            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
+            if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
+                rejectedLendersArray.forEach(l -> allAttemptedLenders.add(l.trim()));
+            }
+        }
+
+        return allAttemptedLenders.size() >= activeLenders.size();
     }
 
     private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
