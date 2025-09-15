@@ -1,7 +1,6 @@
 package com.bharatpe.lending.util;
 
 
-import com.bharatpe.common.service.MongoPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
@@ -27,7 +26,7 @@ public class MongoPublisherUtil {
     private ObjectMapper objectMapper;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate<String, Object> kafkaTemplate;
 
     private static final String TOPIC = "bharatpe.audit";
