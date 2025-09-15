@@ -770,11 +770,7 @@ public class MerchantLoansService {
         }
     }
 
-    private void setTopupDetailsV2(Long merchantId, List<LoanEligibilityDTO> loans, TopupEligibilityResponseData responseDTO, LendingPaymentScheduleSlave lendingPaymentSchedule) throws Exception {
-        if (ObjectUtils.isEmpty(loans)) {
-            log.info("No loan eligibility data found for merchant {}", merchantId);
-            return;
-        }
+    private void setTopupDetailsV2(Long merchantId, @NotNull List<LoanEligibilityDTO> loans, TopupEligibilityResponseData responseDTO, LendingPaymentScheduleSlave lendingPaymentSchedule) throws Exception {
         List<LoanEligibilityDTO> rejectedLoans = loans.stream()
                 .filter(dto -> BooleanUtils.isTrue(dto.getIsRejected()))
                 .collect(Collectors.toList());
@@ -1635,7 +1631,7 @@ public class MerchantLoansService {
 
                 eligibility.add(loanEligibilityDTO);
                 log.info("eligible loan for topUp: {}", eligibleLoan);
-                eligibleLoanDao.save(eligibleLoan);
+                //eligibleLoanDao.save(eligibleLoan);
             }
 
             // Update pilot identifier only for additional topup
