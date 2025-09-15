@@ -174,9 +174,9 @@ public abstract class LendingApplicationServiceV3Base {
                     .stage(LenderAssociationStages.LENDER_CHANGE)
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                     .lender(currentDraftApplication.getLender())
-                    .isApplicableForAggregationFlow(
+                    .isApplicableForAggregationFlow(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), merchantId)))
+                    .isApplicableForAggregationFlowV2(
                             !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))
-                                    || !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), merchantId))
                     )
                     .applicationId(currentDraftApplication.getId())
                     .build());
