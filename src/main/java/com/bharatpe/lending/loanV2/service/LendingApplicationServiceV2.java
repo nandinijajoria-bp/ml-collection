@@ -1206,7 +1206,7 @@ public class LendingApplicationServiceV2 {
             loanUtil.setAndUpdateEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
         }
 
-        lendingApplication.setLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
+        lendingApplication.setLender(eligibleLoan.getLender());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
