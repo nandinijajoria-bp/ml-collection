@@ -84,7 +84,7 @@ public class LoanService {
     private LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     @Autowired
