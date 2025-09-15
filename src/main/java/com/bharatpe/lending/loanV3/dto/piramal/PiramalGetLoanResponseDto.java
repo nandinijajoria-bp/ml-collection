@@ -1,6 +1,5 @@
 package com.bharatpe.lending.loanV3.dto.piramal;
 
-import com.bharatpe.lending.loanV3.enums.piramal.FeeType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -191,7 +190,7 @@ public class PiramalGetLoanResponseDto {
 
         private Boolean inclGST;
 
-        private FeeType feeType;
+        private String feeType;
 
         private String pennantCode;
 

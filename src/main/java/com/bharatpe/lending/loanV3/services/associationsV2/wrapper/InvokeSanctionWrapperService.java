@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.config.VkycConfig;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -150,7 +151,7 @@ public class InvokeSanctionWrapperService {
             }
             case PAYU:
                 ArrayList<String> stages = new ArrayList<>(Arrays.asList(LenderAssociationStages.UPDATE_ADDRESS.name(),LenderAssociationStages.UPDATE_BANK_DETAILS.name(),LenderAssociationStages.NACH_MANDATE.name()));
-                if(!easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(), vkycConfig.getRolloutPercentage())) {
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) || !easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(), vkycConfig.getRolloutPercentage())) {
                     stages.add(LenderAssociationStages.SKIP_VKYC.name()); // when merchant is ineligible mark vkyc skipped.
                 }
                 return stages;
