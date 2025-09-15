@@ -183,7 +183,14 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(lendingApplication.getId(), scopeDataArgs.getMerchant().getId()))){
                     log.info("Lender change flow for applicationId: {}, merchantId: {}", lendingApplication.getId(), scopeDataArgs.getMerchant().getId());
                     if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), lendingApplication.getId())) {
-                        return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
+                        // Fix: Only redirect to OFFER_EVALUATION_PAGE if we're not already on KYC_PAGE
+                        // This prevents the infinite loop between offer_evaluation and kyc_page
+                        if (!LendingViewStates.KYC_PAGE.name().equals(lendingApplicationDetails.getApplicationViewState())) {
+                            log.info("Redirecting to OFFER_EVALUATION_PAGE for lender change flow, current state: {}", lendingApplicationDetails.getApplicationViewState());
+                            return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
+                        } else {
+                            log.info("Already on KYC_PAGE, continuing with KYC flow to prevent loop, current state: {}", lendingApplicationDetails.getApplicationViewState());
+                        }
                     }
                 }
                 else
