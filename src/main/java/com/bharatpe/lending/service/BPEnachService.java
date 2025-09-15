@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -123,7 +122,7 @@ public class BPEnachService {
             }
 
 
-            if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender())){
+            if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true)){
                 responseDTO.setResponse(false);
                 responseDTO.setMessage("Nach can be skipped");
                 logger.info("nach can be skipped for application:{}", lendingApplication.getId());

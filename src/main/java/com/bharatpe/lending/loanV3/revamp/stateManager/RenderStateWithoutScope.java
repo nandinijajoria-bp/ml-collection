@@ -18,6 +18,7 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.KYCStageDataService;
+import com.bharatpe.lending.loanV3.revamp.scopes.UpiAutoPayStageHelper;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
@@ -94,6 +95,9 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     @Autowired
     VKycService vkycService;
 
+    @Autowired
+    private UpiAutoPayStageHelper upiAutoPayStageHelper;
+
 
     @Override
     public LoanDetailsV3Response fetchLendingStateData(ScopeDataArgs scopeDataArgs) {
@@ -107,6 +111,12 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         ){
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             if(!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplicationDetails.getApplicationViewState())){
+                if(LendingViewStates.UPI_AUTOPAY_PAGE.name().equals(lendingApplicationDetails.getApplicationViewState())
+                    && upiAutoPayStageHelper.isEligibleForFailedForceSkip(lendingApplication.getId(), lendingApplication.getMerchantId())){
+                    LendingViewStates nextPage = upiAutoPayStageHelper.forceSkipUpiAutopayAndGetNextPage(lendingApplication, lendingApplicationDetails);
+                    loanDetailsV3Response.setNextPage(nextPage.name());
+                    return loanDetailsV3Response;
+                }
                 loanDetailsV3Response.setNextPage(lendingApplicationDetails.getApplicationViewState());
                 log.info("returning next page from db for {} : {}", scopeDataArgs.getMerchant().getId(), loanDetailsV3Response.getNextPage());
                 return loanDetailsV3Response;
