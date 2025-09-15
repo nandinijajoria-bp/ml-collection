@@ -179,7 +179,7 @@ public class ENachService {
             return responseDTO;
         }
 
-        if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender())) {
+        if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true)) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Nach can be skipped");
             logger.info("nach can be skipped for application:{}", lendingApplication.getId());

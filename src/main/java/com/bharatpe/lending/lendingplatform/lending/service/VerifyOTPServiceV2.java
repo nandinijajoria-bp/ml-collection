@@ -117,6 +117,9 @@ public class VerifyOTPServiceV2 {
 	@Autowired
 	private LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
+	@Value("${upi.autopay.force.skip.percentage:0}")
+	private int upiAutoPayForceSkipPercentage;
+
 
 	public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
 
@@ -146,7 +149,7 @@ public class VerifyOTPServiceV2 {
 		MerchantNachDetailsResponseDTO enachSuccess = null;
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 
-		boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender());
+		boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true);
 		if(loanUtil.isMandateSwitchEnabled(lendingApplication) && isNachSkippable && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()){
 			log.info("Nach is not eligible for application: {} and merchant: {}, setting Nach Details so that flow will not break", lendingApplication.getId(), merchant.getId());
 			loanUtil.updateNachDetailsIfNachIneligible(lendingApplication);
@@ -169,6 +172,14 @@ public class VerifyOTPServiceV2 {
 			}
 			else{
 				invokeDocUploadAndNachWorflow(lendingApplication);
+			}
+			if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayForceSkipPercentage)
+					&& !LoanType.TOPUP.name().equals(lendingApplication.getLoanType())
+						&& lendingApplicationDetails.isAutoPayUpiEligible()
+							&& !"APPROVED".equals(lendingApplication.getUpiAutopayStatus())){
+				log.info("Setting nach status to null for applicationId: {} and loan_type: {}, as upiautopay status is not approved"
+						, lendingApplication.getId(), lendingApplication.getLoanType());
+				lendingApplication.setNachStatus(null);
 			}
 		}
 

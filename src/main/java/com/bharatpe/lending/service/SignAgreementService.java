@@ -925,10 +925,10 @@ public class SignAgreementService {
 			lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
 			lendingApplicationDetails.setOfferId(eligibleLoan.getId());
 			if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender())) {
-				lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(newApplication, newApplication.getLender()));
+				lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(newApplication, newApplication.getLender(), true));
 			}
 			else if(loanUtil.isMandateSwitchEnabled(finalNewApplication) && loanUtil.isLendingApplicationIneligibleForNach(finalNewApplication)){
-				lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(newApplication, newApplication.getLender()));
+				lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(newApplication, newApplication.getLender(), true));
 			}
 
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
