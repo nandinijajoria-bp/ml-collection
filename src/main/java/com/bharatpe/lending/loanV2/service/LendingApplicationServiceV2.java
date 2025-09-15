@@ -1252,8 +1252,17 @@ public class LendingApplicationServiceV2 {
             lendingApplication = lendingApplicationDao.save(lendingApplication);
         }
 
-        LendingApplicationDetails lendingApplicationDetails = new LendingApplicationDetails();
-        lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
+        log.info("assigning lender:{} for application:{}", eligibleLoan.getLender(), lendingApplication.getId());
+        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(eligibleLoan.getLender());
+        if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
+            lenderAssignService.updateLenderLimits(lendingLenderQuota, lendingApplication);
+        }
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+            lendingApplicationDetails = new LendingApplicationDetails();
+            lendingApplicationDetails.setApplicationId(lendingApplicationDetails.getId());
+        }
+        lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
         loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
