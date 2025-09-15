@@ -31,6 +31,9 @@ public class DateUtils {
     }
 
     public static String formatDateTime_DYYYY_MM_DD_HH_mm_ss_S(Date inputDate){
+        if(inputDate == null){
+            return null;
+        }
         return YYYY_MM_DD_HH_mm_ss_S.format(inputDate);
     }
 
