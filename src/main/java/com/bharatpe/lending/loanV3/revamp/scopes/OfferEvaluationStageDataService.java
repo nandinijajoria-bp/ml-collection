@@ -254,10 +254,10 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);
         if(bpKycRequired)
         {
-            return LendingViewStates.LENDER_EVALUATION_PAGE;
+            return LendingViewStates.KYC_PAGE;
         }
 
-        return hasValidShopPhotos ? LendingViewStates.KYC_PAGE : LendingViewStates.SHOP_PICTURES_PAGE;
+        return hasValidShopPhotos ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.SHOP_PICTURES_PAGE;
     }
 
 }
