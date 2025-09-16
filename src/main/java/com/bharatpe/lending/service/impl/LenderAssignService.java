@@ -1829,7 +1829,7 @@ public class LenderAssignService implements ILenderAssignService {
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingApplicationDetails)){
             lendingApplicationDetails = new LendingApplicationDetails();
-            lendingApplicationDetails.setApplicationId(lendingApplicationDetails.getId());
+            lendingApplicationDetails.setApplicationId(lendingApplication.getId());
         }
         lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
         lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());

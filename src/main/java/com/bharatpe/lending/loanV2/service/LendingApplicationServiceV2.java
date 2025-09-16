@@ -736,7 +736,7 @@ public class LendingApplicationServiceV2 {
         boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlowV2(merchant.getId(), null);
         LendingApplication inProgressLoanApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
         if (inProgressLoanApplication == null) {
-            // We have an in-progress application
+            // No in-progress application exists - create new application
             if (isApplicableForAggregationFlow) {
                 updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 return createNewApplicationV2(merchant, applicationRequest);
@@ -744,7 +744,7 @@ public class LendingApplicationServiceV2 {
                 return createNewApplication(merchant, applicationRequest);
             }
         } else {
-            // No in-progress application exists
+            // We have an in-progress application - update existing application
             if (isApplicableForAggregationFlow) {
                 return updateApplicationV2(merchant, applicationRequest);
             } else {
@@ -1046,7 +1046,7 @@ public class LendingApplicationServiceV2 {
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingApplicationDetails)){
             lendingApplicationDetails = new LendingApplicationDetails();
-            lendingApplicationDetails.setApplicationId(lendingApplicationDetails.getId());
+            lendingApplicationDetails.setApplicationId(lendingApplication.getId());
         }
         lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
         lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
@@ -1260,7 +1260,7 @@ public class LendingApplicationServiceV2 {
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingApplicationDetails)){
             lendingApplicationDetails = new LendingApplicationDetails();
-            lendingApplicationDetails.setApplicationId(lendingApplicationDetails.getId());
+            lendingApplicationDetails.setApplicationId(lendingApplication.getId());
         }
         lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
