@@ -269,13 +269,14 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 lendingApplication.getMerchantId(),
                 lendingApplication.getId()
         ) > 0;
-        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);
-        if(bpKycRequired)
+        if(!hasValidShopPhotos)
         {
-            return LendingViewStates.KYC_PAGE;
+            return LendingViewStates.SHOP_PICTURES_PAGE;
         }
 
-        return hasValidShopPhotos ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.SHOP_PICTURES_PAGE;
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);
+
+        return bpKycRequired ? LendingViewStates.KYC_PAGE : LendingViewStates.LENDER_EVALUATION_PAGE;
     }
 
 }
