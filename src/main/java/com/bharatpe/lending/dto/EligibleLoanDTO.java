@@ -32,6 +32,7 @@ public class EligibleLoanDTO {
     private Double rateOfInterest;
     private Double initialRoi;
     private Integer tenureInMonths;
+    private Integer repaymentAmount;
     private Double version;
     private Boolean discarded;
     private Double clubV2Amount;

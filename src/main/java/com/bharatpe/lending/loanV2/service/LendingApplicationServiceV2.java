@@ -695,7 +695,7 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setIoEdi(eligibleLoanDTO.getIoEdi() != null ? eligibleLoanDTO.getIoEdi() : null);
             eligibleLoan.setIoEdiDays(eligibleLoanDTO.getIoEdiDays() != null ? eligibleLoanDTO.getIoEdiDays() : null);
             eligibleLoan.setEdiFreeDays(eligibleLoanDTO.getEdiFreeDays() != null ? eligibleLoanDTO.getEdiFreeDays() : null);
-            eligibleLoan.setRepayment(eligibleLoanDTO.getRepayment() != null ? eligibleLoanDTO.getRepayment() : null);
+            eligibleLoan.setRepayment(eligibleLoanDTO.getRepaymentAmount() != null ? eligibleLoanDTO.getRepaymentAmount() : null);
             eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount() != null ? eligibleLoanDTO.getEdiCount() : null);
             eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType() != null ? eligibleLoanDTO.getOfferType() : null);
             eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest() != null ? eligibleLoanDTO.getRateOfInterest() : null);

@@ -1150,6 +1150,66 @@ public class LoanEligibleService {
     }
 
 
+    // Generate a cache key specifically for global limit responses
+    private String generateGlobalLimitCacheKey(Long merchantId) {
+        return "global_limit_" + merchantId;
+    }
+
+    // Method to get current day's expiry time (12 PM)
+    private Date getTodayNoonExpiry() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, 12);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+
+        // If current time is past noon, set expiry to next day noon
+        if (Calendar.getInstance().after(calendar)) {
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+        }
+
+        return calendar.getTime();
+    }
+
+    // Method to get cached or fresh global limit
+    private GlobalLimitResponse getCachedGlobalLimit(Long merchantId, EligibilityRequestSource source) throws BureauCallMaskedApiException {
+        String cacheKey = generateGlobalLimitCacheKey(merchantId);
+        GlobalLimitResponse cachedResponse = null;
+
+        try {
+            cachedResponse = (GlobalLimitResponse) lendingCache.get(cacheKey);
+            if (cachedResponse != null) {
+                AsyncLoggerUtil.logInfo(logger, "Global limit cache hit for merchantId: {}", merchantId);
+                return cachedResponse;
+            }
+        } catch (Exception e) {
+            AsyncLoggerUtil.logError(logger, "Global limit cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
+        }
+
+        // Cache miss - get fresh data
+        GlobalLimitResponse freshResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
+
+        // Cache the response until noon if it's valid
+        if (freshResponse != null && freshResponse.getData() != null) {
+            try {
+                Date expiryTime = getTodayNoonExpiry();
+                long ttlSeconds = (expiryTime.getTime() - System.currentTimeMillis()) / 1000;
+
+                AddCacheDto cacheDto = new AddCacheDto();
+                cacheDto.setKey(cacheKey);
+                cacheDto.setValue(freshResponse);
+                cacheDto.setTtl((int) ttlSeconds);
+
+                lendingCache.add(cacheDto);
+                AsyncLoggerUtil.logInfo(logger, "Cached global limit for merchantId: {} until {}", merchantId, expiryTime);
+            } catch (Exception e) {
+                AsyncLoggerUtil.logError(logger, "Failed to cache global limit for merchantId: {}", merchantId, e);
+            }
+        }
+
+        return freshResponse;
+    }
+
    /* public List<EligibleOffersResponseDTO.TenureWithLender> getEligibleLenderList(Long merchantId, List<EligibleLoanDTO> eligibleLoans, BasicDetailsDto merchantDetails, LendingRiskVariables lendingRiskVariables, String evaluationId) {
         final String METHOD = "getEligibleLenderList";
         AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Processing {} eligible loans for merchantId: {}", METHOD, eligibleLoans.size(), merchantId);
