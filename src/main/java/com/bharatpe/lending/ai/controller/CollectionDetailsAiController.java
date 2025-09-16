@@ -31,7 +31,7 @@ public class CollectionDetailsAiController {
     CollectionService collectionService;
 
 
-    @GetMapping(produces = "application/json")
+    @GetMapping(value = "/ledger",produces = "application/json")
     public ResponseEntity<ApiResponse<List<List<LendingLedgerDto>>>> getLendingLedger(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
             @RequestParam(required = false) Long merchantId,
@@ -57,7 +57,7 @@ public class CollectionDetailsAiController {
         return ResponseEntity.ok(new ApiResponse<>(ledgerResponse));
     }
 
-    @GetMapping(produces = "application/json")
+    @GetMapping(value = "/excess",produces = "application/json")
     public ResponseEntity<ApiResponse<List<List<LendingCollectionExcessDto>>>> getExcessDetails(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
             @RequestParam(required = false) Long merchantId,
