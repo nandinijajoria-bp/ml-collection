@@ -1094,7 +1094,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
         lendingApplication.setEdi(Double.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
-        lendingApplication.setRepayment(Double.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getRepayment()));
+        lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(lendingApplicationRequest.getEligibleLoanDTO().getRateOfInterest());
         lendingApplication.setProcessingFee(lendingApplicationRequest.getEligibleLoanDTO().getProcessingFeeRate());
         lendingApplication.setDisbursalAmount(lendingApplicationRequest.getEligibleLoanDTO().getAmount() - processingFee.intValue());
