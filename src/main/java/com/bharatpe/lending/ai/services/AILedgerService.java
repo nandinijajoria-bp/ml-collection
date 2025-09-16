@@ -14,7 +14,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -62,13 +64,16 @@ public class AILedgerService {
             log.info("No active loan found for merchantId: {}", merchantId);
             return new LedgerApiResponse();
         }
-
+        lendingPaymentScheduleList = lendingPaymentScheduleList.stream()
+                .sorted(Comparator.comparing(LendingPaymentSchedule::getCreatedAt).reversed())
+                .collect(Collectors.toList());
         List<List<LendingLedger>> allLendingLedgerList = new ArrayList<>();
         for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
             List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule);
             if(!lendingLedgerList.isEmpty()){
                 allLendingLedgerList.add(lendingLedgerList);
             }
+            break;
         }
         if(allLendingLedgerList.isEmpty()){
             log.info("No ledger records found for merchantId: {}", merchantId);
@@ -104,35 +109,35 @@ public class AILedgerService {
         ledgerData.setDescription(lendingLedger.getDescription());
 
         // Map LendingPaymentSchedule if needed
-        if (lendingLedger.getLendingPaymentSchedule() != null) {
-            LedgerApiResponse.LendingPaymentSchedule lendingPaymentSchedule = new LedgerApiResponse.LendingPaymentSchedule();
-            lendingPaymentSchedule.setId(lendingLedger.getLendingPaymentSchedule().getId());
-            lendingPaymentSchedule.setCreatedAt(lendingLedger.getLendingPaymentSchedule().getCreatedAt());
-            lendingPaymentSchedule.setUpdatedAt(lendingLedger.getLendingPaymentSchedule().getUpdatedAt());
-            lendingPaymentSchedule.setMerchantId(lendingLedger.getLendingPaymentSchedule().getMerchantId());
-            lendingPaymentSchedule.setLoanType(lendingLedger.getLendingPaymentSchedule().getLoanType());
-            lendingPaymentSchedule.setLoanAmount(lendingLedger.getLendingPaymentSchedule().getLoanAmount());
-            lendingPaymentSchedule.setEdiAmount(lendingLedger.getLendingPaymentSchedule().getEdiAmount());
-            lendingPaymentSchedule.setStartDate(lendingLedger.getLendingPaymentSchedule().getStartDate());
-            lendingPaymentSchedule.setEdiCount(lendingLedger.getLendingPaymentSchedule().getEdiCount());
-            lendingPaymentSchedule.setOverdueEdiCount(lendingLedger.getLendingPaymentSchedule().getOverdueEdiCount());
-            lendingPaymentSchedule.setOverdueAmount(lendingLedger.getLendingPaymentSchedule().getOverdueAmount());
-            lendingPaymentSchedule.setPaidAmount(lendingLedger.getLendingPaymentSchedule().getPaidAmount());
-            lendingPaymentSchedule.setDueAmount(lendingLedger.getLendingPaymentSchedule().getDueAmount());
-            lendingPaymentSchedule.setTotalPenaltyAmount(lendingLedger.getLendingPaymentSchedule().getTotalPenaltyAmount());
-            lendingPaymentSchedule.setStatus(lendingLedger.getLendingPaymentSchedule().getStatus());
-            lendingPaymentSchedule.setApplicationId(lendingLedger.getLendingPaymentSchedule().getApplicationId());
-            lendingPaymentSchedule.setTotalPayableAmount(lendingLedger.getLendingPaymentSchedule().getTotalPayableAmount());
-            lendingPaymentSchedule.setMobile(lendingLedger.getLendingPaymentSchedule().getMobile());
-            lendingPaymentSchedule.setNbfc(lendingLedger.getLendingPaymentSchedule().getNbfc());
-            lendingPaymentSchedule.setTentativeClosingDate(lendingLedger.getLendingPaymentSchedule().getTentativeClosingDate());
-            lendingPaymentSchedule.setInterest(lendingLedger.getLendingPaymentSchedule().getInterest());
-            lendingPaymentSchedule.setDuePrinciple(lendingLedger.getLendingPaymentSchedule().getDuePrinciple());
-            lendingPaymentSchedule.setDueInterest(lendingLedger.getLendingPaymentSchedule().getDueInterest());
-            lendingPaymentSchedule.setDuePenalty(lendingLedger.getLendingPaymentSchedule().getDuePenalty());
-
-            ledgerData.setLendingPaymentSchedule(lendingPaymentSchedule);
-        }
+//        if (lendingLedger.getLendingPaymentSchedule() != null) {
+//            LedgerApiResponse.LendingPaymentSchedule lendingPaymentSchedule = new LedgerApiResponse.LendingPaymentSchedule();
+//            lendingPaymentSchedule.setId(lendingLedger.getLendingPaymentSchedule().getId());
+//            lendingPaymentSchedule.setCreatedAt(lendingLedger.getLendingPaymentSchedule().getCreatedAt());
+//            lendingPaymentSchedule.setUpdatedAt(lendingLedger.getLendingPaymentSchedule().getUpdatedAt());
+//            lendingPaymentSchedule.setMerchantId(lendingLedger.getLendingPaymentSchedule().getMerchantId());
+//            lendingPaymentSchedule.setLoanType(lendingLedger.getLendingPaymentSchedule().getLoanType());
+//            lendingPaymentSchedule.setLoanAmount(lendingLedger.getLendingPaymentSchedule().getLoanAmount());
+//            lendingPaymentSchedule.setEdiAmount(lendingLedger.getLendingPaymentSchedule().getEdiAmount());
+//            lendingPaymentSchedule.setStartDate(lendingLedger.getLendingPaymentSchedule().getStartDate());
+//            lendingPaymentSchedule.setEdiCount(lendingLedger.getLendingPaymentSchedule().getEdiCount());
+//            lendingPaymentSchedule.setOverdueEdiCount(lendingLedger.getLendingPaymentSchedule().getOverdueEdiCount());
+//            lendingPaymentSchedule.setOverdueAmount(lendingLedger.getLendingPaymentSchedule().getOverdueAmount());
+//            lendingPaymentSchedule.setPaidAmount(lendingLedger.getLendingPaymentSchedule().getPaidAmount());
+//            lendingPaymentSchedule.setDueAmount(lendingLedger.getLendingPaymentSchedule().getDueAmount());
+//            lendingPaymentSchedule.setTotalPenaltyAmount(lendingLedger.getLendingPaymentSchedule().getTotalPenaltyAmount());
+//            lendingPaymentSchedule.setStatus(lendingLedger.getLendingPaymentSchedule().getStatus());
+//            lendingPaymentSchedule.setApplicationId(lendingLedger.getLendingPaymentSchedule().getApplicationId());
+//            lendingPaymentSchedule.setTotalPayableAmount(lendingLedger.getLendingPaymentSchedule().getTotalPayableAmount());
+//            lendingPaymentSchedule.setMobile(lendingLedger.getLendingPaymentSchedule().getMobile());
+//            lendingPaymentSchedule.setNbfc(lendingLedger.getLendingPaymentSchedule().getNbfc());
+//            lendingPaymentSchedule.setTentativeClosingDate(lendingLedger.getLendingPaymentSchedule().getTentativeClosingDate());
+//            lendingPaymentSchedule.setInterest(lendingLedger.getLendingPaymentSchedule().getInterest());
+//            lendingPaymentSchedule.setDuePrinciple(lendingLedger.getLendingPaymentSchedule().getDuePrinciple());
+//            lendingPaymentSchedule.setDueInterest(lendingLedger.getLendingPaymentSchedule().getDueInterest());
+//            lendingPaymentSchedule.setDuePenalty(lendingLedger.getLendingPaymentSchedule().getDuePenalty());
+//
+//            ledgerData.setLendingPaymentSchedule(lendingPaymentSchedule);
+//        }
 
         return ledgerData;
     }
