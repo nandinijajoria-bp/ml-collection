@@ -3038,10 +3038,31 @@ public class LoanUtil {
 		if ( lendingApplication.getLender() == null || lendingApplication.getId() == null)  {
 			return true;
 		}
+
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
-		updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
-		logger.info("upi autopay eligibility for applicationId : {} is : {}", lendingApplication.getId(), lendingApplicationDetails.isAutoPayUpiEligible());
-		return !lendingApplicationDetails.isAutoPayUpiEligible();
+		if(lendingApplicationDetails!=null && Objects.nonNull(lendingApplicationDetails.getMandateFlagsToggledOn())){
+			logger.info("Mandate flags toggled on for applicationId: {}, and autopay eligibility is: {}",
+					lendingApplication.getId(), lendingApplicationDetails.isAutoPayUpiEligible());
+			return !lendingApplicationDetails.isAutoPayUpiEligible();
+		}
+
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		if (lendingRiskVariablesSnapshot == null) {
+			logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
+		}
+
+		//Autopay required if a particular identifier is set for the pilot
+		MandatesInJourney overrideMandate = forceSetMandatesForPilotIdentifier(lendingRiskVariablesSnapshot,
+				lendingApplication.getLender(), lendingApplication.getLoanAmount());
+		if (!ObjectUtils.isEmpty(overrideMandate)) {
+			logger.warn("UPI autopay is required for applicationId: {} as overrideMandate is set to {}", lendingApplication.getId(), overrideMandate);
+			return false;
+		}
+
+		String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
+        logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
+		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
 	}
 
 	public Boolean validateToken(String token) {
