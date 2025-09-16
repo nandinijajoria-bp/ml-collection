@@ -651,7 +651,7 @@ public class LoanEligibleService {
             EligibleOffersResponseDTO responseDTO = new EligibleOffersResponseDTO();
 
             // Get global limit
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
+            GlobalLimitResponse globalLimitResponse = getCachedGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
             if (globalLimitResponse == null || globalLimitResponse.getData() == null) {
                 AsyncLoggerUtil.logError(logger, "EXIT {} - Failed to retrieve global limit for merchantId: {}", METHOD, merchantId);
                 return ApiResponseUtil.notFound("Global limit not available", "GLOBAL_LIMIT_NOT_FOUND");
@@ -1187,7 +1187,7 @@ public class LoanEligibleService {
         }
 
         // Cache miss - get fresh data
-        GlobalLimitResponse freshResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
+        GlobalLimitResponse freshResponse = apiGatewayService.getGlobalLimit(merchantId, source);
 
         // Cache the response until noon if it's valid
         if (freshResponse != null && freshResponse.getData() != null) {

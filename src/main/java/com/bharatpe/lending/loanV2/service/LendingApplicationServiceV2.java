@@ -899,8 +899,8 @@ public class LendingApplicationServiceV2 {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
-            log.info("Eligible loan found for merchant: {} , amount: {}, tenure: {}, edi: {}, roi: {}",
-                    merchant.getId(), eligibleLoan.getAmount(), eligibleLoan.getTenure(), eligibleLoan.getEdi(), eligibleLoan.getRateOfInterest());
+            log.info("Eligible loan found for merchant: {} , {}",
+                    merchant.getId(), eligibleLoan);
             LendingApplication lendingApplication = saveLendingApplicationV2(merchant, eligibleLoan, applicationRequest, addressValidationDto);
             String evaluationId = merchant.getId() +"_" + lendingApplication.getLoanAmount().intValue();
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
@@ -1096,7 +1096,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(lendingApplicationRequest.getEligibleLoanDTO().getRateOfInterest());
-        lendingApplication.setProcessingFee(lendingApplicationRequest.getEligibleLoanDTO().getProcessingFeeRate());
+        lendingApplication.setProcessingFee(processingFee.doubleValue());
         lendingApplication.setDisbursalAmount(lendingApplicationRequest.getEligibleLoanDTO().getAmount() - processingFee.intValue());
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
@@ -1154,7 +1154,7 @@ public class LendingApplicationServiceV2 {
         }
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
-        loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
+        loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.SHOP_DETAILS_PAGE);
 
         if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
             rejectApplicationForIncorrectLender(lendingApplication);
