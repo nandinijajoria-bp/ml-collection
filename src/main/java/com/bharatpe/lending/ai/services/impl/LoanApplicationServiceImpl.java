@@ -4,6 +4,7 @@ import com.bharatpe.lending.ai.dto.LoanApplicationDetail;
 import com.bharatpe.lending.ai.dto.LoanDetailResponse;
 import com.bharatpe.lending.ai.dto.StageDetail;
 import com.bharatpe.lending.ai.enums.LoanApplicationStatus;
+import com.bharatpe.lending.ai.services.AILedgerService;
 import com.bharatpe.lending.ai.services.ILoanStageDetailBuilder;
 import com.bharatpe.lending.ai.services.ILonaApplicationService;
 import com.bharatpe.lending.ai.services.LoanStageDataBuilderFactory;
@@ -24,6 +25,7 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
     private final LendingApplicationDaoSlave lendingApplicationDaoSlave;
     private final LendingApplicationDetailsDao lendingApplicationDetailsDao;
     private final LoanStageDataBuilderFactory loanStageDataBuilderFactory;
+    private final AILedgerService aiLedgerService;
 
     @Override
     public LoanDetailResponse getLoanApplicationDetails(Long merchantId) {
@@ -41,6 +43,10 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
         loanApplicationDetail.setMonthlyInterestRate(lendingApplication.getInterestRate());
         loanApplicationDetail.setTotalPayableAmount(lendingApplication.getRepayment());
         loanApplicationDetail.setEdiAmount(loanApplicationDetail.getEdiAmount());
+        loanApplicationDetail.setCreatedAt(lendingApplication.getCreatedAt());
+        loanApplicationDetail.setLender(lendingApplication.getLender());
+        loanApplicationDetail.setDisbursalAmount(lendingApplication.getDisbursalAmount());
+        loanApplicationDetail.setInterestRate(lendingApplication.getInterestRate());
 
         LendingApplicationDetails lad = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
         if(lad==null){
@@ -49,7 +55,7 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
         LendingViewStates stage = LendingViewStates.valueOf(lad.getApplicationViewState());
         loanApplicationDetail.setStage(stage);
         response.setCurrentLoan(loanApplicationDetail);
-        ILoanStageDetailBuilder stageDetailBuilder = loanStageDataBuilderFactory.getStageBuilder(stage);
+        ILoanStageDetailBuilder stageDetailBuilder = loanStageDataBuilderFactory.getStageBuilder(stage, lendingApplication);
         StageDetail stageDetail = stageDetailBuilder.buildStageResponse(lendingApplication, lad);
         response.setStageDetail(stageDetail);
         return response;

@@ -13,5 +13,6 @@ public class StageDetail {
     private Object nachStageDetail;
     private KfsStageDetail kfsStageDetail;
     private KycStageDetail kycStageDetail;
+    private LedgerApiResponse ledgerApiResponse;
     private Object shopPictureStageDetails;
 }
