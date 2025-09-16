@@ -859,7 +859,7 @@ public class LoanEligibleService {
 
         if (openApplication != null) {
             AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
-            List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(openApplication.getId());
+            List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationIdAndStatusOrderByIdDesc(openApplication.getId(), "INACTIVE");
             AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
 
             rejectedLenders = alreadyAssignedLender;
