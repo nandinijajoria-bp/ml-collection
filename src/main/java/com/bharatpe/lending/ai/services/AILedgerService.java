@@ -73,7 +73,6 @@ public class AILedgerService {
             if(!lendingLedgerList.isEmpty()){
                 allLendingLedgerList.add(lendingLedgerList);
             }
-            break;
         }
         if(allLendingLedgerList.isEmpty()){
             log.info("No ledger records found for merchantId: {}", merchantId);
