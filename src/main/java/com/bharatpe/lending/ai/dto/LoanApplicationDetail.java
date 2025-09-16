@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
 
+import java.util.Date;
+
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoanApplicationDetail {
@@ -17,5 +19,9 @@ public class LoanApplicationDetail {
     private Double monthlyInterestRate;
     private Double totalPayableAmount;
     private Double ediAmount;
+    private Double interestRate;
+    private String lender;
+    private Double disbursalAmount;
     private LendingViewStates stage;
+    private Date createdAt;
 }

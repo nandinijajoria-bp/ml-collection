@@ -41,6 +41,10 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
         loanApplicationDetail.setMonthlyInterestRate(lendingApplication.getInterestRate());
         loanApplicationDetail.setTotalPayableAmount(lendingApplication.getRepayment());
         loanApplicationDetail.setEdiAmount(loanApplicationDetail.getEdiAmount());
+        loanApplicationDetail.setCreatedAt(lendingApplication.getCreatedAt());
+        loanApplicationDetail.setLender(lendingApplication.getLender());
+        loanApplicationDetail.setDisbursalAmount(lendingApplication.getDisbursalAmount());
+        loanApplicationDetail.setInterestRate(lendingApplication.getInterestRate());
 
         LendingApplicationDetails lad = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
         if(lad==null){
