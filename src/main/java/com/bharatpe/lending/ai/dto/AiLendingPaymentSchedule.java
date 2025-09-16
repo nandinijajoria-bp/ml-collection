@@ -39,7 +39,6 @@ public class AiLendingPaymentSchedule extends AiBaseEntity{
     private String offDay;
     private Long applicationId;
     private Double totalPayableAmount;
-    private String mobile;
     private String nbfc;
     private Date closingDate;
     private Date tentativeClosingDate;
@@ -99,7 +98,6 @@ public class AiLendingPaymentSchedule extends AiBaseEntity{
             this.offDay = src.getOffDay();
             this.applicationId = src.getApplicationId();
             this.totalPayableAmount = src.getTotalPayableAmount();
-            this.mobile = src.getMobile();
             this.nbfc = src.getNbfc();
             this.closingDate = src.getClosingDate();
             this.tentativeClosingDate = src.getTentativeClosingDate();

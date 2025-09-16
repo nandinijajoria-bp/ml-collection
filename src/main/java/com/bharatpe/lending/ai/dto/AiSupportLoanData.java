@@ -28,7 +28,6 @@ public class AiSupportLoanData {
     private String beneficiaryName;
     private String businessName;
     private String city;
-    private String mobile;
     private String bankAccount;
     private Boolean creditLineAccount;
     private AiLoanApplication loanApplication;
@@ -56,7 +55,6 @@ public class AiSupportLoanData {
         this.beneficiaryName = dto.getBeneficiaryName();
         this.businessName = dto.getBusinessName();
         this.city = dto.getCity();
-        this.mobile = dto.getMobile();
         this.bankAccount = dto.getBankAccount();
         this.creditLineAccount = dto.getCreditLineAccount();
         this.loanApplication = new AiLoanApplication(dto.getLoanApplication());
