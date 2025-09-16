@@ -1104,7 +1104,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLoanAmount(lendingApplicationRequest.getEligibleLoanDTO().getAmount());
         lendingApplication.setCategory(eligibleLoan.getCategory());
         lendingApplication.setTenure(lendingApplicationRequest.getEligibleLoanDTO().getTenure());
-        lendingApplication.setTenureInMonths(lendingApplicationRequest.getEligibleLoanDTO().getTenureInMonths()));
+        lendingApplication.setTenureInMonths(lendingApplicationRequest.getEligibleLoanDTO().getTenureInMonths());
         lendingApplication.setPayableDays(Long.valueOf(eligibleLoan.getEdiCount()));
         lendingApplication.setEdiFreeDays(0);
         lendingApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
