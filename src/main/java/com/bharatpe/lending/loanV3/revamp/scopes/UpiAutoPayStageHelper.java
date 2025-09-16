@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.BooleanUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -45,6 +46,8 @@ import java.util.stream.Collectors;
 public class UpiAutoPayStageHelper {
 
     private final LoanUtil loanUtil;
+
+    @Lazy
     private final NbfcUtils nbfcUtils;
     private final EasyLoanUtil easyLoanUtil;
     private final VKycService vKycService;
