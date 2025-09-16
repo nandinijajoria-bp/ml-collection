@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
@@ -49,8 +51,9 @@ public class CollectionService {
             days = 7L;
         }
 
-        Instant cutoffInstant = Instant.now().minus(days, ChronoUnit.DAYS);
-        Date cutoffDate = Date.from(Instant.now().minus(days, ChronoUnit.DAYS));
+        LocalDate cutoffLocalDate = LocalDate.now().minusDays(days);
+        Instant cutoffInstant = cutoffLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Date cutoffDate = Date.from(cutoffInstant);
 
         List<List<LendingLedgerDto>> allLendingLedgerList = new ArrayList<>();
 
@@ -124,7 +127,8 @@ public class CollectionService {
         if (days == null || days <= 0) {
             days = 7L;
         }
-        Instant cutoffInstant = Instant.now().minus(days, ChronoUnit.DAYS);
+        LocalDate cutoffLocalDate = LocalDate.now().minusDays(days);
+        Instant cutoffInstant = cutoffLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Date cutoffDate = Date.from(cutoffInstant);
 
         List<List<LendingCollectionExcessDto>> allExcessList = new ArrayList<>();
