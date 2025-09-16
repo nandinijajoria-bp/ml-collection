@@ -50,7 +50,7 @@ public class CollectionService {
         }
 
         Instant cutoffInstant = Instant.now().minus(days, ChronoUnit.DAYS);
-        Date cutoffDate = Date.from(cutoffInstant);
+        Date cutoffDate = Date.from(Instant.now().minus(days, ChronoUnit.DAYS));
 
         List<List<LendingLedgerDto>> allLendingLedgerList = new ArrayList<>();
 
@@ -59,7 +59,7 @@ public class CollectionService {
 
 
             List<LendingLedger> lendingLedgerList =
-                    lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule);
+                    lendingLedgerDao.findByMerchantIdAndDateAfter(merchantId, cutoffDate);
 
             if (!lendingLedgerList.isEmpty()) {
                 dtoList.addAll(
@@ -131,7 +131,8 @@ public class CollectionService {
 
         for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
             List<LendingCollectionExcess> excessList =
-                    lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(merchantId, lendingPaymentSchedule.getId());
+                    lendingCollectionExcessDao.lendingExcessNachLedgerAfterDate(
+                            lendingPaymentSchedule.getId(), cutoffDate);
 
             if (!excessList.isEmpty()) {
                 List<LendingCollectionExcessDto> dtoList = excessList.stream()

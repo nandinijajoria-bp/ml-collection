@@ -26,14 +26,6 @@ import java.util.List;
 @RequestMapping("ai/collection")
 public class CollectionDetailsAiController {
 
-    @Autowired
-    LendingLedgerDao lendingLedgerDao;
-
-    @Autowired
-    LendingCollectionExcessDao lendingCollectionExcessDao;
-
-    @Autowired
-    LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
     CollectionService collectionService;
