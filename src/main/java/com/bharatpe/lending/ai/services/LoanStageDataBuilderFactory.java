@@ -1,6 +1,7 @@
 package com.bharatpe.lending.ai.services;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -14,16 +15,19 @@ public class LoanStageDataBuilderFactory {
     private final ILoanStageDetailBuilder lenderEvaluationStageDetailBuilder;
     private final ILoanStageDetailBuilder kycStageDetailBuilder;
     private final ILoanStageDetailBuilder voidStageDetailBuilder;
+    private final ILoanStageDetailBuilder postDisbursalStageDetailBuilder;
 
     private Map<String, ILoanStageDetailBuilder> stageDetailBuilderMap;
 
     public LoanStageDataBuilderFactory(
             @Qualifier("lenderEvaluationStageDetailBuilder") ILoanStageDetailBuilder lenderEvaluationStageDetailBuilder,
             @Qualifier("kycStageDetailBuilder") ILoanStageDetailBuilder kycStageDetailBuilder,
-            @Qualifier("voidStageDetailBuilder") ILoanStageDetailBuilder voidStageDetailBuilder) {
+            @Qualifier("voidStageDetailBuilder") ILoanStageDetailBuilder voidStageDetailBuilder,
+            @Qualifier("postDisbursalStageDetailBuilder") ILoanStageDetailBuilder postDisbursalStageDetailBuilder) {
         this.lenderEvaluationStageDetailBuilder = lenderEvaluationStageDetailBuilder;
         this.kycStageDetailBuilder = kycStageDetailBuilder;
         this.voidStageDetailBuilder = voidStageDetailBuilder;
+        this.postDisbursalStageDetailBuilder = postDisbursalStageDetailBuilder;
     }
 
     @PostConstruct
@@ -33,11 +37,10 @@ public class LoanStageDataBuilderFactory {
         stageDetailBuilderMap.put(LendingViewStates.KYC_PAGE.name(), kycStageDetailBuilder);
     }
 
-    public ILoanStageDetailBuilder getStageBuilder(LendingViewStates state, LendingApplication lendingApplication){
-        if(lendingApplication!=null && "DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())){
-            retun
-        }
+    public ILoanStageDetailBuilder getStageBuilder(LendingViewStates state, LendingApplicationSlave lendingApplication) {
+        if (lendingApplication != null && "DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+            return stageDetailBuilderMap.getOrDefault(state.name(), postDisbursalStageDetailBuilder);
+         }
         return stageDetailBuilderMap.getOrDefault(state.name(), voidStageDetailBuilder);
     }
-
 }

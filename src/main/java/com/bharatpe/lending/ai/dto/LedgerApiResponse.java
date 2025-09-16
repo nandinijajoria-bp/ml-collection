@@ -1,12 +1,18 @@
 package com.bharatpe.lending.ai.dto;
 
+import com.bharatpe.common.entities.LendingLedger;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.List;
 
 import java.util.Date;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class LedgerApiResponse {
     private boolean success;
@@ -15,7 +21,7 @@ public class LedgerApiResponse {
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
-    class LedgerData {
+    public static class LedgerData {
         private Long id;
         private Date createdAt;
         private Date updatedAt;
@@ -33,7 +39,7 @@ public class LedgerApiResponse {
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
-    class LendingPaymentSchedule {
+    public static class LendingPaymentSchedule {
         private Long id;
         private Date createdAt;
         private Date updatedAt;
@@ -63,7 +69,7 @@ public class LedgerApiResponse {
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
-    class LoanApplication {
+    public static class LoanApplication {
         private Long id;
         private Date createdAt;
         private Date updatedAt;

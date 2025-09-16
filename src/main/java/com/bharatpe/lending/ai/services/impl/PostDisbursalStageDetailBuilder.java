@@ -7,8 +7,9 @@ import com.bharatpe.lending.ai.services.ILoanStageDetailBuilder;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-
+@Slf4j
 @RequiredArgsConstructor
 public class PostDisbursalStageDetailBuilder implements ILoanStageDetailBuilder {
 
