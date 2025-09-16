@@ -290,7 +290,7 @@ public class SupportService {
             supportApiResponseDto.setClosedLoans(closedLoans);
             supportApiResponseDto.setNachableBanks(nachableBanks);
             logger.info("Populating Loan Data for merchant: {}", merchantId);
-            populateLoanData(supportApiResponseDto,lendingPaymentSchedule, lendingApplication.getExternalLoanId());
+            populateLoanData(supportApiResponseDto,lendingPaymentSchedule, lendingApplication);
             if (!ApplicationStage.ACTIVE_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
                 if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
                     if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
@@ -847,7 +847,7 @@ public class SupportService {
         populateApplicationData(supportApiResponseDto, lendingApplication);
     }
 
-    private void populateLoanData(SupportApiResponseDto supportApiResponseDto, LendingPaymentScheduleSlave lendingPaymentSchedule, String externalLoanId) {
+    private void populateLoanData(SupportApiResponseDto supportApiResponseDto, LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication) {
         try {
             if (Objects.isNull(lendingPaymentSchedule)) {
                 return;
@@ -863,6 +863,10 @@ public class SupportService {
                 supportApiResponseDto.setActiveLoan(Boolean.TRUE);
                 Double dueAmount = lendingPaymentSchedule.getDueAmount();
                 if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())) {
+                    String externalLoanId = null;
+                    if(!ObjectUtils.isEmpty(lendingApplication)){
+                        externalLoanId = lendingApplication.getExternalLoanId();
+                    }
                     LoanDetailsResponse loanDetailsResponse = lmsLoanDetailsService.getLoanSummaryFromOneLms(externalLoanId);
                     if (!ObjectUtils.isEmpty(loanDetailsResponse) && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary())
                             && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount())) {
