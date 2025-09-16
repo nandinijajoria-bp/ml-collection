@@ -1007,7 +1007,7 @@ public class LendingApplicationServiceV2 {
                             "OFFER_MODIFIED_LENDER_CHANGE",
                             "OLD_LENDER_" + lendingApplication.getLender(),
                             "NEW_LENDER_" + applicationRequest.getEligibleLoanDTO().getLender());
-                    updateLendingApplicationV2(merchant, applicationRequest.getEligibleLoanDTO(), applicationRequest);
+                    updateLendingApplicationV2(lendingApplication, merchant, applicationRequest.getEligibleLoanDTO(), applicationRequest);
                     updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 }
                 AddressValidationDto addressValidationDto = null;
@@ -1179,8 +1179,7 @@ public class LendingApplicationServiceV2 {
         return lendingApplication;
     }
 
-    private LendingApplication  updateLendingApplicationV2(BasicDetailsDto merchantBasicDetails,  EligibleLoanDTO eligibleLoan, CreateApplicationRequest lendingApplicationRequest) {
-        LendingApplication lendingApplication = new LendingApplication();
+    private LendingApplication  updateLendingApplicationV2(LendingApplication lendingApplication, BasicDetailsDto merchantBasicDetails,  EligibleLoanDTO eligibleLoan, CreateApplicationRequest lendingApplicationRequest) {
         BigDecimal processingFee;
         BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
         MaxPricingValuesDTO maxPricingValuesDTO = null;
