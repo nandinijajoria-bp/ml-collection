@@ -69,9 +69,10 @@ public class AILedgerService {
                 .collect(Collectors.toList());
         List<List<LendingLedger>> allLendingLedgerList = new ArrayList<>();
         for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
-            List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule);
+            List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule.getId());
             if(!lendingLedgerList.isEmpty()){
                 allLendingLedgerList.add(lendingLedgerList);
+                break;
             }
         }
         if(allLendingLedgerList.isEmpty()){
