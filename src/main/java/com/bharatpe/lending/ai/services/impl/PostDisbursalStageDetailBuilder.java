@@ -8,8 +8,10 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
+@Service
 @RequiredArgsConstructor
 public class PostDisbursalStageDetailBuilder implements ILoanStageDetailBuilder {
 
