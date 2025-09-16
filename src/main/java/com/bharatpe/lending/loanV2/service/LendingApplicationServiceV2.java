@@ -894,11 +894,13 @@ public class LendingApplicationServiceV2 {
                 }
             }
 
-            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
+            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeAndAmountAndTenureInMonthsOrderByIdDesc(merchant.getId(), "CUSTOM", applicationRequest.getEligibleLoanDTO().getAmount(), applicationRequest.getEligibleLoanDTO().getTenureInMonths());
             if (Objects.isNull(eligibleLoan)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
+            log.info("Eligible loan found for merchant: {} , amount: {}, tenure: {}, edi: {}, roi: {}",
+                    merchant.getId(), eligibleLoan.getAmount(), eligibleLoan.getTenure(), eligibleLoan.getEdi(), eligibleLoan.getRateOfInterest());
             LendingApplication lendingApplication = saveLendingApplicationV2(merchant, eligibleLoan, applicationRequest, addressValidationDto);
             String evaluationId = merchant.getId() +"_" + lendingApplication.getLoanAmount().intValue();
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
@@ -1067,11 +1069,11 @@ public class LendingApplicationServiceV2 {
     private LendingApplication saveLendingApplicationV2(BasicDetailsDto merchantBasicDetails, LendingEligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, AddressValidationDto addressValidationDto) {
         LendingApplication lendingApplication = new LendingApplication();
         BigDecimal processingFee;
-        BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+        BigDecimal amountBD = BigDecimal.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getAmount());
         MaxPricingValuesDTO maxPricingValuesDTO = null;
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantBasicDetails.getId());
-            maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, eligibleLoan.getTenureInMonths());
+            maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, lendingApplicationRequest.getEligibleLoanDTO().getTenureInMonths());
         }
         if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
             BigDecimal maxProcessingFeeRateBD = BigDecimal.valueOf(maxPricingValuesDTO.getMaxProcessingFeeRate());
@@ -1079,33 +1081,30 @@ public class LendingApplicationServiceV2 {
                     .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
         }
         else {
-            if(eligibleLoan.getProcessingFee() != null) {
-                processingFee = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+            if(lendingApplicationRequest.getEligibleLoanDTO().getProcessingFee() != null) {
+                processingFee = BigDecimal.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getProcessingFee());
 
             }else{
                 throw new NullPointerException("processing fee cannot be null for eligible loan");
             }
 
         }
-        if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
-        }
 
         lendingApplication.setMerchantName(merchantBasicDetails.getBeneficiaryName());
         lendingApplication.setLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
-        lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
+        lendingApplication.setEdi(Double.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
-        lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-        lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        lendingApplication.setProcessingFee(processingFee.doubleValue());
-        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee.intValue());
+        lendingApplication.setRepayment(Double.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getRepayment()));
+        lendingApplication.setInterestRate(lendingApplicationRequest.getEligibleLoanDTO().getRateOfInterest());
+        lendingApplication.setProcessingFee(lendingApplicationRequest.getEligibleLoanDTO().getProcessingFeeRate());
+        lendingApplication.setDisbursalAmount(lendingApplicationRequest.getEligibleLoanDTO().getAmount() - processingFee.intValue());
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
         lendingApplication.setMerchantId(merchantBasicDetails.getId());
-        lendingApplication.setLoanAmount(eligibleLoan.getAmount());
+        lendingApplication.setLoanAmount(lendingApplicationRequest.getEligibleLoanDTO().getAmount());
         lendingApplication.setCategory(eligibleLoan.getCategory());
-        lendingApplication.setTenure(eligibleLoan.getTenure());
-        lendingApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+        lendingApplication.setTenure(lendingApplicationRequest.getEligibleLoanDTO().getTenure());
+        lendingApplication.setTenureInMonths(lendingApplicationRequest.getEligibleLoanDTO().getTenureInMonths()));
         lendingApplication.setPayableDays(Long.valueOf(eligibleLoan.getEdiCount()));
         lendingApplication.setEdiFreeDays(0);
         lendingApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
@@ -1116,7 +1115,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLatitude(!StringUtils.isEmpty(lendingApplicationRequest.getLatitude()) ? lendingApplicationRequest.getLatitude() : null);
         lendingApplication.setLongitude(!StringUtils.isEmpty(lendingApplicationRequest.getLongitude()) ? lendingApplicationRequest.getLongitude() : null);
         lendingApplication.setBusinessName(!StringUtils.isEmpty(lendingApplicationRequest.getBusinessName()) ? lendingApplicationRequest.getBusinessName() : null);
-        lendingApplication.setEdiFreeDays(eligibleLoan.getEdiCount() % 30 == 0 ? 0 : 1);
+        lendingApplication.setEdiFreeDays(lendingApplicationRequest.getEligibleLoanDTO().getEdiCount() % 30 == 0 ? 0 : 1);
         lendingApplication.setIp(Optional.ofNullable(lendingApplication.getIp()).orElse(lendingApplicationRequest.getIp()));
         lendingApplication = lendingApplicationDao.save(lendingApplication);
 
