@@ -55,6 +55,7 @@ public class LoanApplicationServiceImpl implements ILonaApplicationService {
         LendingViewStates stage = LendingViewStates.valueOf(lad.getApplicationViewState());
         loanApplicationDetail.setStage(stage);
         response.setCurrentLoan(loanApplicationDetail);
+        response.setLendingApplication(lendingApplication);
         ILoanStageDetailBuilder stageDetailBuilder = loanStageDataBuilderFactory.getStageBuilder(stage, lendingApplication);
         StageDetail stageDetail = stageDetailBuilder.buildStageResponse(lendingApplication, lad);
         response.setStageDetail(stageDetail);

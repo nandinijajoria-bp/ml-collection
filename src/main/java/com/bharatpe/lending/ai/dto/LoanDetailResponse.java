@@ -1,6 +1,7 @@
 package com.bharatpe.lending.ai.dto;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
@@ -11,5 +12,5 @@ public class LoanDetailResponse {
     private LoanApplicationDetail currentLoan;
     private Eligibility eligibility;
     private StageDetail stageDetail;
-    private LendingApplication lendingApplication;
+    private LendingApplicationSlave lendingApplication;
 }
