@@ -861,7 +861,6 @@ public class LoanEligibleService {
             AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
             List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationIdAndStatusOrderByIdDesc(openApplication.getId(), "INACTIVE");
             AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
-
             rejectedLenders = alreadyAssignedLender;
 
             // Remove rejected lenders from all loans efficiently using parallel stream
@@ -1026,7 +1025,6 @@ public class LoanEligibleService {
         Map<String, EligibleOffersResponseDTO.LenderData> lenderDataMap = lenderDataForLoan.stream()
                 .collect(Collectors.toMap(EligibleOffersResponseDTO.LenderData::getLenderName, Function.identity()));
 
-        // PERFORMANCE IMPROVEMENT: Build final lender lists efficiently
         List<EligibleOffersResponseDTO.LenderData> initialLenders = buildLenderDataListOptimized(initialLendersList, lenderDataMap, RankingType.INITIAL);
         List<EligibleOffersResponseDTO.LenderData> fallbackLenders = buildLenderDataListOptimized(fallbackLendersList, lenderDataMap, RankingType.FALLBACK);
 
@@ -1063,7 +1061,6 @@ public class LoanEligibleService {
                 AsyncLoggerUtil.logInfo(logger, "Initial lenders after parsing: {}, count: {}",
                         initialLendersAssigned, initialLendersAssigned.size());
 
-                // PERFORMANCE IMPROVEMENT: Use stream operations for efficient counting
                 initialMatchingLendersCount = (int) initialLendersAssigned.stream()
                         .filter(rejectedLendersSet::contains)
                         .count();
@@ -1079,7 +1076,6 @@ public class LoanEligibleService {
                 AsyncLoggerUtil.logInfo(logger, "Fallback lenders from audit trail: {}, count: {}",
                         fallbackLendersAssigned, fallbackLendersAssigned.size());
 
-                // PERFORMANCE IMPROVEMENT: Use stream operations for efficient counting
                 fallbackMatchingLendersCount = (int) fallbackLendersAssigned.stream()
                         .filter(rejectedLendersSet::contains)
                         .count();
