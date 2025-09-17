@@ -1145,13 +1145,10 @@ public class LoanEligibleService {
         }
     }
 
-
-    // Generate a cache key specifically for global limit responses
     private String generateGlobalLimitCacheKey(Long merchantId) {
         return "global_limit_" + merchantId;
     }
 
-    // Method to get current day's expiry time (12 PM)
     private Date getTodayNoonExpiry() {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, 12);
@@ -1167,19 +1164,36 @@ public class LoanEligibleService {
         return calendar.getTime();
     }
 
-    // Method to get cached or fresh global limit
     private GlobalLimitResponse getCachedGlobalLimit(Long merchantId, EligibilityRequestSource source) throws BureauCallMaskedApiException {
         String cacheKey = generateGlobalLimitCacheKey(merchantId);
-        GlobalLimitResponse cachedResponse = null;
 
         try {
-            cachedResponse = (GlobalLimitResponse) lendingCache.get(cacheKey);
-            if (cachedResponse != null) {
+            // Get value from cache as Object
+            Object cachedValue = lendingCache.get(cacheKey);
+
+            // If value exists in cache
+            if (cachedValue != null) {
+                GlobalLimitResponse cachedResponse;
+
+                // Handle different types of cached objects
+                if (cachedValue instanceof GlobalLimitResponse) {
+                    cachedResponse = (GlobalLimitResponse) cachedValue;
+                } else if (cachedValue instanceof LinkedHashMap) {
+                    // Convert LinkedHashMap to GlobalLimitResponse using ObjectMapper
+                    cachedResponse = objectMapper.convertValue(cachedValue, GlobalLimitResponse.class);
+                } else {
+                    // Log unexpected object type and fetch fresh data
+                    AsyncLoggerUtil.logError(logger, "Unexpected cache object type: {} for key: {}",
+                            cachedValue.getClass().getName(), cacheKey);
+                    return apiGatewayService.getGlobalLimit(merchantId, source);
+                }
+
                 AsyncLoggerUtil.logInfo(logger, "Global limit cache hit for merchantId: {}", merchantId);
                 return cachedResponse;
             }
         } catch (Exception e) {
-            AsyncLoggerUtil.logError(logger, "Global limit cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
+            AsyncLoggerUtil.logError(logger, "Global limit cache retrieval failed for key: {} - {}",
+                    cacheKey, e.getMessage());
         }
 
         // Cache miss - get fresh data
@@ -1194,470 +1208,19 @@ public class LoanEligibleService {
                 AddCacheDto cacheDto = new AddCacheDto();
                 cacheDto.setKey(cacheKey);
                 cacheDto.setValue(freshResponse);
-                cacheDto.setTtl((int) ttlSeconds);
+                cacheDto.setTtl(Math.toIntExact(ttlSeconds));
 
                 lendingCache.add(cacheDto);
-                AsyncLoggerUtil.logInfo(logger, "Cached global limit for merchantId: {} until {}", merchantId, expiryTime);
+                AsyncLoggerUtil.logInfo(logger, "Cached global limit for merchantId: {} until {}",
+                        merchantId, expiryTime);
             } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Failed to cache global limit for merchantId: {}", merchantId, e);
+                AsyncLoggerUtil.logError(logger, "Failed to cache global limit for merchantId: {}",
+                        merchantId, e);
             }
         }
 
         return freshResponse;
     }
-
-   /* public List<EligibleOffersResponseDTO.TenureWithLender> getEligibleLenderList(Long merchantId, List<EligibleLoanDTO> eligibleLoans, BasicDetailsDto merchantDetails, LendingRiskVariables lendingRiskVariables, String evaluationId) {
-        final String METHOD = "getEligibleLenderList";
-        AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Processing {} eligible loans for merchantId: {}", METHOD, eligibleLoans.size(), merchantId);
-
-        try {
-            // Call lender assignment handler to get eligible loans with assigned lenders
-            //handle switchoff lenders here
-            List<EligibleLoanDTO> eligibleOffersWithLenders = lenderAssignmentHandlerV1(merchantId, eligibleLoans, merchantDetails, evaluationId);
-
-            if (CollectionUtils.isEmpty(eligibleOffersWithLenders)) {
-                AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible offers with lenders found for merchantId: {}", METHOD, merchantId);
-                return null;
-            }
-
-            List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders = new ArrayList<>();
-
-            LendingApplication openApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.DRAFT.name());
-            if(openApplication != null)
-            {
-               LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
-               lendingAuditTrialFallback.setApplicationId(openApplication.getId());
-               lendingAuditTrialDao.save(lendingAuditTrialFallback);
-
-                LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
-                lendingAuditTrialInitial.setApplicationId(openApplication.getId());
-                lendingAuditTrialDao.save(lendingAuditTrialInitial);
-            }
-
-            List<LenderMetricsHistory> switchedOffLenders = lenderMetricsHistoryDao.findByIsLenderSwitchedOff(Boolean.TRUE);
-
-            List<String> switchedOffLenderNames = switchedOffLenders.stream()
-                    .map(LenderMetricsHistory::getLender)
-                    .collect(Collectors.toList());
-
-            AsyncLoggerUtil.logInfo(logger, "Lenders switched off in the system: {} for merchantId: {}", switchedOffLenderNames, merchantId);
-
-            if (!switchedOffLenderNames.isEmpty()) {
-                for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
-                    if (loan.getEligibleLenders() != null) {
-                        loan.getEligibleLenders().removeAll(switchedOffLenderNames);
-                        AsyncLoggerUtil.logInfo(logger, "Filtered out switched off lenders for tenure {} months, remaining lenders: {}",
-                                loan.getTenureInMonths(), loan.getEligibleLenders());
-                    }
-                }
-            } else {
-                AsyncLoggerUtil.logInfo(logger, "No lenders are switched off, skipping filtering step");
-            }
-
-            List<String> rejectedLenders = new ArrayList<>();
-            if (openApplication != null) {
-                AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
-                List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(openApplication.getId());
-                AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
-
-                rejectedLenders = alreadyAssignedLender;
-
-                for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
-                    if (loan.getEligibleLenders() != null) {
-                        loan.getEligibleLenders().removeAll(alreadyAssignedLender);
-                    }
-
-                }
-            }
-
-            AsyncLoggerUtil.logInfo(logger, "Lenders after removing rejected lenders due to open application: {} for merchantId: {}", eligibleOffersWithLenders , merchantId);
-
-            List<String> ineligibleLenders = new ArrayList<>();
-
-            // Process each eligible loan
-            for (EligibleLoanDTO loan : eligibleOffersWithLenders) {
-                if (!CollectionUtils.isEmpty(loan.getEligibleLenders())) {
-                    try {
-                        // Get detailed lender data for this loan
-                        List<EligibleOffersResponseDTO.LenderData> lenderDataForLoan = getLenderData(
-                                loan.getEligibleLenders(), loan, lendingRiskVariables, merchantId);
-
-                        AsyncLoggerUtil.logInfo(logger, "Lender data: {},fetched for merchantId: {}", lenderDataForLoan, merchantId);
-
-                        List<String> lenderNames = lenderDataForLoan.stream()
-                                .map(EligibleOffersResponseDTO.LenderData::getLenderName)
-                                .collect(Collectors.toList());
-
-                        AsyncLoggerUtil.logInfo(logger, "eligible lenders for tenure {} months: {}",
-                                loan.getTenureInMonths(), lenderNames);
-
-
-                        if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-                            List<String> ineligibleLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","))
-                                    .stream()
-                                    .map(String::trim)
-                                    .collect(Collectors.toList());
-
-                            // Process each lender to see if it's rejected
-                            List<String> lendersToRemove = new ArrayList<>();
-                            for (String lender : lenderNames) {
-                                if (ineligibleLendersArray.contains(loanUtil.getLenderRejectedMapping(lender.toUpperCase()))) {
-                                    AsyncLoggerUtil.logInfo(logger, "Skipping {} due to lender in rejected lender list in lending risk variables for merchant: {}",
-                                            lender, merchantId);
-                                    String remarks = "Skipping " + lender + " due to lender in rejected lender list in lending risk variables";
-                                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
-                                    lendersToRemove.add(lender);
-                                    ineligibleLenders.add(lender);
-                                }
-                            }
-
-                            // Remove rejected lenders from the eligible list
-                            lenderNames.removeAll(lendersToRemove);
-                        }
-
-                        //fetch from lender removed from lending audit trial
-                        Set<String> ineligibleLendersSet = new HashSet<>(ineligibleLenders);
-
-                        for (String activeLender : activeLenders) {
-                            if (!lenderNames.contains(activeLender)) {
-                                ineligibleLendersSet.add(activeLender);
-                            }
-                        }
-
-                        ineligibleLenders = new ArrayList<>(ineligibleLendersSet);
-
-                        AsyncLoggerUtil.logInfo(logger, "Complete ineligible lenders list: {} for merchantId: {}",
-                                ineligibleLenders, merchantId);
-
-                        List<LenderMetricsHistory> lenderMetricsHistoryList = lenderMetricsHistoryDao.findByLenderInAndIsLenderSwitchedOffFalse(lenderNames);
-
-                        int initialLendersCount = 0;
-                        int initialMatchingLendersCount = 0;
-                        int fallbackMatchingLendersCount = 0;
-                        List<String> initialLendersAssigned = new ArrayList<>();
-                        List<String> fallbackLendersAssigned = new ArrayList<>();
-                        LendingAuditTrial lendingAuditTrialInitial = null;
-                        if(openApplication != null) {
-                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for open applicationId: {} and merchantId: {}",
-                                    openApplication.getId(), merchantId);
-                            lendingAuditTrialInitial = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "INITIAL_LENDERS");
-                        }
-                        else {
-                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId merchantId: {} and merchantId: {}",
-                                    merchantId, merchantId);
-                            lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
-                        }
-                        AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for INITIAL_LENDERS: {} for merchantId: {}",
-                                lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
-
-                        if (lendingAuditTrialInitial != null && !StringUtils.isEmpty(lendingAuditTrialInitial.getRemarks())) {
-                            String remarks = lendingAuditTrialInitial.getRemarks();
-
-                            if (remarks.startsWith("Initial lenders:")) {
-                                remarks = remarks.substring("Initial lenders:".length()).trim();
-                            }
-
-                            initialLendersAssigned = Arrays.asList(remarks.split(","));
-                            AsyncLoggerUtil.logInfo(logger, "Initial lenders after parsing: {}, count: {}",
-                                    initialLendersAssigned, initialLendersAssigned.size());
-                             initialLendersCount = initialLendersAssigned.size();
-                            AsyncLoggerUtil.logInfo(logger, "Initial lenders from audit trail: {}, count: {}", initialLendersAssigned, initialLendersCount);
-
-                            // Check for matches between alreadyAssignedLender (rejectedLenders) and initialLendersAssigned
-                            List<String> matchingLenders = new ArrayList<>();
-                            if (rejectedLenders != null && !rejectedLenders.isEmpty()) {
-                                for (String lender : rejectedLenders) {
-                                    if (initialLendersAssigned.contains(lender)) {
-                                        matchingLenders.add(lender);
-                                    }
-                                }
-                                initialMatchingLendersCount = matchingLenders.size();
-                                AsyncLoggerUtil.logInfo(logger, "Matching lenders found in both rejected and initial lists: {}, matching count: {}",
-                                        matchingLenders, initialMatchingLendersCount);
-                            }
-                        }
-
-                        LendingAuditTrial lendingAuditTrialFallback = null;
-
-                        if(openApplication != null) {
-                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for open applicationId: {} and merchantId: {}",
-                                    openApplication.getId(), merchantId);
-                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByApplicationIdAndType(openApplication.getId(), "FALLBACK_LENDERS");
-                        }
-                        else {
-                            AsyncLoggerUtil.logInfo(logger, "Fetching lending audit trial for evaluationId merchantId: {} and merchantId: {}",
-                                    merchantId, merchantId);
-                            lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
-                        }
-                         AsyncLoggerUtil.logInfo(logger, "Lending audit trial fetched for FALLBACK_LENDERS: {} for merchantId: {}",
-                                 lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
-
-                        if (lendingAuditTrialFallback != null && !StringUtils.isEmpty(lendingAuditTrialFallback.getRemarks())) {
-                            AsyncLoggerUtil.logInfo(logger, "Initial lenders remarks from audit trial: {} for merchantId: {}",
-                                    lendingAuditTrialFallback.getRemarks(), merchantId);
-                            fallbackLendersAssigned = Arrays.asList(lendingAuditTrialFallback.getRemarks().split(","));
-                            fallbackMatchingLendersCount = fallbackLendersAssigned.size();
-                            AsyncLoggerUtil.logInfo(logger, "Fallback lenders from audit trail: {}, count: {}", fallbackLendersAssigned, fallbackMatchingLendersCount);
-
-                            // Check for matches between alreadyAssignedLender (rejectedLenders) and initialLendersAssigned
-                            List<String> matchingLenders = new ArrayList<>();
-                            if (rejectedLenders != null && !rejectedLenders.isEmpty()) {
-                                for (String lender : rejectedLenders) {
-                                    if (fallbackLendersAssigned.contains(lender)) {
-                                        matchingLenders.add(lender);
-                                    }
-                                }
-                                fallbackMatchingLendersCount = matchingLenders.size();
-                                AsyncLoggerUtil.logInfo(logger, "Matching lenders found in both rejected and initial lists: {}, matching count: {}",
-                                        matchingLenders, fallbackMatchingLendersCount);
-                            }
-                        }
-
-                        List<OfferRankingConfig> initialOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.INITIAL);
-                        List<String> initialLendersList = lenderRankingEngine.rankLenders(
-                                lenderMetricsHistoryList,
-                                initialOfferRankingConfigs,
-                                RankingType.INITIAL,
-                                initalLendersLimit - initialMatchingLendersCount,
-                                merchantId,
-                                loan.getTenureInMonths());
-
-                        if(openApplication == null) {
-                            createAndSaveLendingAuditTrial(
-                                    merchantId,
-                                    null,
-                                    "INITIAL_LENDERS",
-                                    String.join(",", initialLendersList),
-                                    evaluationId
-                            );
-                        }
-
-                        AsyncLoggerUtil.logInfo(logger, "Initial lenders for loan with tenure {} months: {} for merchantId: {}",
-                                loan.getTenureInMonths(), initialLendersList, merchantId);
-
-                        List<LenderMetricsHistory> fallbackCandidates = lenderMetricsHistoryList.stream()
-                                .filter(lender -> !initialLendersList.contains(lender.getLender()))
-                                .collect(Collectors.toList());
-
-                        List<OfferRankingConfig> fallbackOfferRankingConfigs = offerRankingConfigDao.findByEnabledAndRankingType(true, RankingType.FALLBACK);
-
-                        List<String> fallbackLendersList = fallbackCandidates.isEmpty() ?
-                                Collections.emptyList() :
-                                lenderRankingEngine.rankLenders(
-                                        fallbackCandidates,
-                                        fallbackOfferRankingConfigs,
-                                        RankingType.FALLBACK,
-                                        fallbackLendersLimit - fallbackMatchingLendersCount,
-                                        merchantId,
-                                        loan.getTenureInMonths());
-
-                        if(openApplication == null) {
-                            createAndSaveLendingAuditTrial(
-                                    merchantId,
-                                    null,
-                                    "FALLBACK_LENDERS",
-                                    String.join(",", fallbackLendersList),
-                                    evaluationId
-                            );
-                        }
-
-                        AsyncLoggerUtil.logInfo(logger, "Fallback lenders for loan with tenure {} months: {} for merchantId: {}",
-                                loan.getTenureInMonths(), fallbackLendersList, merchantId);
-
-                        Map<String, EligibleOffersResponseDTO.LenderData> lenderDataMap = lenderDataForLoan.stream()
-                                .collect(Collectors.toMap(EligibleOffersResponseDTO.LenderData::getLenderName, Function.identity()));
-
-                        List<EligibleOffersResponseDTO.LenderData> initialLenders = initialLendersList.stream()
-                                .map(lenderDataMap::get)
-                                .filter(Objects::nonNull)
-                                .peek(ld -> ld.setRankingType(RankingType.valueOf(RankingType.INITIAL.name())))
-                                .collect(Collectors.toList());
-
-                        List<EligibleOffersResponseDTO.LenderData> fallbackLenders = fallbackLendersList.stream()
-                                .map(lenderDataMap::get)
-                                .filter(Objects::nonNull)
-                                .peek(ld -> ld.setRankingType(RankingType.valueOf(RankingType.FALLBACK.name())))
-                                .collect(Collectors.toList());
-                        AsyncLoggerUtil.logInfo(logger,"initial lenders: {}, fallback lenders: {} for merchantId: {}", initialLenders, fallbackLenders, merchantId);
-
-
-                        if (!CollectionUtils.isEmpty(lenderDataForLoan)) {
-                            // Create TenureWithLender object with all required data
-                            EligibleOffersResponseDTO.TenureWithLender tenureWithLender = new EligibleOffersResponseDTO.TenureWithLender(
-                                    loan.getCategory(),
-                                    loan.getTenure(),
-                                    loan.getTenureInMonths(),
-                                    loan.getEdiCount(),
-                                    initialLenders,
-                                    fallbackLenders,
-                                    rejectedLenders,
-                                    ineligibleLenders
-                            );
-                            tenureWithLenders.add(tenureWithLender);
-                            AsyncLoggerUtil.logInfo(logger, "Added tenure option: {} months with {} lenders for merchantId: {}",
-                                    loan.getTenureInMonths(), lenderDataForLoan.size(), merchantId);
-                        }
-                    } catch (Exception e) {
-                        AsyncLoggerUtil.logError(logger, "Error processing lender data for loan with tenure {} months: {}",
-                                loan.getTenureInMonths(), e.getMessage());
-                        // Continue processing other loans despite this error
-                    }
-                }
-            }
-
-            if (tenureWithLenders.isEmpty()) {
-                AsyncLoggerUtil.logInfo(logger, "{} - No valid tenure options found, but returning ineligible lenders for merchantId: {}", METHOD, merchantId);
-
-                // Create a default TenureWithLender with empty eligible lenders but with ineligible lenders
-                EligibleOffersResponseDTO.TenureWithLender defaultTenure = new EligibleOffersResponseDTO.TenureWithLender(
-                        "NO_ELIGIBLE_OFFERS",  // category
-                        "0 Months",            // tenure
-                        0,                     // tenureInMonths
-                        0,                     // ediCount
-                        new ArrayList<>(),     // initialLenders (empty)
-                        new ArrayList<>(),     // fallbackLenders (empty)
-                        rejectedLenders,
-                        ineligibleLenders
-                );
-
-                tenureWithLenders.add(defaultTenure);
-            }
-
-            AsyncLoggerUtil.logInfo(logger, "EXIT {} - Found {} tenure options for merchantId: {}",
-                    METHOD, tenureWithLenders.size(), merchantId);
-            return tenureWithLenders;
-        } catch (Exception e) {
-            AsyncLoggerUtil.logError(logger, "Unexpected error in {}: {}", METHOD, e.getMessage(), e);
-            return null;
-        }
-    }
-*/
-
-   /* public List<EligibleLoanDTO> lenderAssignmentHandlerV1(Long merchantId, List<EligibleLoanDTO> eligibleLoans, BasicDetailsDto merchantDetails, String evaluationId) {
-        final String METHOD = "lenderAssignmentHandlerV1";
-        AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Processing {} eligible loans for merchantId: {}", METHOD, eligibleLoans.size(), merchantId);
-
-        try {
-            // Fetch risk variables for merchant
-            LendingRiskVariables lendingRiskVariables;
-            try {
-                lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-                if (lendingRiskVariables == null) {
-                    AsyncLoggerUtil.logError(logger, "EXIT {} - No risk variables found for merchantId: {}", METHOD, merchantId);
-                    return Collections.emptyList();
-                }
-            } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Error fetching risk variables for merchantId {}: {}", merchantId, e.getMessage(), e);
-                return Collections.emptyList();
-            }
-
-            // Convert to DTO for processing
-            RiskVariablesDTO baseRiskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
-            AsyncLoggerUtil.logInfo(logger, "{} - Base risk variables obtained for merchantId {}", METHOD, merchantId);
-
-            // Process each loan to assign eligible lenders
-            for (EligibleLoanDTO loan : eligibleLoans) {
-                try {
-                    AsyncLoggerUtil.logDebug(logger, "{} - Processing loan with tenure {} months for merchantId: {}",
-                            METHOD, loan.getTenureInMonths(), merchantId);
-
-                    // Prepare risk variables for this specific loan
-                    RiskVariablesDTO loanRiskVariables = prepareLoanRiskVariables(merchantId, loan, lendingRiskVariables, baseRiskVariables);
-
-                    AsyncLoggerUtil.logInfo(logger, "{} - Prepared risk variables for loan with tenure {} months for merchantId: {}",
-                            METHOD, loan.getTenureInMonths(), merchantId);
-
-                    // Fetch applicable lender assignment rules
-                    List<LenderAssignmentRules> ruleList = fetchApplicableRules(merchantId, loan, lendingRiskVariables, loanRiskVariables);
-
-                    if (CollectionUtils.isEmpty(ruleList)) {
-                        AsyncLoggerUtil.logInfo(logger, "{} - No applicable rules found for merchantId: {}, tenure: {}",
-                                METHOD, merchantId, loan.getTenureInMonths());
-                        loan.setEligibleLenders(Collections.emptyList());
-                        continue;
-                    }
-
-                    // Get initial list of eligible lenders based on rules
-                    List<String> eligibleLenders = getLenderList(
-                            ruleList,
-                            EdiModel.SEVEN_DAY_MODEL,
-                            null,
-                            merchantId,
-                            evaluationId);
-
-                    if (CollectionUtils.isEmpty(eligibleLenders)) {
-                        AsyncLoggerUtil.logInfo(logger, "{} - No eligible lenders from rules for merchantId: {}", METHOD, merchantId);
-                        loan.setEligibleLenders(Collections.emptyList());
-                        continue;
-                    }
-
-                    LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.DRAFT.name());
-
-                    if (lendingApplication != null) {
-                        AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", lendingApplication.getId());
-
-                        // Get already assigned lenders for this application
-                        List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(lendingApplication.getId());
-                        AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId {}: {}", lendingApplication.getId(), alreadyAssignedLender);
-
-                        // Remove already assigned lenders from eligible lenders
-                        if (!CollectionUtils.isEmpty(alreadyAssignedLender)) {
-                            int beforeSize = eligibleLenders.size();
-                            eligibleLenders.removeAll(alreadyAssignedLender);
-                            AsyncLoggerUtil.logInfo(logger, "Removed {} assigned lenders from eligible list", beforeSize - eligibleLenders.size());
-                        }
-
-                        // Get rejected lenders from risk variables for this application
-                        Set<String> rejectedLenders = new HashSet<>(alreadyAssignedLender);
-                        if (loanRiskVariables != null && !CollectionUtils.isEmpty(loanRiskVariables.getRejectedLenders())) {
-                            rejectedLenders = loanRiskVariables.getRejectedLenders();
-                            AsyncLoggerUtil.logInfo(logger, "Found {} rejected lenders in risk variables: {}", rejectedLenders.size(), rejectedLenders);
-
-                            // Remove rejected lenders from eligible lenders
-                            int beforeSize = eligibleLenders.size();
-                            eligibleLenders.removeAll(rejectedLenders);
-                            AsyncLoggerUtil.logInfo(logger, "Removed {} rejected lenders from eligible list", beforeSize - eligibleLenders.size());
-                        }
-                    }
-
-                    // Apply additional filters to eligible lenders
-                    eligibleLenders = filterEligibleLenders(
-                            merchantId,
-                            loan,
-                            lendingRiskVariables,
-                            loanRiskVariables,
-                            eligibleLenders,
-                            merchantDetails,
-                            evaluationId);
-
-                    AsyncLoggerUtil.logInfo(logger, "{} - Final eligible lenders for merchantId {}, tenure {}: {}",
-                            METHOD, merchantId, loan.getTenureInMonths(), eligibleLenders);
-
-                    // Set the eligible lenders for this loan
-                    loan.setEligibleLenders(eligibleLenders);
-
-                } catch (Exception ex) {
-                    AsyncLoggerUtil.logError(logger, "Error in {} processing loan with tenure {} months for merchantId {}: {}",
-                            METHOD, loan.getTenureInMonths(), merchantId, ex.getMessage(), ex);
-                    loan.setEligibleLenders(Collections.emptyList());
-                }
-            }
-
-            // Count loans with valid lenders
-            int loansWithLenders = (int) eligibleLoans.stream()
-                    .filter(loan -> !CollectionUtils.isEmpty(loan.getEligibleLenders()))
-                    .count();
-
-            AsyncLoggerUtil.logInfo(logger, "EXIT {} - Completed processing for merchantId: {}, found lenders for {}/{} loans",
-                    METHOD, merchantId, loansWithLenders, eligibleLoans.size());
-
-            return eligibleLoans;
-        } catch (Exception e) {
-            AsyncLoggerUtil.logError(logger, "Unexpected error in {} for merchantId {}: {}", METHOD, merchantId, e.getMessage(), e);
-            return Collections.emptyList();
-        }
-    }
-*/
 
     public List<EligibleLoanDTO> lenderAssignmentHandlerV1(Long merchantId, List<EligibleLoanDTO> eligibleLoans, BasicDetailsDto merchantDetails, String evaluationId) {
         final String METHOD = "lenderAssignmentHandlerV1";
