@@ -1158,7 +1158,7 @@ public class LendingApplicationServiceV2 {
     }
 
     private LendingApplication  updateLendingApplicationV2(LendingApplication lendingApplication, BasicDetailsDto merchantBasicDetails,  EligibleLoanDTO eligibleLoan, CreateApplicationRequest lendingApplicationRequest) {
-        BigDecimal processingFee;
+        /*BigDecimal processingFee;
         BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
         MaxPricingValuesDTO maxPricingValuesDTO = null;
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
@@ -1181,7 +1181,7 @@ public class LendingApplicationServiceV2 {
         }
         if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
             loanUtil.setAndUpdateEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
-        }
+        }*/
 
         lendingApplication.setLender(eligibleLoan.getLender());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
