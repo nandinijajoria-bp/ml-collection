@@ -85,6 +85,7 @@ public class CollectionService {
                                 .collect(Collectors.toList())
                 );
             }
+            allLendingLedgerList.add(dtoList);
         }
 
 
