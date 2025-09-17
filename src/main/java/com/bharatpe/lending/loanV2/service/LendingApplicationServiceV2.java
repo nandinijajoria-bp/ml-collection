@@ -1068,27 +1068,6 @@ public class LendingApplicationServiceV2 {
 
     private LendingApplication saveLendingApplicationV2(BasicDetailsDto merchantBasicDetails, LendingEligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, AddressValidationDto addressValidationDto) {
         LendingApplication lendingApplication = new LendingApplication();
-        BigDecimal processingFee;
-        BigDecimal amountBD = BigDecimal.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getAmount());
-        MaxPricingValuesDTO maxPricingValuesDTO = null;
-        if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantBasicDetails.getId());
-            maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, lendingApplicationRequest.getEligibleLoanDTO().getTenureInMonths());
-        }
-        if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            BigDecimal maxProcessingFeeRateBD = BigDecimal.valueOf(maxPricingValuesDTO.getMaxProcessingFeeRate());
-            processingFee = maxProcessingFeeRateBD.multiply(amountBD)
-                    .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
-        }
-        else {
-            if(lendingApplicationRequest.getEligibleLoanDTO().getProcessingFee() != null) {
-                processingFee = BigDecimal.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getProcessingFee());
-
-            }else{
-                throw new NullPointerException("processing fee cannot be null for eligible loan");
-            }
-
-        }
 
         lendingApplication.setMerchantName(merchantBasicDetails.getBeneficiaryName());
         lendingApplication.setLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
@@ -1096,8 +1075,8 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(lendingApplicationRequest.getEligibleLoanDTO().getRepaymentAmount()));
         lendingApplication.setInterestRate(lendingApplicationRequest.getEligibleLoanDTO().getRateOfInterest());
-        lendingApplication.setProcessingFee(processingFee.doubleValue());
-        lendingApplication.setDisbursalAmount(lendingApplicationRequest.getEligibleLoanDTO().getAmount() - processingFee.intValue());
+        lendingApplication.setProcessingFee(Double.valueOf(eligibleLoan.getProcessingFee()));
+        lendingApplication.setDisbursalAmount(lendingApplicationRequest.getEligibleLoanDTO().getAmount() - eligibleLoan.getProcessingFee());
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
         lendingApplication.setMerchantId(merchantBasicDetails.getId());
@@ -1209,8 +1188,8 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        lendingApplication.setProcessingFee(processingFee.doubleValue());
-        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee.intValue());
+        lendingApplication.setProcessingFee(eligibleLoan.getProcessingFee().doubleValue());
+        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - eligibleLoan.getProcessingFee());
         lendingApplication.setMode("AUTO");
         lendingApplication.setLoanAmount(eligibleLoan.getAmount());
         lendingApplication.setCategory(eligibleLoan.getCategory());
