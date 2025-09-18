@@ -641,7 +641,7 @@ public class LoanEligibleService {
             EligibleOffersResponseDTO responseDTO = new EligibleOffersResponseDTO();
 
             // Get global limit
-            GlobalLimitResponse globalLimitResponse = getCachedGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
             if (globalLimitResponse == null || globalLimitResponse.getData() == null) {
                 AsyncLoggerUtil.logError(logger, "EXIT {} - Failed to retrieve global limit for merchantId: {}", METHOD, merchantId);
                 return ApiResponseUtil.notFound("Global limit not available", "GLOBAL_LIMIT_NOT_FOUND");
