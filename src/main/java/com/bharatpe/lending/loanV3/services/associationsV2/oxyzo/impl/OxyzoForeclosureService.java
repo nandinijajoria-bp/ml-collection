@@ -5,8 +5,10 @@ import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
+import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
+import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
@@ -47,6 +49,9 @@ public class OxyzoForeclosureService {
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
+    @Autowired
+    private PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+
     public NBFCRequestDTO getForeclosureReceiptRequest(Long applicationId, LendingLedger lendingLedger, Long orderId) {
         try {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.OXYZO.name());
@@ -66,6 +71,15 @@ public class OxyzoForeclosureService {
             Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             boolean loanCoolOffPeriod = checkLoanCoolOffPeriod(lendingPaymentSchedule.getCreatedAt());
 
+            PenaltyFeeLedger penaltyFeeLedger = penaltyFeeLedgerDao.findByLoanIdAndTerminalIdAndPositiveAmt(
+                    lendingLedger.getLendingPaymentSchedule().getId(), lendingLedger.getTerminalOrderId()
+            );
+            double nachBounce = 0D;
+            double penaltyCharge = 0D;
+            if (!ObjectUtils.isEmpty(penaltyFeeLedger)) {
+                nachBounce = penaltyFeeLedger.getNachBounce() != null ? penaltyFeeLedger.getNachBounce() : 0D;
+                penaltyCharge = penaltyFeeLedger.getPenalCharge() != null ? penaltyFeeLedger.getPenalCharge() : 0D;
+            }
 
             return  NBFCRequestDTO.builder()
                     .applicationId(applicationId)
@@ -78,8 +92,8 @@ public class OxyzoForeclosureService {
                             .repaymentDate(txnDate.getTime())
                             .closureDate(txnDate.getTime())
                             .foreclosureCharges(getForeclosureCharges(loanForeClosureCharges))
-                            .bounceCharges(BigDecimal.valueOf(0))
-                            .penalCharges(BigDecimal.valueOf(0))
+                            .bounceCharges(BigDecimal.valueOf(nachBounce))
+                            .penalCharges(BigDecimal.valueOf(penaltyCharge))
                             .latePaymentCharges(BigDecimal.valueOf(0))
                             .isCoolOffCase(loanCoolOffPeriod)
                             .coolingOffCharges(BigDecimal.valueOf(0))
