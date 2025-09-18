@@ -267,6 +267,9 @@ public class VerifyOTPService {
     @Value("${constant.pf.for.topup.enabled.lender:}")
     String constantProcessingFeeForTopupEnabledLender;
 
+    @Value("${upi.autopay.force.skip.percentage:0}")
+    private int upiAutoPayForceSkipPercentage;
+
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         if (Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -557,7 +560,7 @@ public class VerifyOTPService {
         MerchantNachDetailsResponseDTO enachSuccess = null;
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 
-        boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender());
+        boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true);
         if(loanUtil.isMandateSwitchEnabled(lendingApplication) && isNachSkippable && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()) {
             logger.info("Nach is not eligible for application: {} and merchant: {}, setting Nach Details so that flow will not break", lendingApplication.getId(), lendingApplication.getMerchantId());
             loanUtil.updateNachDetailsIfNachIneligible(lendingApplication);
@@ -765,6 +768,14 @@ public class VerifyOTPService {
         }
         sendDuplicatePancardCheck(merchantBasicDetailsDto.getId(), lendingApplication.getId());
         loanUtil.publishApplicationEvent(lendingApplication);
+
+        if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayForceSkipPercentage)
+            && lendingApplicationDetails.isAutoPayUpiEligible() && !"APPROVED".equals(lendingApplication.getUpiAutopayStatus())){
+            logger.info("Setting nach status to null for applicationId: {} and loan_type: {}, as upiautopay status is not approved"
+                    , lendingApplication.getId(), lendingApplication.getLoanType());
+            lendingApplication.setNachStatus(null);
+            lendingApplicationDao.save(lendingApplication);
+        }
 
 
 //		sendPennyDrop(merchant.getId(), lendingApplication.getId());

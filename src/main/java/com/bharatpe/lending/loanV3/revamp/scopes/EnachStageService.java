@@ -312,7 +312,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             return null;
         }
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender())) {
+                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true)) {
             if(ObjectUtils.isEmpty(openApplication.getNachStatus())){
                 loanDashboardService.deleteLoanDashboardCache(openApplication.getMerchantId());
             }

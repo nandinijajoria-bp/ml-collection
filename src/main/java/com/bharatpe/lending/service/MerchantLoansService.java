@@ -788,6 +788,13 @@ public class MerchantLoansService {
             Double minimumAllowedAmount = getMinimumAllowedAmount((double) foreclosureAmount,lendingPaymentSchedule.getNbfc());
             Double minimumAmount = 10000 * Math.ceil(minimumAllowedAmount / 10000.0);
             Double highestAmount = getHighestAmount(topUpLoans);
+            if(!ObjectUtils.isEmpty(minimumAmount) && !ObjectUtils.isEmpty(highestAmount) && highestAmount < minimumAmount){
+                log.info("Topup loan maximum allowed amount {} is less than minimum allowed amount {} for merchant {}", highestAmount, minimumAmount, merchantId);
+                responseDTO.setIsRejected(true);
+                responseDTO.setRejectionReason("Top-up loan not available as the eligible amount is less than minimum allowed amount");
+                responseDTO.setTopup(Boolean.FALSE);
+                return;
+            }
             List<String> tenures = topUpLoans.stream()
                     .map(LoanEligibilityDTO::getTenureInMonths)
                     .filter(Objects::nonNull)
@@ -1537,6 +1544,7 @@ public class MerchantLoansService {
                                                             boolean isAdditionalTopup,
                                                             String clientIdentifier) {
         List<LoanEligibilityDTO> eligibility = new ArrayList<>();
+        List<LendingEligibleLoan> eligibleLoansToSave = new ArrayList<>();
         try {
             Long experianId = null;
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
@@ -1631,7 +1639,14 @@ public class MerchantLoansService {
 
                 eligibility.add(loanEligibilityDTO);
                 log.info("eligible loan for topUp: {}", eligibleLoan);
-                //eligibleLoanDao.save(eligibleLoan);
+                eligibleLoansToSave.add(eligibleLoan);
+            }
+
+            if (!eligibleLoansToSave.isEmpty()) {
+                eligibleLoanDao.saveAll(eligibleLoansToSave);
+                eligibleLoanDao.flush();
+                log.info("Saved {} eligible loans for merchant {}", eligibleLoansToSave.size(),
+                        lendingPaymentSchedule.getMerchantId());
             }
 
             // Update pilot identifier only for additional topup
@@ -2115,6 +2130,7 @@ public class MerchantLoansService {
                                                             boolean createTopupAppCheck,
                                                             boolean isAdditionalTopup) {
         List<LoanEligibilityDTO> eligibility = new ArrayList<>();
+        List<LendingEligibleLoan> eligibleLoansToSave = new ArrayList<>();
         try {
             Long experianId = null;
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
@@ -2252,7 +2268,15 @@ public class MerchantLoansService {
 
                 eligibility.add(loanEligibilityDTO);
                 log.info("eligible loan for topUp: {}", eligibleLoan);
-                eligibleLoanDao.save(eligibleLoan);
+                //eligibleLoanDao.save(eligibleLoan);
+                eligibleLoansToSave.add(eligibleLoan);
+            }
+
+            if (!eligibleLoansToSave.isEmpty()) {
+                eligibleLoanDao.saveAll(eligibleLoansToSave);
+                eligibleLoanDao.flush();
+                log.info("Saved {} eligible loans for merchant {}", eligibleLoansToSave.size(),
+                        lendingPaymentSchedule.getMerchantId());
             }
 
             // Update pilot identifier only for additional topup
@@ -2452,7 +2476,7 @@ public class MerchantLoansService {
 
             BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
             eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-            loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(),
+            loanUtil.setEligibleLoanV2(eligibleLoan, pricingExperiment.getInterestRate(),
                     processingFee, eligibleLoan.getAmount(), topupLender);
 
             return processingFee;
@@ -2475,7 +2499,7 @@ public class MerchantLoansService {
 
             BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
             eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-            loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(),
+            loanUtil.setEligibleLoanV2(eligibleLoan, lenderPricing.getInterestRate(),
                     processingFee, eligibleLoan.getAmount(), topupLender);
 
             return processingFee;

@@ -43,6 +43,7 @@ public interface LendingConstants {
 	String BANK_CHANGE_DEEPLINK="bharatpe://dynamic?key=add-bank-account&wroute=easy-loans";
 	String COLLECT_VPA_CREATE_TXN_URL = "/startTxn";
 	long MAX_MERCHANT_REFERENCES_ALLOWED = 3L;
+	String MANDATE_TYPE_KEY = "mandate_type";
 
 	enum BUREAU_TYPES {
         CRIF, EXPERIAN;

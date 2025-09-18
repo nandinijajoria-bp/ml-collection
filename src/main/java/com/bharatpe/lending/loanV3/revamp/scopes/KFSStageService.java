@@ -74,6 +74,9 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
     @Autowired
     VKycService vkycService;
 
+    @Value("${upi.autopay.force.skip.percentage:0}")
+    private int upiAutoPayForceSkipPercentage;
+
     @Override
     public LendingStateDTO<KFSStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<KFSStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -105,6 +108,15 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
         else if(!ObjectUtils.isEmpty(lendingStateDTO) && !ObjectUtils.isEmpty(lendingStateDTO.getData()) && !loanUtil.isMandateSwitchEnabled(lendingApplication)){
             log.info("Mandate switch rollout is not enabled for applicationId: {}", scopeDataArgs.getApplicationId());
             nextStageHandling(scopeDataArgs, lendingStateDTO);
+        }
+        if("APPROVED".equals(lendingApplication.getNachStatus())
+                && Objects.nonNull(lendingStateDTO.getData()) && lendingStateDTO.getData().isUpiAutopayMandateEligible()
+                     && !"APPROVED".equals(lendingStateDTO.getData().getUpiAutoPayMandateStatus())
+                        && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayForceSkipPercentage)){
+            log.info("Setting nach status to null for applicationId: {} and loan_type: {}, as upiautopay status is not approved"
+                    , lendingApplication.getId(), lendingApplication.getLoanType());
+            lendingApplication.setNachStatus(null);
+            lendingApplicationDao.save(lendingApplication);
         }
 
         loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
@@ -178,7 +190,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
             kfsStageResponseV3.setMerchantId(scopeDataArgs.getMerchant().getId());
 
             LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
-            log.info("fetched application id {} for merchantId {}",lendingApplication,scopeDataArgs.getMerchant().getId());
+            log.info("fetched application id {} for merchantId {}",lendingApplication.getId(),scopeDataArgs.getMerchant().getId());
             if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
@@ -189,21 +201,23 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorMessage());
             }
 
-            if(loanUtil.isMandateSwitchEnabled(lendingApplication)) {
+            if(lendingApplicationDetails.getMandateFlagsToggledOn() != null || loanUtil.isMandateSwitchEnabled(lendingApplication)) {
                 loanUtil.updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
                 kfsStageResponseV3.setUpiAutopayMandateEligible(lendingApplicationDetails.isAutoPayUpiEligible());
                 kfsStageResponseV3.setEnachEligible(lendingApplicationDetails.isNachEligible());
             }
             log.info("Kfs stage response for application id {} is {}", lendingApplication.getId(), kfsStageResponseV3);
-            if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && !loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
+            if (enableAutopayUPIRegistration
+                    && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
+                    && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)
+                    && !loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
 
                 log.info("setting autopay for application id {}", lendingApplication.getId());
                 kfsStageResponseV3.setUpiAutoPayEligible(true);
                 kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(false);
 
                 AutoPayUPI autoPayUPIExistingEntityMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),"ACTIVE");
-//                if(!"REGULAR".equalsIgnoreCase( lendingApplication.getLoanType())){
                 boolean autoPayEligible= nonRegularMandateRegistrationChecks(lendingApplication,autoPayUPIExistingEntityMerchantId);
                 kfsStageResponseV3.setUpiAutoPayEligible(autoPayEligible);
 
@@ -215,7 +229,6 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                     // revoke previous mandate
                     autoPayUPIService.revokeMandate(lendingApplication,autoPayUPIExistingEntityMerchantId);
                 }
-//                }
                 log.info("autopay flag status {}",kfsStageResponseV3.getUpiAutoPayEligible());
 
                 AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
@@ -239,8 +252,11 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                     kfsStageResponseV3.setAgreementDone(true);
                 else kfsStageResponseV3.setAgreementDone(false);
 
-            } else if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
+            } else if (enableAutopayUPIRegistration
+                    && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
+                    && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)
+                    && loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
                 log.info("setting dedicated upi autopay for application id {} true", lendingApplication.getId());
                 if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                     log.info("Loan type is TOPUP, fetching existing autopay upi for application id {}", lendingApplication.getId());
@@ -310,8 +326,9 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
             log.info("bank not nachable for {}", openApplication.getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.NON_NACHABLE_BANK.getErrorCode(),LoanDetailExceptionEnum.NON_NACHABLE_BANK.getErrorMessage());
         }
-        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender())) {
+        Boolean isEligibleForSkipNach = loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true);
+        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || isEligibleForSkipNach ||
+                loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId())) {
             if(ObjectUtils.isEmpty(openApplication.getNachStatus())){
                 loanDashboardService.deleteLoanDashboardCache(openApplication.getMerchantId());
             }
@@ -321,7 +338,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
             lendingApplicationDao.save(openApplication);
             loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, openApplication.getMerchantId(), openApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())));
         }
-        applicationDetails.setSkipEnach(loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender()));
+        applicationDetails.setSkipEnach(isEligibleForSkipNach);
         if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
         }
