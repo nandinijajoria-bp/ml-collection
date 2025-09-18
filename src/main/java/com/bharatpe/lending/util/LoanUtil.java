@@ -1973,7 +1973,13 @@ public class LoanUtil {
 			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
 		}
 		else{
-			throw new NullPointerException("processing fee cannot be null in tenure details");
+			throw new NullPointerException(
+				"Failed to calculate loan offer breakup: processing fee is missing in tenure details for merchantId=" + merchantId
+				+ ", loanType=" + loanType
+				+ ", offerType=" + offerType
+				+ ", version=" + version
+				+ ". Please ensure the processing fee is provided in the offer details before proceeding."
+			);
 		}
 
 		EligibleLoanDTO sevenDayEligibleLoanOffer = EligibleLoanDTO.builder()
