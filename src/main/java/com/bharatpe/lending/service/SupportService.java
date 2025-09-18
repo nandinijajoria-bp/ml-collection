@@ -29,6 +29,8 @@ import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
+import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV2.service.InsuranceService;
@@ -62,8 +64,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -73,6 +75,7 @@ import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.LedgerDescriptionTxnType;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 @Service
 public class SupportService {
@@ -257,6 +260,12 @@ public class SupportService {
     @Autowired
     MileStoneHelperServicev3 mileStoneHelperServicev3;
 
+    @Autowired
+    LmsLoanDetailsService lmsLoanDetailsService;
+
+    @Autowired
+    LmsPaymentDetailsDao lmsPaymentDetailsDao;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
@@ -281,7 +290,7 @@ public class SupportService {
             supportApiResponseDto.setClosedLoans(closedLoans);
             supportApiResponseDto.setNachableBanks(nachableBanks);
             logger.info("Populating Loan Data for merchant: {}", merchantId);
-            populateLoanData(supportApiResponseDto,lendingPaymentSchedule);
+            populateLoanData(supportApiResponseDto,lendingPaymentSchedule, lendingApplication);
             if (!ApplicationStage.ACTIVE_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
                 if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
                     if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
@@ -838,7 +847,7 @@ public class SupportService {
         populateApplicationData(supportApiResponseDto, lendingApplication);
     }
 
-    private void populateLoanData(SupportApiResponseDto supportApiResponseDto, LendingPaymentScheduleSlave lendingPaymentSchedule) {
+    private void populateLoanData(SupportApiResponseDto supportApiResponseDto, LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication) {
         try {
             if (Objects.isNull(lendingPaymentSchedule)) {
                 return;
@@ -852,7 +861,19 @@ public class SupportService {
             if ("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
                 supportApiResponseDto.setActiveLoan(Boolean.TRUE);
-                supportApiResponseDto.setDpd(LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()));
+                Double dueAmount = lendingPaymentSchedule.getDueAmount();
+                if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())) {
+                    String externalLoanId = null;
+                    if(!ObjectUtils.isEmpty(lendingApplication)){
+                        externalLoanId = lendingApplication.getExternalLoanId();
+                    }
+                    LoanDetailsResponse loanDetailsResponse = lmsLoanDetailsService.getLoanSummaryFromOneLms(externalLoanId);
+                    if (!ObjectUtils.isEmpty(loanDetailsResponse) && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary())
+                            && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount())) {
+                        dueAmount = loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount().doubleValue();
+                    }
+                }
+                supportApiResponseDto.setDpd(LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), dueAmount));
                 List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, false);
                 List<LoanEligibilityDTO> topUpLoans = loans.stream()
                         .filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
@@ -1057,16 +1078,19 @@ public class SupportService {
                 if (!Objects.isNull(lendingPaymentSchedule1)) {
                     logger.info("loan found in LPS for merchant:{} with status:{}", merchantId, lendingPaymentSchedule1.getStatus());
                     List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
+                    if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule1.getLmsSource())) {
+                        lendingLedgerDetailList = getLoanDueDetailsFromOneLms(application.getExternalLoanId(), lendingPaymentSchedule1);
+                    }else{
                     List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule1);
                     Double dueAmount = 0D;
                     for (LendingLedger lendingLedger1 : lendingLedgerList) {
                         Map<String, Object> lendingLedgerDetail = new HashMap<>();
-                        lendingLedgerDetail.put("createdAt", lendingLedger1.getDate() == null ? lendingLedger1.getCreatedAt().toString() : lendingLedger1.getDate().toString());
+                        lendingLedgerDetail.put("createdAt", lendingLedger1.getCreatedAt() != null ? DateUtils.formatDateTime_DYYYY_MM_DD_HH_mm_ss_S(lendingLedger1.getCreatedAt()) : DateUtils.formatDateTime_DYYYY_MM_DD_HH_mm_ss_S(lendingLedger1.getDate()));
                         lendingLedgerDetail.put("id", lendingLedger1.getId());
                         lendingLedgerDetail.put("transactionType", getLedgerTransactionType(lendingLedger1));
-                        if(lendingLedger1.getAmount() < 0){
+                        if (lendingLedger1.getAmount() < 0) {
                             Double ediAmount = lendingLedger1.getAmount();
-                            dueAmount += -1* ediAmount;
+                            dueAmount += -1 * ediAmount;
                             lendingLedgerDetail.put("amount", ediAmount);
                         } else {
                             Double paidAmount = lendingLedger1.getAmount();
@@ -1078,6 +1102,8 @@ public class SupportService {
 
                         lendingLedgerDetailList.add(0, lendingLedgerDetail);
                     }
+                    }
+
                     List<Map<String, Object>> penaltyLedgerList = new ArrayList<>();
                     penaltyLedgerList = populatePenaltyLedger(lendingPaymentSchedule1, penaltyLedgerList);
 
@@ -1145,6 +1171,61 @@ public class SupportService {
             supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
         }
         return supportLoanResponseDTO;
+    }
+
+    private List<Map<String, Object>> getLoanDueDetailsFromOneLms(String externalLoanId, LendingPaymentSchedule lendingPaymentSchedule) {
+        List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
+        try {
+
+            LoanDetailsResponse loanDetailsResponse =   lmsLoanDetailsService.getLoanSummaryFromOneLms(externalLoanId);
+
+            List<LmsPaymentDetails> paidDetails = lmsPaymentDetailsDao.findSuccessTransactionsBpLoanIdOrderByIdDesc(externalLoanId);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            Map<String, List<LmsPaymentDetails>> paidDetailsByDate = paidDetails.stream()
+                    .collect(Collectors.groupingBy(p -> p.getTransferDate() == null ? null : sdf.format(p.getTransferDate())));
+
+            if (!ObjectUtils.isEmpty(loanDetailsResponse) && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary())) {
+                Date startDate = lendingPaymentSchedule.getStartDate();
+                LocalDate start = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                LocalDate today = LocalDate.now();
+
+                while (!start.isAfter(today)) {
+
+                    Map<String, Object> lendingLedgerDetail = new HashMap<>();
+                    LocalDateTime startDateTime = start.atStartOfDay();
+                    String formattedDateTime = startDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                    lendingLedgerDetail.put("createdAt", formattedDateTime);
+//                    lendingLedgerDetail.put("id", loanDueDetails.getId());
+                    lendingLedgerDetail.put("transactionType", "EDI");
+                    lendingLedgerDetail.put("amount", -1 * loanDetailsResponse.getLoanSummary().getInstalmentAmountAsInt());
+                    //lendingLedgerDetail.put("dueAmount", loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmountAsInt());
+                    lendingLedgerDetail.put("penaltyAmount", 0.0);
+                    lendingLedgerDetailList.add(lendingLedgerDetail);
+
+                    String startKey = start.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                    List<LmsPaymentDetails> paidForDate = paidDetailsByDate.getOrDefault(startKey, Collections.emptyList());
+
+                    paidForDate.sort(Comparator.comparing(LmsPaymentDetails::getTransferDate));
+
+                    for (LmsPaymentDetails paidDetail : paidForDate) {
+                        Map<String, Object> paidDetailMap = new HashMap<>();
+                        paidDetailMap.put("createdAt", paidDetail.getTransferDate().toString());
+                        paidDetailMap.put("id", paidDetail.getTerminalOrderId());
+                        paidDetailMap.put("transactionType", paidDetail.getAdjustmentMode());
+//                        paidDetailMap.put("dueAmount", dueAmount);
+                        paidDetailMap.put("penaltyAmount", 0.0);
+                        paidDetailMap.put("paidAmount", paidDetail.getAmount());
+                        lendingLedgerDetailList.add(paidDetailMap);
+                    }
+
+                    // Move to next day
+                    start = start.plusDays(1);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error fetching loan details from OneLMS for externalLoanId: {}", externalLoanId, e);
+        }
+        return lendingLedgerDetailList;
     }
 
     private Object getLedgerTransactionType(LendingLedger lendingLedger) {

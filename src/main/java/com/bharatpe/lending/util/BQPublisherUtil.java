@@ -18,7 +18,7 @@ import java.util.Map;
 public class BQPublisherUtil {
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     private KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     private static final String TOPIC = "easyloan_audit_data";

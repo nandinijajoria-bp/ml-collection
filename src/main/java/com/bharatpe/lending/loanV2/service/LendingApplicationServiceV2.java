@@ -1358,7 +1358,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModelModified(false);
         lendingApplicationDetails.setLenderAssc(false);
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
-        lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
+        lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true));
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             lendingApplicationDetails.setOfferId(eligibleLoan.getId());
         }
@@ -1771,7 +1771,7 @@ public class LendingApplicationServiceV2 {
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetailsDto.getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
             MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId(), lendingApplication.getId());
-            if(ObjectUtils.isEmpty(successEnach) && loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender())){
+            if(ObjectUtils.isEmpty(successEnach) && loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true)){
                 successEnach = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getLender());
             }
 //            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetailsDto.getId());

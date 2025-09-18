@@ -78,7 +78,7 @@ public class SmfgDocUploadService {
                 commonService.manageApplicationState(lenderAssociationDetailsDto);
                 return false;
             }
-            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.DOC_UPLOAD);
+            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.DOC_UPLOAD, smfgConfig.getDocUploadSessionTimeout());
             log.info("docUpload response of SMFG from nbfc for docTYpe: {} {} with applicationId: {}", nbfcResponseDto, docName, lenderAssociationDetailsDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess()) {
                 log.info("doc upload request of SMFG success for {} {}", docName, lenderAssociationDetailsDto.getApplicationId());

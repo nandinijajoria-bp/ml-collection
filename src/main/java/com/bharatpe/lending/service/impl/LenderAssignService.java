@@ -2232,6 +2232,13 @@ public class LenderAssignService implements ILenderAssignService {
                     break;
                 }
                 break;
+            case UGRO:
+                if (edi > 0.75 * (riskVariables.getMonthlyTpv()/30)) {
+                    response = "skipping " + lenderEnum.name()+ " for application id : " + applicationId + " due to merchant loan edi amount: " + edi + " is greater than 0.75 * dailyTPV " + 0.75 * (riskVariables.getMonthlyTpv()/30);
+                    success = false;
+                    break;
+                }
+                break;
             default:
                 log.warn("No specific checks found for lender : {} for application : {}", lender, applicationId);
         }

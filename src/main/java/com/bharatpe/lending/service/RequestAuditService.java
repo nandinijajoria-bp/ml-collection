@@ -20,7 +20,7 @@ public class RequestAuditService {
     RequestAuditFactory requestAuditFactory;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     private KafkaTemplate confluentKafkaTemplate;
 
     @Async
