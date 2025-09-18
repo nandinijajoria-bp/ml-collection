@@ -135,6 +135,7 @@ public class NbfcUtils {
             lendingApplicationDetails.setApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setEdiModel(LoanUtil.getEdiModal(lendingApplication).name());
         }
+        log.info("modifying lender for application {} from lender {} with status {}", lendingApplication.getId(), lendingApplication.getLender(), lenderAssociationStatus.name());
         lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
         lendingApplicationDetails.setStage(LenderAssociationStages.LENDER_CHANGE.name());
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
@@ -153,10 +154,13 @@ public class NbfcUtils {
         }
         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
 
-        boolean isApplicableForAggregationFlow = !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()));
+        boolean isApplicableForAggregationFlow =
+                !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(lendingApplication.getId(), lendingApplication.getMerchantId()))
+                        || !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), lendingApplication.getMerchantId()));
+        log.info("isApplicableForAggregationFlow {} for applicationId {} and lender {}", isApplicableForAggregationFlow, lendingApplication.getId(), lendingApplication.getLender());
         if (enableLenderChange) {
             log.info("changing lender for the application {}", lendingApplication.getId());
-            if(!Arrays.asList(LendingViewStates.LENDER_AGGREGATION.name(), LendingViewStates.SHOP_DETAILS_PAGE.name(), LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
+            if(!Arrays.asList(LendingViewStates.LENDER_AGGREGATION.name(),LendingViewStates.OFFER_EVALUATION_PAGE.name(),LendingViewStates.SHOP_DETAILS_PAGE.name(), LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
                     || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                 log.info("skipping lender change and rejecting application as agreement already done / lendingViewState {} for application is not correct for applicationId {}", lendingApplicationDetails.getApplicationViewState(), lendingApplication.getId());
                 lendingApplication.setStatus("rejected");

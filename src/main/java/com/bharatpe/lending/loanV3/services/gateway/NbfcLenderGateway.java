@@ -126,4 +126,12 @@ public class NbfcLenderGateway extends APIGatewayService {
         }
         return null;
     }
+
+    private String getHostName() {
+        try {
+            return java.net.InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            return "Unknown-Host";
+        }
+    }
 }

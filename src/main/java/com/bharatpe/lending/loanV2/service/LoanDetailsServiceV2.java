@@ -953,6 +953,44 @@ public class LoanDetailsServiceV2 {
         return eligibleLoans;
     }
 
+    public List<EligibleLoanDTO> recomputeEligibleOfferLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
+        if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+            log.info("Global Limit not found");
+            return null;
+        }
+
+        GlobalLimitResponse.Data responseData = globalLimitResponse.getData();
+        Double finalLimit = customAmount != null ? customAmount : responseData.getGlobalLimit();
+        String loanType = responseData.getLoanType();
+        Double version = responseData.getVersion();
+
+        if (finalLimit == null || finalLimit <= 0) {
+            log.info("Invalid final limit: {} for merchant: {}", finalLimit, merchantId);
+            return null;
+        }
+
+        EligibleLoanDTO eligibleLoan = null;
+        List<EligibleLoanDTO> eligibleLoans = new ArrayList<>();
+        try {
+            List<GlobalLimitResponse.OfferDetail> offerDetails = new ArrayList<>(globalLimitResponse.getData().getOfferDetails());
+            offerDetails.sort(Comparator.comparingInt(GlobalLimitResponse.OfferDetail::getTenure));
+            for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
+                log.info("Tenure: {}, finalLimit: {}, loanAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, offerDetail.getLoanAmount(), customAmount);
+
+                if (finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= (offerDetail.getLoanAmount())) {
+                    eligibleLoan = loanUtil.calculateLoanOfferBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
+                    eligibleLoans.add(eligibleLoan);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception while recomputing eligible loan for merchant:{}", merchantId, e);
+        }
+        log.info("Eligible loans recomputed for merchant: {}, eligibleLoan: {}", merchantId, eligibleLoans);
+
+        return eligibleLoans;
+    }
+
+
     private Integer fetchPincode(Long merchantId) {
         log.info("Fetching pincode for merchant:{}", merchantId);
         try {

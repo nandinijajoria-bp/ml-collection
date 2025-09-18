@@ -193,7 +193,15 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
             }
             isPlanSelectionFlow = emiUtils.isEligibleForPlanSelectionPage(emiDashboardResponse, lendingRiskVariables);
         }
-        LendingViewStates lendingViewStates = isPlanSelectionFlow ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
+
+        LendingViewStates lendingViewStates;
+        if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null)) {
+            // When aggregation flow is applicable, use OFFER_EVALUATION_PAGE instead of OFFER_PAGE
+            lendingViewStates = isPlanSelectionFlow ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_EVALUATION_PAGE;
+        } else {
+            // When aggregation flow is not applicable, keep using OFFER_PAGE
+            lendingViewStates = isPlanSelectionFlow ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
+        }
 
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = new LendingStateDTO<>(eligibilityStateDTO, lendingViewStates, LendingViewStates.PAN_PIN_PAGE);
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(scopeDataArgs.getMerchant().getId());

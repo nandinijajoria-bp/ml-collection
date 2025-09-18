@@ -2,6 +2,7 @@ package com.bharatpe.lending.handlers;
 
 
 import com.bharatpe.lending.dto.ExperimentConfigResponseDTO;
+import com.bharatpe.lending.dto.ExperimentConfigResponseDTOV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -60,6 +61,23 @@ public class LaunchLabsHandler {
             log.error("Exception occurred while fetching experiment config from Launch Lab for experimentId: {}, ex: ", experimentId, ex);
 
             // Throw a RootException with a generic error code
+        }
+        return null;
+    }
+
+    public ExperimentConfigResponseDTOV2 experimentConfigv2(Long experimentId, Long merchantId) {
+        try {
+            log.info("Calling Launch Labs experiment config API for experimentId: {}, merchantId: {}", experimentId, merchantId);
+
+            String url = BASE_URL + "/launch-labs/v3/experiment/config/" + experimentId + "/" + merchantId;
+
+            ResponseEntity<ExperimentConfigResponseDTOV2> apiResponse = restTemplate.getForEntity(url, ExperimentConfigResponseDTOV2.class);
+            log.info("Experiment config API response body: {}", apiResponse.getBody());
+
+            return apiResponse.getBody();
+        } catch (Exception ex) {
+            log.error("Exception occurred while fetching experiment config from Launch Lab for experimentId: {}, ex: ", experimentId, ex);
+
         }
         return null;
     }

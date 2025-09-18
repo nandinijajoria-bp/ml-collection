@@ -24,6 +24,16 @@ public class EdiUtil {
         }
     }
 
+    public double getEdiAfterRoundingOfferLogic(Long merchantId, @NotNull Double edi,String lender) {
+        if(roundDownEligibleLenders.contains(lender)){
+            log.info("rounding-down the edi amount for merchantId: {}, and lender: {}",merchantId , lender);
+            return Math.floor(edi);
+        } else {
+            log.info("rounding-up the edi amount for merchantId: {}, and lender: {}", merchantId, lender);
+            return Math.ceil(edi);
+        }
+    }
+
     public boolean isRoundDownEligibleLender(String lender) {
         return roundDownEligibleLenders.contains(lender);
     }

@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.enums.KycStatus;
@@ -66,5 +67,8 @@ public class EligibilityStateDTO {
     private boolean showShopDetailsOnBankDisbursementPage;
     private AddressDetails addressDetails;
     private String businessName;
+    private LendingApplication lendingApplication;
+    private boolean isAggregationFlowApplicable;
+    private String screenType;
 
 }

@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.Objects;
 
 @RestController
@@ -180,6 +181,20 @@ public class LendingApplicationControllerV2 {
         log.info("update insurance details request received :{} for merchant : {}", updateInsuranceDetailsRequest, merchant.getId());
         ApiResponse<?> response = insuranceService.updateInsuranceDetails(updateInsuranceDetailsRequest);
         log.info("update insurance details request :{} for merchant:{}", response, merchant.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "/kfs_details")
+    public ResponseEntity<?> getKfsDetailsOnOfferPage(@Valid @RequestBody OfferPageKfsDetailsRequest offerPageKfsDetailsRequest, @RequestAttribute BasicDetailsDto merchant) {
+        if (offerPageKfsDetailsRequest == null || offerPageKfsDetailsRequest.getLender() == null || offerPageKfsDetailsRequest.getLender().isEmpty()) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, "Lender information is required."));
+        }
+        log.info("Fetching KFS details for lender: {}", offerPageKfsDetailsRequest);
+        ApiResponse<?> response = lendingApplicationServiceV2.getKfsDetailsOnOfferPage(offerPageKfsDetailsRequest, merchant);
+        if (response == null || response.getData() == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse<>(false, "No KFS details found for the specified lender."));
+        }
+        log.info("KFS details fetched successfully for lender: {}", offerPageKfsDetailsRequest.getLender());
         return ResponseEntity.ok(response);
     }
 

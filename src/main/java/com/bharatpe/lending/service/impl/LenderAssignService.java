@@ -944,6 +944,11 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if(lendingApplication.isPresent()){
 
+            if(loanUtil.isApplicableForAggregationFlowV2(applicationId,lendingApplication.get().getMerchantId())){
+                log.info("Lender aggregation screen v2 is enabled for application id : {} and merchant id : {}", applicationId, lendingApplication.get().getMerchantId());
+                return null;
+            }
+
             log.info("EDI MODEL -> {}", EdiModel.valueOf(ediModel));
             return assignLender(lendingApplication.get(), EdiModel.valueOf(ediModel), null, isApplicableForAggregationFlow).getLender();
 //            return null;
@@ -1824,7 +1829,7 @@ public class LenderAssignService implements ILenderAssignService {
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingApplicationDetails)){
             lendingApplicationDetails = new LendingApplicationDetails();
-            lendingApplicationDetails.setApplicationId(lendingApplicationDetails.getId());
+            lendingApplicationDetails.setApplicationId(lendingApplication.getId());
         }
         lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
         lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
@@ -2045,10 +2050,12 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
+
                             if (!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)) {
                                 log.info("skipping {} due to business category check failure for {}", lender, application.getId());
                                 iterator.remove();
                             }
+
                             if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
                                 log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
                                 String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + application.getId();
