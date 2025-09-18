@@ -756,7 +756,7 @@ public class SignAgreementService {
 				return response;
 			}
 			LendingEligibleLoan eligibleLoan = optionalEligibleLoan.get();
-			if (!topupLoans.contains(eligibleLoan.getLoanType()) || (dateTimeUtil.getDateDiffInHours(eligibleLoan.getCreatedAt(), new Date()) >= 1)) {
+			if (!topupLoans.contains(eligibleLoan.getLoanType()) || (dateTimeUtil.getDateDiffInDays(eligibleLoan.getCreatedAt(), new Date()) >= 1)) {
 				logger.error("No available loan found for last 1 hr with merchant id {}", merchant.getId());
 				response.put("message", "Loan offer expired");
 				return response;
