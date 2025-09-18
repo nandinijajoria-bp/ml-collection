@@ -304,6 +304,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             log.info("its transfer by bp no lca entry is required {} {} {}", lendingPaymentSchedule.getId(), txnId, source);
             return;
         }
+        if ("UPI_AUTOPAY".equalsIgnoreCase(source) &&
+                ("TRILLIONLOANS".equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ||
+                        "ABFL".equalsIgnoreCase(lendingPaymentSchedule.getNbfc()))) {
+            log.info("lca excess Nach credit from UPI_AUTOPAY is not required for lender {} for loanId: {}", lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getId());
+            return;
+        }
 
         LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                 .merchantId(lendingPaymentSchedule.getMerchantId())

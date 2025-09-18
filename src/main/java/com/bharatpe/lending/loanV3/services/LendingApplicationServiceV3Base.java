@@ -73,7 +73,7 @@ public abstract class LendingApplicationServiceV3Base {
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
     @Autowired

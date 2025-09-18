@@ -62,7 +62,7 @@ public class LmsCreateLoanSuccessCallback {
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     public void saveSuccessLoanDetails(String bpLoanId) {

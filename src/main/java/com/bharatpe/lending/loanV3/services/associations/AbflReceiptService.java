@@ -39,7 +39,7 @@ import java.util.Optional;
 public class AbflReceiptService implements ILenderAssociationService<Optional> {
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
     @Autowired

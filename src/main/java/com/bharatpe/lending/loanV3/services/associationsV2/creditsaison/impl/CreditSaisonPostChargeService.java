@@ -76,7 +76,7 @@ public class CreditSaisonPostChargeService {
         for (Map.Entry<PenaltyFeeLedger, Double> entry : paidChargeMap.entrySet()) {
             partnerChargesList.add(CreditSasionCreateChargeRequestDTO.PartnerCharges.builder()
                     .component(chargeType)
-                    .amt(entry.getValue())
+                    .amt(Math.round(entry.getValue() * 100.0) / 100.0) // Rounding off to 2 decimal places
                     .build());
         }
     }

@@ -1,7 +1,5 @@
 package com.bharatpe.lending.loanV3.dto.piramal;
 
-import com.bharatpe.lending.enums.PaymentType;
-import com.bharatpe.lending.loanV3.enums.piramal.FeeType;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentMode;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal;
@@ -12,7 +10,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.util.Date;
 import java.util.List;
 
 @Data
@@ -84,7 +81,7 @@ public class LoanReceiptRequestDTO {
 
         private String allocationItem;
 
-        private FeeType feeType;
+        private String feeType;
 
         private Number paidAmount;
 

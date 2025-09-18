@@ -17,7 +17,7 @@ import java.util.Arrays;
 public class Request3PAuditService<T> {
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     private KafkaTemplate confluentKafkaTemplate;
 
     @Async

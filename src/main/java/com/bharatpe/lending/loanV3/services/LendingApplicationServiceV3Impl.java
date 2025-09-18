@@ -55,7 +55,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
     LenderAssociationStageFactory lenderAssociationStageFactory;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
     @Autowired

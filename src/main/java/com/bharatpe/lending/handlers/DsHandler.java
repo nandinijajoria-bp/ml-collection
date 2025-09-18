@@ -28,7 +28,7 @@ public class DsHandler {
     String dsBaseUrl;
 
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
+    @Qualifier("LoanApiKafkaTemplate")
     private KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     @Value("${de.reference.base.url}")

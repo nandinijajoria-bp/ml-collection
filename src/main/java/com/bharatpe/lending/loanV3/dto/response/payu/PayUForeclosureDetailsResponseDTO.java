@@ -35,6 +35,8 @@ public class PayUForeclosureDetailsResponseDTO {
 
     private Integer futurePrincipal;
 
+    private Integer foreclosureCharges;
+
     private String value;
 
     private List<Integer> Date;

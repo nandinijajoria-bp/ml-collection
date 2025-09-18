@@ -621,6 +621,8 @@ public class PaymentService {
                     return new InitiatePaymentResponseDTO("Advance edi amount is not correct");
                 }
             }
+            //Creating temporary loan payment order
+            String preOrderId = "LPS" + activeLoan.getId() + System.currentTimeMillis();
             LoanPaymentOrder order = new LoanPaymentOrder();
 
             // TODO : remove this and use api
@@ -630,6 +632,7 @@ public class PaymentService {
 
             order.setOwner("lending_payment_schedule");
             order.setOwnerId(activeLoan.getId());
+            order.setOrderId(preOrderId);
             order.setAmount(Double.valueOf(amount));
             order.setStatus(CreditConstants.PaymentStatus.INIT.name());
             if (request.getPayload().getSource() != null) {
@@ -2997,79 +3000,25 @@ public class PaymentService {
                 return ;
             }
             Double orderAmount = lendingPullPayment.getDeductedAmount();
-            Double adjustedAmount = 0d;
-            Double refundAmount = 0d;
-            if (lendingPaymentSchedule.getStatus().equals("CLOSED")) {
-                log.info("Refund for Excess AutoPay has been pulled for closed loanId:{}, " +
-                        "initiating full UPI refund", lendingPaymentSchedule.getId());
-                refundAmount = orderAmount;
-                LendingRefundAudit  lendingRefundAudit = new LendingRefundAudit();
-                lendingRefundAudit.setLoanId(lendingPaymentSchedule.getId());
-                lendingRefundAudit.setMerchantId(lendingPaymentSchedule.getMerchantId());
-                lendingRefundAudit.setRefundAmount(refundAmount);
-                lendingRefundAudit.setOrderAmount(refundAmount);
-                lendingRefundAudit.setBankRefNo(request.getPaymentRefId());
-                lendingRefundAudit.setMode(UPI_AUTO_PAY);
 
-                log.info("creating refund entry in lending refund audit  for lending pull payment {}",lendingPullPayment.getId());
-                log.info("going to save the refund audit for loanId {} and status {}",lendingPaymentSchedule.getId(),lendingPaymentSchedule.getStatus());
-                lendingRefundAuditDao.save(lendingRefundAudit);
-                lendingPullPayment.setStatus("SUCCESS");
-                lendingPullPaymentDao.save(lendingPullPayment);
-                return;
-            }
-            double dueAmount = lendingPaymentSchedule.getDueAmount();
-            double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
-            double netDueAmount = dueAmount + penaltyFee;
-            double adjustedPenalty = 0;
-            if (orderAmount > netDueAmount) {
-                log.info("Settlement entry for order Amount is {} for loanId {}", orderAmount, lendingPaymentSchedule.getId());
-                adjustedAmount = lendingPaymentSchedule.getDueAmount();
-                adjustedPenalty = Math.min(orderAmount - adjustedAmount, penaltyFee);
-                refundAmount = orderAmount - adjustedAmount - adjustedPenalty;
-                log.info("adjusted amount: {}, penaltyFee: {}, refund AMount: {} for loanId: {}", adjustedAmount, adjustedPenalty, refundAmount, lendingPaymentSchedule.getId());
-            }else {
-                adjustedAmount = orderAmount;
-            }
-            if (adjustedAmount + adjustedPenalty > 0) {
-                log.info("adjusted or order amount for loanPayment order entity is {} for loanId {}", adjustedAmount,lendingPaymentSchedule.getId());
-                if (request.getPaymentRefId() != null) {
-                    LoanPaymentOrder order = createOrder(lendingPaymentSchedule, adjustedAmount + adjustedPenalty, request.getPaymentRefId(), UPI_AUTOPAY_ADJUSTMENT_MODE);
+            log.info("adjusted or order amount for loanPayment order amount is {} for loanId {}", orderAmount, lendingPaymentSchedule.getId());
+            if (request.getPaymentRefId() != null) {
+                LoanPaymentOrder order = createOrder(lendingPaymentSchedule, orderAmount, request.getPaymentRefId(), UPI_AUTOPAY_ADJUSTMENT_MODE);
 
-
-                    if (!list.isEmpty()) {
-                        order.setTerminalOrderId(list.get(0).getTerminalOrderId());
-                        order.setFinalGateway(list.get(0).getFinalGateway());
-                    }
-                    order.setCheckoutType(request.getCheckoutType());
-                    loanPaymentOrderDao.save(order);
-                    // TODO : call handle callback method
-                    log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
-                    handleCallback(convertToPgPaymentCallbackDTO(order));
-
-                }
-            }
-            if (refundAmount > 0) {
-                log.info("AutoPay UPI amount {} is more than due amount {} for loanId {}", orderAmount, lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getId());
-                // TODO: add this amount to lending collection excess with proper description
                 if (!list.isEmpty()) {
-                    LendingCollectionExcess lendingCollectionExcess = new LendingCollectionExcess();
-                    lendingCollectionExcess.setMerchantId(lendingPaymentSchedule.getMerchantId());
-                    lendingCollectionExcess.setLoanId(lendingPaymentSchedule.getId());
-                    lendingCollectionExcess.setExcessNachCreditAmount(refundAmount);
-                    lendingCollectionExcess.setAmount(refundAmount);
-                    lendingCollectionExcess.setDeductedAmount(0.0);
-                    lendingCollectionExcess.setDeductionCount(0);
-                    lendingCollectionExcess.setTerminalOrderId(list.get(0).getTerminalOrderId());
-                    lendingCollectionExcess.setStatus("ACTIVE");
-                    lendingCollectionExcess.setMode(UPI_AUTO_PAY);
-                    lendingCollectionExcessDao.save(lendingCollectionExcess);
-                    if(lendingPaymentSchedule != null && "PAYU".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) loanPaymentLedgerAdjustmentService.createAutoPayUpiExcessCreditAuditEntry(lendingCollectionExcess, lendingPaymentSchedule, refundAmount);
-
+                    order.setTerminalOrderId(list.get(0).getTerminalOrderId());
+                    order.setFinalGateway(list.get(0).getFinalGateway());
                 }
+                order.setCheckoutType(request.getCheckoutType());
+                loanPaymentOrderDao.save(order);
+                // TODO : call handle callback method
+                log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
+                handleCallback(convertToPgPaymentCallbackDTO(order));
             }
         } catch (Exception ex) {
             log.error("Exception Occur while handling callback loanId {} ex {},", lendingPullPayment.getLoanId(), ex.getMessage());
+            lendingPullPayment.setStatus("ERROR");  // handle it properly
+            lendingPullPaymentDao.save(lendingPullPayment);
         }
     }
 

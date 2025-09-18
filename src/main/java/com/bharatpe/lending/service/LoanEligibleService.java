@@ -439,10 +439,10 @@ public class LoanEligibleService {
                             lendingRiskVariables, prevLoanUnpaidAmountBD, topUpOfferRequestDto.getTopupLender());
 
                     if (performRiskChecks(newEligibleLoan, topUpOfferRequestDto.getTopupLender(), riskVariables, merchantId)) {
-                        eligibleLoanDao.deleteById(newEligibleLoan.getId());
                         continue; // Skip this loan if risk checks fail
                     }
 
+                    eligibleLoanDao.save(eligibleLoan);
                     validEligibleLoans.add(newEligibleLoan);
                 } catch (Exception e) {
                     logger.error("Error processing eligible loan for merchantId: {}, amount: {}",
