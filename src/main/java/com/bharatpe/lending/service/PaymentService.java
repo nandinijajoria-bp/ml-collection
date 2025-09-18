@@ -2993,10 +2993,10 @@ public class PaymentService {
                     }
                     order.setCheckoutType(request.getCheckoutType());
                     loanPaymentOrderDao.save(order);
+
                     // TODO : call handle callback method
                     log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
                     handleCallback(convertToPgPaymentCallbackDTO(order));
-
                 }
                 return ;
             }
