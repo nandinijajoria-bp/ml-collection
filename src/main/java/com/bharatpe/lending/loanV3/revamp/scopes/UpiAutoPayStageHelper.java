@@ -5,9 +5,11 @@ import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.MandateType;
 import com.bharatpe.lending.common.enums.Status;
@@ -55,6 +57,7 @@ public class UpiAutoPayStageHelper {
     private final VerifyOTPServiceV2 verifyOTPServiceV2;
     private final LendingApplicationDao lendingApplicationDao;
     private final LendingApplicationDetailsDao lendingApplicationDetailsDao;
+    private final LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
     private final LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Value("${upi.autopay.retry.count:3}")
@@ -65,6 +68,9 @@ public class UpiAutoPayStageHelper {
 
     public boolean isEligibleForFailedForceSkip(Long applicationId, Long merchantId) {
         if(!easyLoanUtil.percentScaleUp(merchantId, upiAutoPayForceSkipPercentage)){
+            return false;
+        }
+        if(isLowTpvMerchant(applicationId)){
             return false;
         }
         List<AutoPayUPI> autoPayUPIList = autoPayUPIDao.findAllByApplicationIdOrderByIdDesc(applicationId);
@@ -82,6 +88,19 @@ public class UpiAutoPayStageHelper {
                 .collect(Collectors.toList());
         log.info("Total UPI AutoPay failed attempts for applicationId : {} are : {}", applicationId, failedCases.size());
         return failedCases.size() >= upiAutoPayMaxRetryCount;
+    }
+
+    private boolean isLowTpvMerchant(Long applicationId) {
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+        if(lendingRiskVariablesSnapshot==null){
+            return false;
+        }
+        String pilotIdentifier = lendingRiskVariablesSnapshot.getPilotIdentifier();
+        if(Objects.isNull(pilotIdentifier)){
+            return false;
+        }
+        return LendingConstants.TPV_500_IDENTIFIERS.stream()
+                .anyMatch(pilotIdentifier::contains);
     }
 
     public LendingViewStates forceSkipUpiAutopayAndGetNextPage(Long applicationId) {
