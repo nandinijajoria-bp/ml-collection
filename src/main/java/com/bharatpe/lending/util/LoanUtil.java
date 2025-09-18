@@ -2017,7 +2017,7 @@ public class LoanUtil {
 			logger.debug("Processing fee is null in tenure details, defaulting to zero");
 		}
 
-		return LendingEligibleLoan.builder()
+		LendingEligibleLoan eligibleLoan = LendingEligibleLoan.builder()
 				.loanType(loanType)
 				.offerType(offerType)
 				.amount(amount)
@@ -2039,6 +2039,8 @@ public class LoanUtil {
 				.clubV2Amount(tenureDetail.getClubV2Amount())
 				.processingFeeRate(tenureDetail.getProcessingFee())
 				.build();
+		eligibleLoan = eligibleLoanDao.save(eligibleLoan);
+		return eligibleLoan;
 	}
 
 	public boolean isInternalMerchant(Long merchantId) {
