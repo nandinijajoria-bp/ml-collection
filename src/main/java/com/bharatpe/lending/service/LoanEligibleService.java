@@ -557,16 +557,6 @@ public class LoanEligibleService {
         return offer;
     }
 
-    /*public Mono<EligibleLendingOffersResponseDTO> getEligibilityDetailsReactive(Long merchantId, Double queryAmount, Integer ediModel) {
-        return Mono.fromCallable(() -> {
-            try {
-                return getEligibilityDetails(merchantId, queryAmount, ediModel);
-            } catch (BureauCallMaskedApiException e) {
-                throw Exceptions.propagate(e);
-            }
-        }).subscribeOn(Schedulers.elastic());
-    }*/
-
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, Integer ediModel) throws BureauCallMaskedApiException {
 
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
@@ -1507,14 +1497,6 @@ public class LoanEligibleService {
                 continue;
             }
 
-           /* if (lenderRolloutFailedCheck(lender, merchantId, evaluationId)) {
-                String rejectReason = "Failed rollout percentage check for merchantId";
-                AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
-                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, evaluationId);
-                iterator.remove();
-                continue;
-            }*/
-
             if (!negativeCategoryAndLoanAmountCheckPassed(loan, lendingRiskVariables.getRiskSegment(), lender,merchantId, evaluationId)) {
                 AsyncLoggerUtil.logInfo(logger, "skipping {} due to business category check failure for {}", lender, merchantId);
                 iterator.remove();
@@ -1687,7 +1669,7 @@ public class LoanEligibleService {
             }
         }
 
-        /*switch (lenderEnum) {
+        switch (lenderEnum) {
             case CAPRI:
                 if (edi > summaryTpv) {
                     response = "skipping capri for merchantId : " + merchantId + " due to merchant edi: " + edi + " is greater than summaryTpv: " + summaryTpv;
@@ -1779,7 +1761,7 @@ public class LoanEligibleService {
                 break;
             default:
                 AsyncLoggerUtil.logDebug(logger,"No specific checks found for lender : {} for merchantId : {}", lender, merchantId);
-        }*/
+        }
 
         return new ImmutablePair<>(success, response);
     }
@@ -2152,10 +2134,7 @@ public class LoanEligibleService {
                     String remarks = "removing " + lender + " from eligible list for merchantId : " + merchantId + " due to not in rollout percentage " + piramalRolloutPercentage;
                     createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
                     continue;
-                }/*
-                if(lenderRolloutFailedCheck(lender, merchantId, evaluationId)) {
-                    continue;
-                }*/
+                }
                 eligibleLendersSet.add(lender);
             }
         }

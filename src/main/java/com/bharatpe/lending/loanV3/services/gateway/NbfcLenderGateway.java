@@ -45,8 +45,6 @@ public class NbfcLenderGateway extends APIGatewayService {
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
             headers.set("Hash", hash);
             headers.set("Client-Name", super.CLIENT);
-            //to be removed at time of release
-            headers.set("X-Source-Host", getHostName());
             log.info("request body {}", requestObject);
             HttpEntity<Object> request = new HttpEntity<>(requestBody, headers);
             log.info("request body for nbfc {} request hash {} :  {}", requestUrl,hash, request);
@@ -76,8 +74,6 @@ public class NbfcLenderGateway extends APIGatewayService {
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
             headers.set("Hash", hash);
-            //to be removed at time of release
-            headers.set("X-Source-Host", getHostName());
             headers.set("Client-Name", super.CLIENT);
             log.info("custom invoke request body {}", requestObject);
             HttpEntity<Object> request = new HttpEntity<>(requestBody, headers);
@@ -111,8 +107,6 @@ public class NbfcLenderGateway extends APIGatewayService {
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
             headers.set("Hash", hash);
-            //to be removed at time of release
-            headers.set("X-Source-Host", getHostName());
             headers.set("Client-Name", super.CLIENT);
             log.info("request body {}", requestObject);
             HttpEntity<Object> request = new HttpEntity<>(requestBody, headers);
