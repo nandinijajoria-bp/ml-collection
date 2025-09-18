@@ -1994,8 +1994,8 @@ public class LoanUtil {
 				.processingFeeRate(tenureDetail.getProcessingFee())
 				.build();
 		eligibleLoanList.add(sevenDayEligibleLoanOffer);
-		eligibleLoanDao.saveAll(eligibleLoanList);
-		eligibleLoanDao.flush();
+//		eligibleLoanDao.saveAll(eligibleLoanList);
+//		eligibleLoanDao.flush();
 		return sevenDayEligibleLoanOffer;
 	}
 
@@ -3181,9 +3181,7 @@ public class LoanUtil {
 		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
 		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
 		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
-		eligibleLoanDao.save(eligibleLoan);
 	}
-
 
 	public static boolean isRolledOutByPercentage(String value, List<Integer> validDigits) {
 		// Extract the last digit of the number
