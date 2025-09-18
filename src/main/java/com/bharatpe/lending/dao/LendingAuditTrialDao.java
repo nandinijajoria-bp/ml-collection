@@ -45,8 +45,4 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 					"ORDER BY created_at DESC")
 	List<LendingAuditTrial> findByMerchantIdAndEvaluationId(Long merchantId, String evaluationId);
 
-	List<LendingAuditTrial> findByMerchantIdAndEvaluationIdAndTypeOrderByIdDesc(Long merchantId, String evaluationId, String type);
-
-
-
 }

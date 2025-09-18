@@ -30,31 +30,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-
-        <!-- Project Reactor - specify version that includes TopicProcessor -->
-        <dependency>
-            <groupId>io.projectreactor</groupId>
-            <artifactId>reactor-core</artifactId>
-            <version>3.3.22.RELEASE</version> <!-- This version still has TopicProcessor -->
-        </dependency>
-
-        <!-- For RxJava integration -->
-        <dependency>
-            <groupId>io.reactivex.rxjava2</groupId>
-            <artifactId>rxjava</artifactId>
-            <version>2.2.21</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.projectreactor.addons</groupId>
-            <artifactId>reactor-adapter</artifactId>
-            <version>3.3.3.RELEASE</version> <!-- Compatible with reactor-core 3.3.x -->
-        </dependency>
-
-        <dependency>
             <groupId>com.bharatpe.common</groupId>
             <artifactId>bharatpe-common</artifactId>
             <version>3.0-lending-qa-SNAPSHOT</version>
@@ -209,14 +184,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>8</source>
-                    <target>8</target>
-                </configuration>
             </plugin>
         </plugins>
     </build>

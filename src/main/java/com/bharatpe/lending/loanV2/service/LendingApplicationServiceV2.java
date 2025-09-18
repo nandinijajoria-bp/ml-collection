@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.EligibleLoanAuditDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.entities.*;
@@ -55,7 +54,6 @@ import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Response;
@@ -153,9 +151,6 @@ public class LendingApplicationServiceV2 {
     private LendingRiskVariablesDao lendingRiskVariablesDao;
 
     @Autowired
-    private LmsStageHistoryDao lmsStageHistoryDao;
-
-    @Autowired
     KycHandler kycHandler;
 
     @Autowired
@@ -187,13 +182,7 @@ public class LendingApplicationServiceV2 {
     LendingGstDao lendingGstDao;
 
     @Autowired
-    LenderMappingService lenderMappingService;
-
-    @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
-
-//    @Autowired
-//    OrderStickerDaoSlave orderStickerDaoSlave;
 
     @Autowired
     LendingDisbursalStageDao lendingDisbursalStageDao;
@@ -221,9 +210,6 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     CallingLeadResponseNimbusDao callingLeadResponseNimbusDao;
-
-//    @Autowired
-//    MerchantDao merchantDao;
 
     @Autowired
     LendingCache lendingCache;
@@ -256,18 +242,6 @@ public class LendingApplicationServiceV2 {
     @Value("${loan.details.refresh.window:15}")
     int loanDetailsRefreshWindow;
 
-    @Value("${enable.autopayupi.registration:false}")
-    private Boolean enableAutopayUPIRegistration;
-
-    @Value("${merchant.plugin.rollout.percent:0}")
-    Integer merchantPluginRolloutPercent;
-
-    @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
-    Integer upiAutoPayDedicatedScreenRolloutPercent;
-
-    @Value("${upiautopay.topup.dedicated.screen.rollout.percent:0}")
-    Integer upiAutoPayTopupDedicatedScreenRolloutPercent;
-
     @Autowired
     LenderAssignService lenderAssignService;
 
@@ -295,21 +269,11 @@ public class LendingApplicationServiceV2 {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
-    @Autowired(required = false)
-    BureauHandler bureauHandler;
-
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
 
-    @Lazy
-    @Autowired
-    NbfcUtils nbfcUtils;
-
     @Value("${force.set.piramal:false}")
     private Boolean forceSetPiramal;
-
-    @Autowired
-    BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
 
     @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
@@ -331,10 +295,6 @@ public class LendingApplicationServiceV2 {
     @Value("${shop.photo.sync.rollout:0}")
     private Integer shopPhotoSyncRollout;
 
-    @Lazy
-    @Autowired
-    InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
-
     @Value("${kfs.compression.level:2}")
     int kfsCompressionLevel;
 
@@ -346,10 +306,13 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     KycUtils kycUtils;
+
     @Autowired
     ILenderAPIGateway lenderAPIGateway;
+
     @Autowired
     CommonService commonService;
+
     @Autowired
     ObjectMapper objectMapper;
 
@@ -361,9 +324,6 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     AssociationServiceUtil associationServiceUtil;
-
-    @Autowired
-    MerchantLoansService merchantLoansService;
 
     @Autowired
     LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
@@ -688,20 +648,20 @@ public class LendingApplicationServiceV2 {
                 eligibleLoan.setCreatedAt(new Date());
             }
 
-            eligibleLoan.setCategory(eligibleLoanDTO.getCategory() != null ? eligibleLoanDTO.getCategory() : null);
-            eligibleLoan.setAmount(eligibleLoanDTO.getAmount() != null ? eligibleLoanDTO.getAmount() : null);
+            eligibleLoan.setCategory(eligibleLoanDTO.getCategory());
+            eligibleLoan.setAmount(eligibleLoanDTO.getAmount());
             eligibleLoan.setTenure(eligibleLoanDTO.getTenure() != null ? String.valueOf(eligibleLoanDTO.getTenure()) : null);
-            eligibleLoan.setEdi(eligibleLoanDTO.getEdi() != null ? eligibleLoanDTO.getEdi() : null);
-            eligibleLoan.setIoEdi(eligibleLoanDTO.getIoEdi() != null ? eligibleLoanDTO.getIoEdi() : null);
-            eligibleLoan.setIoEdiDays(eligibleLoanDTO.getIoEdiDays() != null ? eligibleLoanDTO.getIoEdiDays() : null);
-            eligibleLoan.setEdiFreeDays(eligibleLoanDTO.getEdiFreeDays() != null ? eligibleLoanDTO.getEdiFreeDays() : null);
-            eligibleLoan.setRepayment(eligibleLoanDTO.getRepaymentAmount() != null ? eligibleLoanDTO.getRepaymentAmount() : null);
-            eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount() != null ? eligibleLoanDTO.getEdiCount() : null);
-            eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType() != null ? eligibleLoanDTO.getOfferType() : null);
-            eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest() != null ? eligibleLoanDTO.getRateOfInterest() : null);
-            eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee() != null ? eligibleLoanDTO.getProcessingFee() : null);
-            eligibleLoan.setApr(eligibleLoanDTO.getApr() != null ? eligibleLoanDTO.getApr() : null);
-            eligibleLoan.setIrr(eligibleLoanDTO.getIrr() != null ? eligibleLoanDTO.getIrr() : null);
+            eligibleLoan.setEdi(eligibleLoanDTO.getEdi());
+            eligibleLoan.setIoEdi(eligibleLoanDTO.getIoEdi());
+            eligibleLoan.setIoEdiDays(eligibleLoanDTO.getIoEdiDays());
+            eligibleLoan.setEdiFreeDays(eligibleLoanDTO.getEdiFreeDays());
+            eligibleLoan.setRepayment(eligibleLoanDTO.getRepaymentAmount());
+            eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
+            eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType());
+            eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
+            eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
+            eligibleLoan.setApr(eligibleLoanDTO.getApr());
+            eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
             eligibleLoan.setUpdatedAt(new Date());
             eligibleLoan.setOfferType("CUSTOM");
 
@@ -711,7 +671,8 @@ public class LendingApplicationServiceV2 {
             eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(savedLoan));
 
         } catch (Exception e) {
-            AsyncLoggerUtil.logError(log, "Exception while updating eligible loan for merchantId: {} {}", merchantId, e.getMessage());
+            AsyncLoggerUtil.logError(log, "Exception while updating eligible loan for merchantId: {}, exception: {}",
+                    merchantId, e.getMessage());
         }
     }
 
@@ -876,7 +837,7 @@ public class LendingApplicationServiceV2 {
     }
 
     private ApiResponse<?> createNewApplicationV2(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
-        log.info("creating new application for merchant:{}", merchant.getId());
+        log.info("creating new application v2 for merchant:{}", merchant.getId());
         try {
             LendingApplication inProgressLoanApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
             if (!ObjectUtils.isEmpty(inProgressLoanApplication)) {
@@ -896,7 +857,7 @@ public class LendingApplicationServiceV2 {
 
             LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeAndAmountAndTenureInMonthsOrderByIdDesc(merchant.getId(), "CUSTOM", applicationRequest.getEligibleLoanDTO().getAmount(), applicationRequest.getEligibleLoanDTO().getTenureInMonths());
             if (Objects.isNull(eligibleLoan)) {
-                log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
+                log.error("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
             log.info("Eligible loan found for merchant: {} , {}",
@@ -977,7 +938,7 @@ public class LendingApplicationServiceV2 {
                     if(lendingApplication==null){
                         log.info("Application not found for id:{}", applicationRequest.getApplicationId());
                     }
-                    lendingApplication.setBusinessName(applicationRequest.getBusinessName());
+                    lendingApplication.setBusinessName(applicationRequest != null ? applicationRequest.getBusinessName() : null);
                     BusinessDetailsDTO businessDetailsDTO = BusinessDetailsDTO.builder().businessCategory(applicationRequest.getCategory()).
                             businessName(applicationRequest.getBusinessName()).build();
                     addBusinessDetails(businessDetailsDTO,merchant);
@@ -1028,43 +989,6 @@ public class LendingApplicationServiceV2 {
             return new ApiResponse<>(false, "Something went wrong");
         }
     }
-
-    public Map<String, Object> assignLender(Long applicationId, BasicDetailsDto merchantDetails, CreateApplicationRequest createApplicationRequest) {
-        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantDetails.getId());
-        if(ObjectUtils.isEmpty(lendingApplication)){
-            log.error("application not found with id :{}", applicationId);
-
-        }
-        String oldLender = lendingApplication.getLender();
-        lendingApplication.setLender(createApplicationRequest.getEligibleLoanUpdateRequestDTO().getLender());
-        lendingApplicationDao.save(lendingApplication);
-        //updateOfferDetails(lendingApplication, lender.name());
-        log.info("assigning lender:{} for application:{}", createApplicationRequest.getEligibleLoanDTO().getLender(), lendingApplication.getId());
-        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(createApplicationRequest.getEligibleLoanDTO().getLender());
-        if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
-            lenderAssignService.updateLenderLimits(lendingLenderQuota, lendingApplication);
-        }
-        lenderAssignService.saveLenderChangeAudit(lendingApplication, createApplicationRequest.getEligibleLoanDTO().getLender() , oldLender);
-        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-        if(ObjectUtils.isEmpty(lendingApplicationDetails)){
-            lendingApplicationDetails = new LendingApplicationDetails();
-            lendingApplicationDetails.setApplicationId(lendingApplication.getId());
-        }
-        lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
-        lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
-        lendingApplicationDetailsDao.save(lendingApplicationDetails);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", !ObjectUtils.isEmpty(lendingApplication));
-        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication,LenderAssociationStages.INIT);
-        LendingApplicationKycDetails lendingApplicationKycDetails = null;
-        if(bpKycRequired){
-            lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), oldLender);
-        }
-        response.put("bpKycRequired", !ObjectUtils.isEmpty(lendingApplicationKycDetails));
-        return response;
-    }
-
 
     private LendingApplication saveLendingApplicationV2(BasicDetailsDto merchantBasicDetails, LendingEligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, AddressValidationDto addressValidationDto) {
         LendingApplication lendingApplication = new LendingApplication();
@@ -1186,20 +1110,20 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLender(eligibleLoan.getLender());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
-        lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
+        lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepaymentAmount()));
         lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
         lendingApplication.setProcessingFee(eligibleLoan.getProcessingFee().doubleValue());
         lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - eligibleLoan.getProcessingFee());
         lendingApplication.setMode("AUTO");
         lendingApplication.setLoanAmount(eligibleLoan.getAmount());
-        lendingApplication.setCategory(eligibleLoan.getCategory());
+        lendingApplication.setCategory(eligibleLoan.getCategory() != null ? eligibleLoan.getCategory() : lendingApplication.getCategory());
         lendingApplication.setTenure(eligibleLoan.getTenure());
         lendingApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
         lendingApplication.setPayableDays(Long.valueOf(eligibleLoan.getEdiCount()));
         lendingApplication.setEdiFreeDays(0);
-        lendingApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
-        lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-        lendingApplication.setLoanType(eligibleLoan.getLoanType());
+        lendingApplication.setIoPayableDays(eligibleLoan.getIoEdiDays() != null ? eligibleLoan.getIoEdiDays() : lendingApplication.getIoPayableDays());
+        lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct() != null ? eligibleLoan.getLoanConstruct() : lendingApplication.getLoanConstruct());
+        lendingApplication.setLoanType(eligibleLoan.getLoanType() != null ? eligibleLoan.getLoanType() : lendingApplication.getLoanType());
         lendingApplication.setTotalLoansCount(loanUtil.getPreviousLoans(merchantBasicDetails.getId()).size());
         lendingApplication.setCkycId(String.valueOf(merchantBasicDetails.getId()));
         lendingApplication.setEdiFreeDays(eligibleLoan.getEdiCount() % 30 == 0 ? 0 : 1);
@@ -1667,7 +1591,6 @@ public class LendingApplicationServiceV2 {
 
     private void saveAddressQltyDetails(LendingApplication lendingApplication, AddressValidationDto addressValidationDto) {
         try {
-
             if (!ObjectUtils.isEmpty(addressValidationDto) && !ObjectUtils.isEmpty(addressValidationDto.getResult())) {
                 LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
                 if (lendingGstDetail == null) {

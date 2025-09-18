@@ -250,30 +250,6 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
 
-/*	@RequestMapping(value = "/eligible_offers/v1", method = RequestMethod.GET,
-			consumes = MediaType.APPLICATION_JSON_VALUE,
-			produces = MediaType.APPLICATION_JSON_VALUE)
-	public Mono<ResponseEntity<EligibleLendingOffersResponseDTO>> getEligibleOfferDetailsV2(
-			@RequestAttribute BasicDetailsDto merchant,
-			@RequestParam(name = "query_amount", required = true) Double queryAmount,
-			@RequestParam(name = "edi_model", required = false) Integer ediModel) {
-
-		final Integer finalEdiModel = (ediModel == null) ? lendingEdiModel : ediModel;
-
-		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}, ediModel : {}",
-				merchant.getId(), queryAmount, finalEdiModel);
-
-		return loanEligibleService.getEligibilityDetailsReactive(merchant.getId(), queryAmount, finalEdiModel)
-				.doOnNext(resp -> logger.info("EligibleLendingOffers response: {}", resp))
-				.map(ResponseEntity::ok)
-				.onErrorResume(BureauCallMaskedApiException.class, ex -> {
-					logger.error("Bureau call error for merchant: {}", merchant.getId(), ex);
-					return Mono.just(ResponseEntity
-							.status(HttpStatus.SERVICE_UNAVAILABLE)
-							.body(new EligibleLendingOffersResponseDTO(false, ex.getMessage())));
-				});
-	}*/
-
 	@GetMapping(
 			value = "/eligible_offers/v2",
 			consumes = MediaType.APPLICATION_JSON_VALUE,
@@ -363,28 +339,6 @@ public class LoanDetailsController {
 		logger.info("merchantLoans response : {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
-
-/*
-	@PostMapping (value = "/topup_eligible_offers", consumes = "application/json", produces = "application/json")
-	public List<String> testRanking(@RequestBody RankingRequest request) {
-		return lenderRankingEngine.rankLenders(
-				request.getLenders(),
-				request.getRankingRules(),
-				request.getRankingType(),
-				request.getLimit(), 20042005l, 12
-		);
-	}
-*/
-/*
-
-	@Data
-	public static class RankingRequest {
-		private List<LenderMetricsHistory> lenders;
-		private List<OfferRankingConfig> rankingRules;
-		private RankingType rankingType;
-		private int limit;
-	}
-*/
 
 	/**
 	 * Endpoint to check topup eligibility for a merchant.

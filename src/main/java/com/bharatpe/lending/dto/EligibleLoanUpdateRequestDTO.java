@@ -21,16 +21,12 @@ public class EligibleLoanUpdateRequestDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @JsonProperty("category")
     private String category;
 
-    @JsonProperty("amount")
     private Double amount;
 
-    @JsonProperty("tenure")
     private Integer tenure;
 
-    @JsonProperty("edi")
     private Integer edi;
 
     @JsonProperty("io_edi")
@@ -42,12 +38,10 @@ public class EligibleLoanUpdateRequestDTO implements Serializable {
     @JsonProperty("edi_free_days")
     private Integer ediFreeDays;
 
-    @JsonProperty("repayment")
     private Integer repayment;
 
     @JsonProperty("edi_days")
     private Integer ediDays;
 
-    @JsonProperty("lender")
     private String lender;
 }

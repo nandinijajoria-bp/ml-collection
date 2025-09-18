@@ -22,6 +22,4 @@ public class KfsDetailsDto {
     private Double annualTurnover;
     private Double disbursalAmount;
 
-
-
 }
