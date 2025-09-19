@@ -58,6 +58,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
     @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 
