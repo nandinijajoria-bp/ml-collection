@@ -812,12 +812,17 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     private void createLoanFundInEntry(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
         log.info("Creating Lending Payin Details for loan: {}, payment: {}", loan.getId(), payment);
         try {
-            if (payment != null && LoanPaymentUtil.isExcessAdjustmentEntry(payment.getTerminalOrderId())) {
+            if(payment == null || !StringUtils.hasLength(payment.getTerminalOrderId()) || payment.getOtherAmount() <= 0 || !StringUtils.hasLength(payment.getSource()) || !StringUtils.hasLength(payment.getTransferType())) {
+                log.warn("Skipping creation of Lending Payin Details for invalid payment details for loan: {}, payment: {}", loan.getId(), payment);
+                return;
+            }
+
+            if (LoanPaymentUtil.isExcessAdjustmentEntry(payment.getTerminalOrderId())) {
                 log.info("Skipping creation of Lending Payin Details for excess adjustment entry for loan: {}, payment: {}", loan.getId(), payment);
                 return;
             }
 
-            if (payment != null && "BHARATPE_NACH".equalsIgnoreCase(payment.getSource())) {
+            if ("BHARATPE_NACH".equalsIgnoreCase(payment.getSource())) {
                 log.info("Skipping creation of Lending Payin Details for NACH payment for loan: {}, payment: {}", loan.getId(), payment);
                 return;
             }
