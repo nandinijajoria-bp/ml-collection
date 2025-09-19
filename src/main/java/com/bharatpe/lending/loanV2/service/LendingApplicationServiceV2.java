@@ -676,6 +676,47 @@ public class LendingApplicationServiceV2 {
         }
     }
 
+    public void createEligibleLoan(Long merchantId, EligibleLoanDTO eligibleLoanDTO) {
+        log.info("Updating eligible loan for merchantId: {}", merchantId);
+
+        try {
+            if (Objects.isNull(merchantId) || Objects.isNull(eligibleLoanDTO)) {
+                AsyncLoggerUtil.logError(log, "MerchantId or EligibleLoanDTO is null for merchantId: {}", merchantId);
+                return;
+            }
+
+            LendingEligibleLoan   eligibleLoan = new LendingEligibleLoan();
+            eligibleLoan.setMerchantId(merchantId);
+            eligibleLoan.setCreatedAt(new Date());
+
+            eligibleLoan.setCategory(eligibleLoanDTO.getCategory());
+            eligibleLoan.setAmount(eligibleLoanDTO.getAmount());
+            eligibleLoan.setTenure(eligibleLoanDTO.getTenure() != null ? String.valueOf(eligibleLoanDTO.getTenure()) : null);
+            eligibleLoan.setEdi(eligibleLoanDTO.getEdi());
+            eligibleLoan.setIoEdi(eligibleLoanDTO.getIoEdi());
+            eligibleLoan.setIoEdiDays(eligibleLoanDTO.getIoEdiDays());
+            eligibleLoan.setEdiFreeDays(eligibleLoanDTO.getEdiFreeDays());
+            eligibleLoan.setRepayment(eligibleLoanDTO.getRepaymentAmount());
+            eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
+            eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType());
+            eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
+            eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
+            eligibleLoan.setApr(eligibleLoanDTO.getApr());
+            eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
+            eligibleLoan.setUpdatedAt(new Date());
+            eligibleLoan.setOfferType("CUSTOM");
+
+            LendingEligibleLoan savedLoan = eligibleLoanDao.save(eligibleLoan);
+            AsyncLoggerUtil.logInfo(log, "Eligible loan updated for merchantId: {}, data: {}", merchantId, savedLoan);
+
+            eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(savedLoan));
+
+        } catch (Exception e) {
+            AsyncLoggerUtil.logError(log, "Exception while updating eligible loan for merchantId: {}, exception: {}",
+                    merchantId, e.getMessage());
+        }
+    }
+
     public ApiResponse<?> createApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest, String token) {
         if(Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -971,7 +1012,7 @@ public class LendingApplicationServiceV2 {
                             "OLD_LENDER_" + lendingApplication.getLender(),
                             "NEW_LENDER_" + applicationRequest.getEligibleLoanDTO().getLender());
                     updateLendingApplicationV2(lendingApplication, merchant, applicationRequest.getEligibleLoanDTO(), applicationRequest);
-                    updateEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
+                    createEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 }
                 AddressValidationDto addressValidationDto = null;
                 if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {

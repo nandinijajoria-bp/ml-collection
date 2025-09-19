@@ -45,7 +45,7 @@ public class LenderRankingEngine {
         }
         log.info("lenders : {}, rankingRules : {}, rankingType : {}, limit : {}",
                 allLenders, rankingRules, rankingType, limit);
-        if (allLenders == null || rankingRules == null || rankingType == null || limit < 1) {
+        if (allLenders == null || rankingRules == null || rankingType == null || limit < 0) {
             throw new IllegalArgumentException("Invalid input parameters");
         }
 
