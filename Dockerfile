@@ -15,4 +15,4 @@ RUN mkdir -p /data/logs && \
     chmod -R 777 /data && \
     chown -R bharatpe:bharatpe /app
 USER bharatpe
-ENTRYPOINT ["-Xms2560M","-Xmx4096M","-XX:+ParallelRefProcEnabled","-XX:+UseG1GC","-XX:ConcGCThreads=2","-XX:ParallelGCThreads=3","-XX:G1HeapRegionSize=8M","-XX:G1ReservePercent=15","-XX:InitiatingHeapOccupancyPercent=50","-XX:MaxGCPauseMillis=200","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
+ENTRYPOINT ["java","-Xms2560M","-Xmx4096M","-XX:+ParallelRefProcEnabled","-XX:+UseG1GC","-XX:ConcGCThreads=2","-XX:ParallelGCThreads=3","-XX:G1HeapRegionSize=8M","-XX:G1ReservePercent=15","-XX:InitiatingHeapOccupancyPercent=50","-XX:MaxGCPauseMillis=200","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
