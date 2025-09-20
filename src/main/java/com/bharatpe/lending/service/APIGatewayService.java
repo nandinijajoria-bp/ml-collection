@@ -185,9 +185,6 @@ public class APIGatewayService {
     @Value("${club.url.v2}")
     public String BHARATPE_CLUB_URL_V2;
 
-    @Value("${master.key.lending.v2}")
-    public String masterKeyLenderV2;
-
     private static String SECRET;
     private static String MID;
 
@@ -1605,10 +1602,6 @@ public class APIGatewayService {
             }
         }
         return null;
-    }
-
-    private String decrypt(String secret){
-        return aesEncryptionUtil.decrypt(masterKeyLenderV2, secret);
     }
 
     public JsonNode experianRefreshApi(Long merchantId, String hitId) {
