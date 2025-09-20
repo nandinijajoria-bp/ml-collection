@@ -1595,11 +1595,9 @@ public class APIGatewayService {
     }
 
     public String getInternalSecret(String clientName) {
-        if (org.springframework.util.StringUtils.isEmpty(clientSecret)) {
-            InternalClientSlave client = internalClientDaoSlave.findByClientName(clientName);
-            if (client != null) {
-                return aesEncryptionUtil.decryptV2(client.getSecret());
-            }
+        InternalClientSlave client = internalClientDaoSlave.findByClientName(clientName);
+        if (client != null) {
+            return aesEncryptionUtil.decryptV2(client.getSecret());
         }
         return null;
     }
