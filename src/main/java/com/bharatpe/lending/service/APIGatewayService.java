@@ -23,6 +23,7 @@ import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
+import com.bharatpe.lending.common.query.entity.MasterKeySlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingGlobalAPICacheService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
@@ -1600,10 +1601,10 @@ public class APIGatewayService {
         if (org.springframework.util.StringUtils.isEmpty(clientSecret)) {
             InternalClientSlave client = internalClientDaoSlave.findByClientName(clientName);
             if (client != null) {
-                clientSecret = decrypt(client.getSecret());
+                return aesEncryptionUtil.decryptV2(client.getSecret());
             }
         }
-        return clientSecret;
+        return null;
     }
 
     private String decrypt(String secret){
