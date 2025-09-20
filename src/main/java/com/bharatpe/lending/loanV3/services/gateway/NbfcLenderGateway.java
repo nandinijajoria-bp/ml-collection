@@ -39,7 +39,7 @@ public class NbfcLenderGateway extends APIGatewayService {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
             });
             String hash = lendingHmacCalculator
-                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret("lending-2"));
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
@@ -70,7 +70,7 @@ public class NbfcLenderGateway extends APIGatewayService {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
             });
             String hash = lendingHmacCalculator
-                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret("lending-2"));
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
@@ -104,7 +104,7 @@ public class NbfcLenderGateway extends APIGatewayService {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
             });
             String hash = lendingHmacCalculator
-                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret("lending-2"));
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);

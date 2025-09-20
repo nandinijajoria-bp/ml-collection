@@ -184,6 +184,9 @@ public class APIGatewayService {
     @Value("${club.url.v2}")
     public String BHARATPE_CLUB_URL_V2;
 
+    @Value("${master.key.lending.v2}")
+    public String masterKeyLenderV2;
+
     private static String SECRET;
     private static String MID;
 
@@ -1591,6 +1594,20 @@ public class APIGatewayService {
             }
         }
         return clientSecret;
+    }
+
+    public String getInternalSecret(String clientName) {
+        if (org.springframework.util.StringUtils.isEmpty(clientSecret)) {
+            InternalClientSlave client = internalClientDaoSlave.findByClientName(clientName);
+            if (client != null) {
+                clientSecret = decrypt(client.getSecret());
+            }
+        }
+        return clientSecret;
+    }
+
+    private String decrypt(String secret){
+        return aesEncryptionUtil.decrypt(masterKeyLenderV2, secret);
     }
 
     public JsonNode experianRefreshApi(Long merchantId, String hitId) {
