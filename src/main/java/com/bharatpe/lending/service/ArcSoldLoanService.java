@@ -12,6 +12,9 @@ import com.bharatpe.lending.enums.ApplicationDocType;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.util.pdf.dto.PdfGenerationRequest;
+import com.bharatpe.util.pdf.dto.PdfGenerationResponse;
+import com.bharatpe.util.pdf.PdfGeneratorUtilV2;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.io.image.ImageData;
 import com.itextpdf.io.image.ImageDataFactory;
@@ -25,6 +28,7 @@ import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -63,6 +67,11 @@ public class ArcSoldLoanService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    PdfGeneratorUtilV2 pdfGeneratorUtil;
+
+    @Value("${new.pdf.generation.method.lenders:}")
+    String newPdfGenerationMethodLenders;
 
     static Map<String, String> lenderNames = new HashMap<String, String>(){{
         put("LIQUILOANS_NBFC","TRILLION LOANS");
@@ -209,8 +218,9 @@ public class ArcSoldLoanService {
             String html = "";
             String filePath = "/templates/ARC_COMM_LETTER.html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
-            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
-            html = scanner.hasNext() ? scanner.next() : "";;
+            try (Scanner scanner = new Scanner(inputStream).useDelimiter("\\A")) {
+                html = scanner.hasNext() ? scanner.next() : "";
+            }
             for(Map.Entry<String,Object> entry : data.entrySet()) {
                 String key = "{{" + entry.getKey() + "}}";
                 String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
@@ -233,30 +243,91 @@ public class ArcSoldLoanService {
             throw new Exception("Unable to store ArcCommunicationLetter pdf doc for lpsId" + lendingPaymentSchedule.getId());
         }
 
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(outStream);
-        PdfDocument pdfDocument = new PdfDocument(writer);
-        if (Lender.HINDON.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
-            ImageData headerImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
-              ApplicationDocType.HINDON_LETTERHEAD_HEADER));
-            ImageData footerImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
-              ApplicationDocType.HINDON_LETTERHEAD_FOOTER));
-            Header headerHandler = new Header(headerImageData);
-            pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-            Footer footerHandler = new Footer(footerImageData);
-            pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
-        } else {
-            ImageData logoImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
-              ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-            Header headerHandler = new Header(logoImageData);
-            pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+        String fileName = ARC_COMM_LETTER_PREFIX + lendingPaymentSchedule.getId() + ".pdf";
+
+        /**
+         * New Library is being used to generate PDF for only configured lenders
+         * Check if the lender is in the newPdfGenerationMethodLenders list
+         */
+        if (newPdfGenerationMethodLenders.contains(lendingPaymentSchedule.getNbfc())) {
+            String headerImageUrl = null;
+            String footerImageUrl = null;
+            boolean footerOnAllPages = false;
+
+            if (Lender.HINDON.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                if (!lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                        ApplicationDocType.HINDON_LETTERHEAD_HEADER).isEmpty()) {
+                    headerImageUrl = lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                            ApplicationDocType.HINDON_LETTERHEAD_HEADER);
+                }
+                if (!lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                        ApplicationDocType.HINDON_LETTERHEAD_FOOTER).isEmpty()) {
+                    footerImageUrl = lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                            ApplicationDocType.HINDON_LETTERHEAD_FOOTER);
+                    footerOnAllPages = true;
+                }
+            } else {
+                if (!lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                        ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                    headerImageUrl = lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                            ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC);
+                }
+            }
+
+            log.info("ARC Communication Letter Doc getting generated for lpsId: {}", lendingPaymentSchedule.getId());
+
+            PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                    .html(html);
+
+            if (headerImageUrl != null) {
+                requestBuilder.headerImageUrl(headerImageUrl);
+            }
+            if (footerImageUrl != null) {
+                requestBuilder.footerImageUrl(footerImageUrl);
+                requestBuilder.footerOnAllPages(footerOnAllPages);
+            }
+
+            PdfGenerationRequest request = requestBuilder.build();
+            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+            if (response.getSuccess()) {
+                byte[] pdfByteArray = response.getPdfAsBytes();
+                ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, bucket);
+            } else {
+                log.error("Failed to generate PDF for lpsId: {}", lendingPaymentSchedule.getId());
+                throw new Exception("Unable to generate ARC Communication Letter pdf doc for lpsId: " + lendingPaymentSchedule.getId());
+            }
+        }
+        /** new Library code ends here **/
+
+        else {
+            // Old iText flow for non-configured lenders
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream);
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            if (Lender.HINDON.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                ImageData headerImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                  ApplicationDocType.HINDON_LETTERHEAD_HEADER));
+                ImageData footerImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                  ApplicationDocType.HINDON_LETTERHEAD_FOOTER));
+                Header headerHandler = new Header(headerImageData);
+                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+                Footer footerHandler = new Footer(footerImageData);
+                pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
+            } else {
+                ImageData logoImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
+                  ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
+                Header headerHandler = new Header(logoImageData);
+                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+            }
+
+            InputStream htmlStringInputStream = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, bucket);
         }
 
-        InputStream htmlStringInputStream = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
-        HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-        ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-        String fileName = ARC_COMM_LETTER_PREFIX + lendingPaymentSchedule.getId() + ".pdf";
-        s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, bucket);
         String shortUrl = fetchArcCommunicationFromS3andPresignedUrl(fileName);
         if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())
             throw new Exception("Unable to create short URL for ArcCommunicationLetter doc link for lpsId: " + lendingPaymentSchedule.getId());
