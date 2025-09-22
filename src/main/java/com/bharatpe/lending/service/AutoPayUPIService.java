@@ -34,7 +34,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.bharatpe.lending.common.Constants.AutoPayCheckoutEnum.*;
-import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.FAILED;
 import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.REVOKED;
 
 
@@ -151,9 +150,11 @@ public class AutoPayUPIService {
         return flag;
     }
 
-    public String handleMandatePgCallback(PgPaymentCallbackDTO request) {
+    public String handleMandatePgCallback(PgPaymentCallbackDTO request, AutoPayUPI autoPayUPI) {
         log.info("Received mandate callback request for order ID {} : {}", request.getMandate().getOrderId(), request);
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByOrderId(request.getMandate().getOrderId());
+        if(autoPayUPI == null){
+            autoPayUPI = autoPayUPIDao.findTop1ByOrderId(request.getMandate().getOrderId());
+        }
         try {
             if (autoPayUPI == null) {
                 log.error("No order for order id {}", request.getOrderId());
@@ -242,7 +243,7 @@ public class AutoPayUPIService {
             if ("ACTIVE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
                 log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
-                handleMandatePgCallback(response.getData());
+                handleMandatePgCallback(response.getData(), mandateApplication);
             } else if ("FAILURE".equalsIgnoreCase(response.getData().getPaymentStatus()) ||
                     "FAILURE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf("FAILED"));
