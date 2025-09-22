@@ -750,7 +750,7 @@ public class LoanEligibleService {
 
             LenderDataCache cache = preloadLenderData(merchantId, evaluationId, eligibleOffersWithLenders);
 
-            filterSwitchedOffLenders(eligibleOffersWithLenders, cache.switchedOffLenderNames, merchantId);
+            filterSwitchedOffLenders(eligibleOffersWithLenders, cache.switchedOffLenderNames, merchantId, evaluationId);
 
             List<String> rejectedLenders = processRejectedLenders(merchantId, eligibleOffersWithLenders, cache.openApplication);
 
@@ -826,7 +826,7 @@ public class LoanEligibleService {
     }
 
 
-    private void filterSwitchedOffLenders(List<EligibleLoanDTO> eligibleOffersWithLenders, Set<String> switchedOffLenderNames, Long merchantId) {
+    private void filterSwitchedOffLenders(List<EligibleLoanDTO> eligibleOffersWithLenders, Set<String> switchedOffLenderNames, Long merchantId, String evaluationId) {
         if (switchedOffLenderNames.isEmpty()) {
             AsyncLoggerUtil.logInfo(logger, "No lenders are switched off, skipping filtering step");
             return;
@@ -836,6 +836,11 @@ public class LoanEligibleService {
         for (String switchedOffLender : switchedOffLenderNames) {
             String remarks = "Lender switched off in the system";
             createAndSaveLendingAuditTrial(merchantId, switchedOffLender, "LENDER_REMOVED", remarks, eligibleOffersWithLenders.get(0).getAmount(), null, null);
+        }
+
+        for (String switchedOffLender : switchedOffLenderNames) {
+            String remarks = "Lender switched off in the system";
+            createAndSaveLendingAuditTrial(merchantId, switchedOffLender, "LENDER_REMOVED", remarks, null, null, null);
         }
 
         // Use parallel stream for large collections
@@ -897,6 +902,9 @@ public class LoanEligibleService {
                 createAndSaveLendingAuditTrial(merchantId, rejectedLender, "LENDER_REMOVED", remarks, null, null, null);
             }
         }
+
+        AsyncLoggerUtil.logInfo(logger, "Processing {} eligible loans for merchantId: {} with rejected lenders: {}",
+                eligibleOffersWithLenders.size(), merchantId, rejectedLendersSet);
 
 //        // Pre-fetch audit trials for open application
 //        LendingAuditTrial initialAuditTrial = null;

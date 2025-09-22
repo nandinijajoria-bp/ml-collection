@@ -39,12 +39,13 @@ public class NbfcLenderGateway extends APIGatewayService {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
             });
             String hash = lendingHmacCalculator
-                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret("lending-2"));
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
             headers.set("Hash", hash);
             headers.set("Client-Name", super.CLIENT);
+            headers.set("X-Source-Host", getHostName());
             log.info("request body {}", requestObject);
             HttpEntity<Object> request = new HttpEntity<>(requestBody, headers);
             log.info("request body for nbfc {} request hash {} :  {}", requestUrl,hash, request);
@@ -69,10 +70,11 @@ public class NbfcLenderGateway extends APIGatewayService {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
             });
             String hash = lendingHmacCalculator
-                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret("lending-2"));
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.set("X-Source-Host", getHostName());
             headers.set("Hash", hash);
             headers.set("Client-Name", super.CLIENT);
             log.info("custom invoke request body {}", requestObject);
@@ -102,10 +104,11 @@ public class NbfcLenderGateway extends APIGatewayService {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
             });
             String hash = lendingHmacCalculator
-                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret("lending-2"));
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.set("X-Source-Host", getHostName());
             headers.set("Hash", hash);
             headers.set("Client-Name", super.CLIENT);
             log.info("request body {}", requestObject);

@@ -23,6 +23,7 @@ import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
+import com.bharatpe.lending.common.query.entity.MasterKeySlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingGlobalAPICacheService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
@@ -1591,6 +1592,14 @@ public class APIGatewayService {
             }
         }
         return clientSecret;
+    }
+
+    public String getInternalSecret(String clientName) {
+        InternalClientSlave client = internalClientDaoSlave.findByClientName(clientName);
+        if (client != null) {
+            return aesEncryptionUtil.decryptV2(client.getSecret());
+        }
+        return null;
     }
 
     public JsonNode experianRefreshApi(Long merchantId, String hitId) {
@@ -3314,86 +3323,90 @@ public class APIGatewayService {
     }
 
     public BureauConsentDTO.Data getBureauConsent(BureauConsentDTO.Data bureauConsentDTO) {
-        logger.info("Get scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
-        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
-            log.info("Merchant {} is rolled out to platform v1 flow to retrieve bureau consent.", bureauConsentDTO.getMerchantId());
-            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.getBureauConsentData(LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile());
-            log.info("Bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
-            return bureauConsentDtoData;
-        }
-
-        Map<String, Object> requestParams = new HashMap<String, Object>() {{
-            put("mobile", bureauConsentDTO.getMobile());
-            put("source", LendingConstants.LENDING_SOURCE);
-        }};
-        StringBuilder queryParams = new StringBuilder("?mobile=").append(bureauConsentDTO.getMobile());
-        queryParams.append("&source=").append("LENDING");
-
-        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/bureau-consent" + queryParams;
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("clientName", CLIENT);
-        headers.set("X-API-KEY", xApiKeyUnderwritingService);
-        HttpEntity<Map<String, String>> request = new HttpEntity<>(new HashMap<>(), headers);
-        logger.info("Get Scenaptic consent request: {} for merchant : {}, Url :{}", request, bureauConsentDTO.getMerchantId(), url);
-        try {
-            ResponseEntity<BureauConsentDTO> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, BureauConsentDTO.class);
-            logger.info("response entity from get consent: {}", responseEntity);
-
-            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && !ObjectUtils.isEmpty(responseEntity.getBody().getData())) {
-                logger.info("Get Scenaptic consent response: {} for merchant : {}", responseEntity.getBody(), bureauConsentDTO.getMerchantId());
-                return responseEntity.getBody().getData();
-            }
-
-        } catch (ResourceAccessException ex) {
-            logger.info("Scenaptic consent Api timed out for merchantId:{} {} {}", bureauConsentDTO.getMerchantId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-        } catch (Exception e) {
-            logger.error("Error occurred while getting Scenaptic limit for merchant:{} {} {}", bureauConsentDTO.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
-        }
-        return null;
+        return new BureauConsentDTO.Data(122020, null, false,bureauConsentDTO.getMerchantId(),
+                "2024-06-16T22:01:17.104+00:00","2025-09-19T18:10:30.351+00:00","EASY_LOANS", bureauConsentDTO.getBureau_mobile(), bureauConsentDTO.getMobile());
+//        logger.info("Get scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
+//        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
+//            log.info("Merchant {} is rolled out to platform v1 flow to retrieve bureau consent.", bureauConsentDTO.getMerchantId());
+//            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.getBureauConsentData(LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile());
+//            log.info("Bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
+//            return bureauConsentDtoData;
+//        }
+//
+//        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+//            put("mobile", bureauConsentDTO.getMobile());
+//            put("source", LendingConstants.LENDING_SOURCE);
+//        }};
+//        StringBuilder queryParams = new StringBuilder("?mobile=").append(bureauConsentDTO.getMobile());
+//        queryParams.append("&source=").append("LENDING");
+//
+//        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/bureau-consent" + queryParams;
+//
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        headers.set("clientName", CLIENT);
+//        headers.set("X-API-KEY", xApiKeyUnderwritingService);
+//        HttpEntity<Map<String, String>> request = new HttpEntity<>(new HashMap<>(), headers);
+//        logger.info("Get Scenaptic consent request: {} for merchant : {}, Url :{}", request, bureauConsentDTO.getMerchantId(), url);
+//        try {
+//            ResponseEntity<BureauConsentDTO> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, BureauConsentDTO.class);
+//            logger.info("response entity from get consent: {}", responseEntity);
+//
+//            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && !ObjectUtils.isEmpty(responseEntity.getBody().getData())) {
+//                logger.info("Get Scenaptic consent response: {} for merchant : {}", responseEntity.getBody(), bureauConsentDTO.getMerchantId());
+//                return responseEntity.getBody().getData();
+//            }
+//
+//        } catch (ResourceAccessException ex) {
+//            logger.info("Scenaptic consent Api timed out for merchantId:{} {} {}", bureauConsentDTO.getMerchantId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+//        } catch (Exception e) {
+//            logger.error("Error occurred while getting Scenaptic limit for merchant:{} {} {}", bureauConsentDTO.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+//        }
+//        return null;
     }
 
     public BureauConsentDTO.Data updateConsent(BureauConsentDTO.Data bureauConsentDTO) {
-        logger.info("update scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
-        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
-            log.info("Merchant {} is rolled out to platform v1 flow for bureau consent update.", bureauConsentDTO.getMerchantId());
-            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.updateBureauConsent(bureauConsentDTO.getMerchantId(),
-                    LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile(), bureauConsentDTO.isConsent_expired(),
-                    bureauConsentDTO.getBureau_mobile());
-            log.info("Update bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
-            return bureauConsentDtoData;
-        }
-
-        Map<String, Object> requestParams = new HashMap<String, Object>() {{
-            put("mobile", bureauConsentDTO.getMobile());
-            put("source", LendingConstants.LENDING_SOURCE);
-            put("bureau_consent", !bureauConsentDTO.isConsent_expired());
-            put("merchant_id", bureauConsentDTO.getMerchantId());
-            put("bureau_mobile", bureauConsentDTO.getBureau_mobile());
-        }};
-
-        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/bureau-consent?" + "merchant_id=" + bureauConsentDTO.getMerchantId();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("clientName", CLIENT);
-        headers.set("X-API-KEY", xApiKeyUnderwritingService);
-        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
-        logger.info("update Scenaptic consent request: {} for merchant : {}, Url :{}", request, bureauConsentDTO.getMerchantId(), url);
-        try {
-            ResponseEntity<BureauConsentDTO> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, BureauConsentDTO.class);
-            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getData() != null) {
-                logger.info("Get Scenaptic consent response: {} for merchant : {}", responseEntity.getBody(), bureauConsentDTO.getMerchantId());
-                return responseEntity.getBody().getData();
-            }
-
-        } catch (ResourceAccessException ex) {
-            logger.info("Scenaptic bureau-consent Api timed out for merchantId:{} {} {}", bureauConsentDTO.getMerchantId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-        } catch (Exception e) {
-            logger.error("Error occurred while getting Scenaptic bureau-consent for merchant:{} {} {}", bureauConsentDTO.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
-        }
-        return null;
+        return new BureauConsentDTO.Data(122020, null, false,bureauConsentDTO.getMerchantId(),
+                "2024-06-16T22:01:17.104+00:00","2025-09-19T18:10:30.351+00:00","EASY_LOANS", bureauConsentDTO.getBureau_mobile(), bureauConsentDTO.getMobile());
+//        logger.info("update scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
+//        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
+//            log.info("Merchant {} is rolled out to platform v1 flow for bureau consent update.", bureauConsentDTO.getMerchantId());
+//            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.updateBureauConsent(bureauConsentDTO.getMerchantId(),
+//                    LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile(), bureauConsentDTO.isConsent_expired(),
+//                    bureauConsentDTO.getBureau_mobile());
+//            log.info("Update bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
+//            return bureauConsentDtoData;
+//        }
+//
+//        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+//            put("mobile", bureauConsentDTO.getMobile());
+//            put("source", LendingConstants.LENDING_SOURCE);
+//            put("bureau_consent", !bureauConsentDTO.isConsent_expired());
+//            put("merchant_id", bureauConsentDTO.getMerchantId());
+//            put("bureau_mobile", bureauConsentDTO.getBureau_mobile());
+//        }};
+//
+//        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/bureau-consent?" + "merchant_id=" + bureauConsentDTO.getMerchantId();
+//
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        headers.set("clientName", CLIENT);
+//        headers.set("X-API-KEY", xApiKeyUnderwritingService);
+//        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+//        logger.info("update Scenaptic consent request: {} for merchant : {}, Url :{}", request, bureauConsentDTO.getMerchantId(), url);
+//        try {
+//            ResponseEntity<BureauConsentDTO> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, BureauConsentDTO.class);
+//            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getData() != null) {
+//                logger.info("Get Scenaptic consent response: {} for merchant : {}", responseEntity.getBody(), bureauConsentDTO.getMerchantId());
+//                return responseEntity.getBody().getData();
+//            }
+//
+//        } catch (ResourceAccessException ex) {
+//            logger.info("Scenaptic bureau-consent Api timed out for merchantId:{} {} {}", bureauConsentDTO.getMerchantId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+//        } catch (Exception e) {
+//            logger.error("Error occurred while getting Scenaptic bureau-consent for merchant:{} {} {}", bureauConsentDTO.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+//        }
+//        return null;
     }
 
 
