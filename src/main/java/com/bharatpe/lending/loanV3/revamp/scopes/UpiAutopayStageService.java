@@ -6,13 +6,17 @@ import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.PaymentConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.MandateUPIStatusResponse;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
+import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
@@ -26,6 +30,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.service.AutoPayUPIService;
+import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,6 +98,12 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
     @Autowired
     private UpiAutoPayStageHelper upiAutoPayStageHelper;
+
+    @Autowired
+    private MandateRegistrationHelper mandateRegistrationHelper;
+
+    @Autowired
+    private LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
@@ -192,8 +203,14 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         log.info("Fetching UPI Autopay Stage Data for Merchant ID: {}", scopeDataArgs.getMerchant().getId());
         UpiAutopayStateDTO upiAutopayStateDTO = new UpiAutopayStateDTO();
         upiAutopayStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
-        upiAutopayStateDTO.setApplicationId(scopeDataArgs.getApplicationId());
 
+        if(Objects.isNull(scopeDataArgs.getApplicationId()) && Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isAutoPayPending()){
+            LendingPaymentScheduleSlave lps = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
+            if(!mandateRegistrationHelper.isAutopayRequiredForActiveApplication(lps)){
+                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorCode(), LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorMessage());
+            }
+            scopeDataArgs.setApplicationId(lps.getApplicationId());
+        }
         LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
         if (ObjectUtils.isEmpty(lendingApplication)) {
             log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
@@ -207,6 +224,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
             throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorMessage());
         }
 
+        upiAutopayStateDTO.setApplicationId(lendingApplication.getId());
         upiAutopayStateDTO.setLender(lendingApplication.getLender());
         upiAutopayStateDTO.setLoanAmount(lendingApplication.getLoanAmount());
         upiAutopayStateDTO.setTenure(lendingApplication.getTenureInMonths());
@@ -269,11 +287,17 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
             log.info("Error details updated for UPI Autopay State DTO: {}", upiAutopayStateDTO);
         }
 
-        if(PaymentConstants.SUCCESS.equalsIgnoreCase(upiAutopayStateDTO.getMandateStatus()) && loanUtil.isMandateSwitchEnabled(lendingApplication) && !lendingApplicationDetails.isNachEligible() && lendingApplicationDetails.isAutoPayUpiEligible()){
-            log.info("UPI Autopay mandate is SUCCESS for application: {}, and Nach is ineligible, invoking doc upload workflow", lendingApplication.getId());
-            upiAutoPayStageHelper.invokeDocUploadFlow(lendingApplication);
-            lendingApplication.setNachStatus(NachStatus.APPROVED.name());
-        }
+        if (PaymentConstants.SUCCESS.equalsIgnoreCase(upiAutopayStateDTO.getMandateStatus()))
+            if (existingAutoPayUPI.isStandaloneAutopaySetup() && Constants.DISBURSED_LOAN.equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+                log.info("Setting current loan active at UPI Autopay stage for application: {}", lendingApplication.getId());
+                upiAutopayStateDTO.setCurrentLoanActive(true);
+                return new LendingStateDTO<>(upiAutopayStateDTO , LendingViewStates.UPI_AUTOPAY_PAGE, LendingViewStates.UPI_AUTOPAY_PAGE);
+            }
+            if (loanUtil.isMandateSwitchEnabled(lendingApplication) && !lendingApplicationDetails.isNachEligible() && lendingApplicationDetails.isAutoPayUpiEligible()) {
+                log.info("UPI Autopay mandate is SUCCESS for application: {}, and Nach is ineligible, invoking doc upload workflow", lendingApplication.getId());
+                upiAutoPayStageHelper.invokeDocUploadFlow(lendingApplication);
+                lendingApplication.setNachStatus(NachStatus.APPROVED.name());
+            }
 
         log.info("Autopay UPI Mandate status for application: {}: {}", lendingApplication.getId(), upiAutopayStateDTO.getMandateStatus());
 
