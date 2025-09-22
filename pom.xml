@@ -32,7 +32,7 @@
         <dependency>
             <groupId>com.bharatpe.common</groupId>
             <artifactId>bharatpe-common</artifactId>
-            <version>3.0-lending-uat-prod-SNAPSHOT</version>
+            <version>3.0-lending-qa-SNAPSHOT</version>
         </dependency>
 
         <dependency>
