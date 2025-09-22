@@ -1405,8 +1405,9 @@ public class LoanEligibleService {
                 merchantId,
                 evaluationId);
 
-
-        eligibleLenders.add("TRILLIONLOANS");
+        if (!eligibleLenders.contains("TRILLIONLOANS")) {
+            eligibleLenders.add("TRILLIONLOANS");
+        }
 
         AsyncLoggerUtil.logInfo(logger,"eligible lenders for merchantId : {}, {}", eligibleLenders, merchantId);
 
