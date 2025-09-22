@@ -32,7 +32,6 @@ public class LoanDetailsV3Request {
 
     private boolean isShopPhotoStepCompleted;
     private String version;
-    private boolean isAutoPayPending;
 
 //    private boolean isIOS = false;
 }

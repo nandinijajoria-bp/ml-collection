@@ -56,7 +56,6 @@ public class LoanDashboardResponse {
     private boolean showRTEPage;
     private boolean sliderEnrolled;
     private boolean rteEnrolled;
-    private boolean isAutopayRequiredForActiveLoan;
 
 }
 

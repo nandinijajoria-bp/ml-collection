@@ -31,5 +31,4 @@ public class UpiAutopayStateDTO {
     private Integer pollingTime;
     private boolean isUpiAutopayMandateEligible;
     private boolean isEnachEligible;
-    private boolean isCurrentLoanActive;
 }
