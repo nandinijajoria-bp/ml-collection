@@ -61,6 +61,7 @@ public class EligibleOffersResponseDTO {
         private Long minAmount;
         private Long maxAmount;
         private Double penalty;
+        private String lenderWisePenalty;
     }
 
     @Data

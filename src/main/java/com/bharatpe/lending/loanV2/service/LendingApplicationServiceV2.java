@@ -907,7 +907,8 @@ public class LendingApplicationServiceV2 {
             String evaluationId = merchant.getId() +"_" + lendingApplication.getLoanAmount().intValue();
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
 
-            LendingAuditTrial lendingAuditTrialInitial = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "INITIAL_LENDERS");
+            LendingAuditTrial lendingAuditTrialInitial =
+                    lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), lendingApplication.getId(), "INITIAL_LENDERS",lendingApplication.getTenureInMonths());
             if (lendingAuditTrialInitial != null) {
                 log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
                 lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
@@ -917,7 +918,9 @@ public class LendingApplicationServiceV2 {
                 log.error("No initial lenders audit trail found for evaluationId: {}", evaluationId);
             }
 
-            LendingAuditTrial lendingAuditTrialFallback = lendingAuditTrialDao.findTopByEvaluationIdAndTypeOrderByIdDesc(evaluationId, "FALLBACK_LENDERS");
+
+            LendingAuditTrial lendingAuditTrialFallback =
+                    lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), lendingApplication.getId(), "FALLBACK_LENDERS", lendingApplication.getTenureInMonths());
             if (lendingAuditTrialFallback != null) {
                 log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
                 lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
@@ -1221,7 +1224,8 @@ public class LendingApplicationServiceV2 {
     private void updateLendingAuditTrial(Long merchantId, LendingApplication lendingApplication) {
         try {
             String evaluationId = merchantId + "_" + lendingApplication.getLoanAmount().intValue();
-            List<LendingAuditTrial> lendingAuditTrials = lendingAuditTrialDao.findByMerchantIdAndEvaluationId(merchantId, evaluationId);
+            List<LendingAuditTrial> lendingAuditTrials =
+                    lendingAuditTrialDao.findByMerchantIdAndLoanAmountAndTenureOrderByIdDesc(merchantId, lendingApplication.getLoanAmount(), lendingApplication.getTenureInMonths());
             if (lendingAuditTrials != null && !lendingAuditTrials.isEmpty()) {
                 for (LendingAuditTrial lendingAuditTrial : lendingAuditTrials) {
                     lendingAuditTrial.setApplicationId(lendingApplication.getId());

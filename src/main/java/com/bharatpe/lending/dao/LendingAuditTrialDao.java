@@ -19,7 +19,10 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 
 	LendingAuditTrial findTopByApplicationIdAndType(Long applicationId, String type);
 
-	LendingAuditTrial findTopByEvaluationIdAndTypeOrderByIdDesc(String evaluationId, String type);
+	//LendingAuditTrial findTopByEvaluationIdAndTypeOrderByIdDesc(String evaluationId, String type);
+
+	LendingAuditTrial findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
+			Double loanAmount, Long applicationId, String type, Integer tenure);
 
 	@Query(nativeQuery = true, value = "select COALESCE(old_status, '') from easy_loan.lending_audit_trial where application_id = :applicationId and merchant_id = :merchantId " +
 			"and type = :type order by id desc limit 1")
@@ -44,5 +47,8 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 					")) " +
 					"ORDER BY created_at DESC")
 	List<LendingAuditTrial> findByMerchantIdAndEvaluationId(Long merchantId, String evaluationId);
+
+	List<LendingAuditTrial> findByMerchantIdAndLoanAmountAndTenureOrderByIdDesc(
+			Long merchantId, Double loanAmount, Integer tenure);
 
 }
