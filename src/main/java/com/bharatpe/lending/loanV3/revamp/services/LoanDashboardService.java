@@ -55,6 +55,7 @@ import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
 import com.bharatpe.lending.service.MileStoneHelperService;
 import com.bharatpe.lending.loanV3.utils.EmiUtils;
+import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -258,6 +259,9 @@ public class LoanDashboardService {
 
     @Autowired
     private LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    private MandateRegistrationHelper mandateHelper;
 
     private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -467,6 +471,7 @@ public class LoanDashboardService {
         handleTopUpApplication(merchantDetails, response);
         response.setActiveLoan(true);
         excessNachService.setExcessCollectionDetails(merchantDetails.getId(), response);
+        response.setAutopayRequiredForActiveLoan(mandateHelper.isAutopayRequiredForActiveApplication(activeLoan));
         cacheLoanDetailsData(response);
         emiDashboardService.skipData(emiDataFuture);
     }

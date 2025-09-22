@@ -19,6 +19,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
+import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -425,7 +426,12 @@ public class AutoPayUPIService {
                 autoPayUPI.setApplicationId(lendingApplication.getId());
                 autoPayUPI.setGateway(DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? DR_CASHFREE.name() : "JS_CASHFREE");
                 autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
-                autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
+
+                //Doing only for Cashfree as per the requirement
+                autoPayUPI.setIsAutoPayUpiDeduction(Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus())
+                        ? DeductionStatusEnum.HARD_QR_DEDUCTION.name() : DeductionStatusEnum.AUTO_PAY_UPI.name());
+//                autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
+                autoPayUPI.setStandaloneAutopaySetup(Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus()));
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
                 autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 
