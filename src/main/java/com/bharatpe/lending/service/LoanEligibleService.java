@@ -750,7 +750,7 @@ public class LoanEligibleService {
 
             LenderDataCache cache = preloadLenderData(merchantId, evaluationId, eligibleOffersWithLenders);
 
-            filterSwitchedOffLenders(eligibleOffersWithLenders, cache.switchedOffLenderNames, merchantId);
+            filterSwitchedOffLenders(eligibleOffersWithLenders, cache.switchedOffLenderNames, merchantId, evaluationId);
 
             List<String> rejectedLenders = processRejectedLenders(merchantId, eligibleOffersWithLenders, cache.openApplication);
 
@@ -826,13 +826,18 @@ public class LoanEligibleService {
     }
 
 
-    private void filterSwitchedOffLenders(List<EligibleLoanDTO> eligibleOffersWithLenders, Set<String> switchedOffLenderNames, Long merchantId) {
+    private void filterSwitchedOffLenders(List<EligibleLoanDTO> eligibleOffersWithLenders, Set<String> switchedOffLenderNames, Long merchantId, String evaluationId) {
         if (switchedOffLenderNames.isEmpty()) {
             AsyncLoggerUtil.logInfo(logger, "No lenders are switched off, skipping filtering step");
             return;
         }
 
         AsyncLoggerUtil.logInfo(logger, "Lenders switched off in the system: {} for merchantId: {}", switchedOffLenderNames, merchantId);
+
+        for (String switchedOffLender : switchedOffLenderNames) {
+            String remarks = "Lender switched off in the system";
+            createAndSaveLendingAuditTrial(merchantId, switchedOffLender, "LENDER_REMOVED", remarks, evaluationId);
+        }
 
         // Use parallel stream for large collections
         eligibleOffersWithLenders.parallelStream().forEach(loan -> {
@@ -850,6 +855,13 @@ public class LoanEligibleService {
         if (openApplication != null) {
             AsyncLoggerUtil.logInfo(logger, "Found open application with ID: {}", openApplication.getId());
             List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationIdAndStatusOrderByIdDesc(openApplication.getId(), "INACTIVE");
+            if (!CollectionUtils.isEmpty(alreadyAssignedLender)) {
+                String evaluationId = merchantId + "_" + openApplication.getId();
+                for (String rejectedLender : alreadyAssignedLender) {
+                    String remarks = "Lender previously assigned to application and now inactive";
+                    createAndSaveLendingAuditTrial(merchantId, rejectedLender, "LENDER_REMOVED", remarks, evaluationId);
+                }
+            }
             AsyncLoggerUtil.logInfo(logger, "Already assigned lenders for applicationId : {} {}", openApplication.getId(), alreadyAssignedLender);
             rejectedLenders = alreadyAssignedLender;
 
@@ -876,6 +888,19 @@ public class LoanEligibleService {
                 Arrays.stream(lendingRiskVariables.getRejectedLenders().split(","))
                         .map(String::trim)
                         .collect(Collectors.toSet());
+
+        if (!rejectedLendersSet.isEmpty()) {
+            AsyncLoggerUtil.logInfo(logger, "Lenders rejected from risk variables: {} for merchantId: {}",
+                    rejectedLendersSet, merchantId);
+
+            for (String rejectedLender : rejectedLendersSet) {
+                String remarks = "Lender rejected based on risk variables";
+                createAndSaveLendingAuditTrial(merchantId, rejectedLender, "LENDER_REMOVED", remarks, evaluationId);
+            }
+        }
+
+        AsyncLoggerUtil.logInfo(logger, "Processing {} eligible loans for merchantId: {} with rejected lenders: {}",
+                eligibleOffersWithLenders.size(), merchantId, rejectedLendersSet);
 
         // Pre-fetch audit trials for open application
         LendingAuditTrial initialAuditTrial = null;
