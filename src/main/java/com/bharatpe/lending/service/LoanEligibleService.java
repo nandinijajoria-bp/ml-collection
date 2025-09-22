@@ -979,7 +979,7 @@ public class LoanEligibleService {
                         AsyncLoggerUtil.logInfo(logger, "Skipping {} due to lender in rejected lender list in lending risk variables for merchant: {}",
                                 lender, merchantId);
                         String remarks = "Skipping " + lender + " due to lender in rejected lender list in lending risk variables";
-                        createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, evaluationId);
+                        createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, null, null, null);
                     })
                     .collect(Collectors.toSet());
 
@@ -1043,7 +1043,6 @@ public class LoanEligibleService {
                     null,
                     "INITIAL_LENDERS",
                     String.join(",", initialLendersList),
-                    evaluationId
                     loan.getAmount(),
                     loan.getTenureInMonths(),
                     null
@@ -1098,8 +1097,6 @@ public class LoanEligibleService {
                     null,
                     "FALLBACK_LENDERS",
                     String.join(",", fallbackLendersList),
-                    evaluationId
-                    String.join(",", initialLendersList),
                     loan.getAmount(),
                     loan.getTenureInMonths(),
                     null
