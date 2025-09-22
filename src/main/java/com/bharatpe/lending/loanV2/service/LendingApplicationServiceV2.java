@@ -3710,7 +3710,7 @@ public class LendingApplicationServiceV2 {
             double[] valuesDouble = new double[values.size()];
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lender)) ? 360 : 365;
+            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name(), Lender.OXYZO.name(), Lender.PIRAMAL.name()).contains(lender)) ? 360 : 365;
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
                 log.info("APR : {}", apr);
@@ -3775,7 +3775,7 @@ public class LendingApplicationServiceV2 {
             double[] valuesDouble = new double[values.size()];
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lender)) ? 360 : 365;
+            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name(), Lender.PIRAMAL.name()).contains(lender)) ? 360 : 365;
             log.info("days in year : {} for application id : {}", daysInYear, loanApplicationDetailsDto.getId());
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
@@ -3804,9 +3804,6 @@ public class LendingApplicationServiceV2 {
             for (int i = 0; i < values.size(); i++) valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
             int daysInYear = 360;
-            if(!ObjectUtils.isEmpty(lender) && "PIRAMAL".equalsIgnoreCase(lender)){
-                daysInYear = 365;
-            }
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if (apr.isNaN()) {
                 log.info("APR : {}", apr);

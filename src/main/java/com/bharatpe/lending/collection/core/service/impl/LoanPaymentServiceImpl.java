@@ -15,10 +15,7 @@ import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
-import com.bharatpe.lending.common.enums.LendingEnum;
-import com.bharatpe.lending.common.enums.LoanPaymentMode;
-import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -101,6 +98,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     LendingLedgerDao lendingLedgerDao;
 
     @Autowired
+    LendingPayinDetailsDao lendingPayinDetailsDao;
+
+    @Autowired
     AdjustLoanBalanceByIPCServiceImpl adjustLoanBalanceByIPCService;
 
     @Autowired
@@ -152,6 +152,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     @Value("${payu.nach.bounce.charge:500}")
     Integer payUNachBounceCharge;
 
+    @Value("#{'${lca.payin.record.eligible.lenders:}'.split(',')}")
+    Set<String> lcaPayinRecordEligibleLenders;
+
     @Override
     @Transactional
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
@@ -175,6 +178,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 return loan;
             }
             loan = loanOptional.get();
+
+            createLoanFundInEntry(loan, payment);
+
             adjustMoney(loan, payment, mechanism);
             log.info("adjustMoney for loan: {} and payment {} complete", loan, payment);
             return loan;
@@ -801,5 +807,77 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingLedger.setTxnType("EDI");
         lendingLedger.setDate(new Date());
         return lendingLedger;
+    }
+
+    private void createLoanFundInEntry(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
+        log.info("Creating Lending Payin Details for loan: {}, payment: {}", loan.getId(), payment);
+        try {
+            if(payment == null || !StringUtils.hasLength(payment.getTerminalOrderId()) || payment.getOtherAmount() <= 0 || !StringUtils.hasLength(payment.getSource()) || !StringUtils.hasLength(payment.getTransferType())) {
+                log.warn("Skipping creation of Lending Payin Details for invalid payment details for loan: {}, payment: {}", loan.getId(), payment);
+                return;
+            }
+
+            if (LoanPaymentUtil.isExcessAdjustmentEntry(payment.getTerminalOrderId())) {
+                log.info("Skipping creation of Lending Payin Details for excess adjustment entry for loan: {}, payment: {}", loan.getId(), payment);
+                return;
+            }
+
+            if ("BHARATPE_NACH".equalsIgnoreCase(payment.getSource())) {
+                log.info("Skipping creation of Lending Payin Details for NACH payment for loan: {}, payment: {}", loan.getId(), payment);
+                return;
+            }
+
+            LendingPayinDetails lendingPayinDetails = LendingPayinDetails.builder()
+                    .loanId(loan.getId())
+                    .merchantId(loan.getMerchantId())
+                    .nbfc(loan.getNbfc())
+                    .source(payment.getSource())
+                    .terminalOrderId(payment.getTerminalOrderId())
+                    .totalAmount(payment.getOtherAmount())
+                    .transferType(payment.getTransferType())
+                    .build();
+
+            LendingPayinDetails savedlendingPayinDetails = lendingPayinDetailsDao.save(lendingPayinDetails);
+            log.info("Created Lending Payin Details: {} for loan: {}, payment: {}", savedlendingPayinDetails, loan.getId(), payment);
+
+            if(lcaPayinRecordEligibleLenders.contains(loan.getNbfc())) {
+                log.info("Creating Lending Collection Audit for Payin for loan: {}, payment: {}", loan.getId(), payment);
+                createLendingCollectionAuditForPayin(loan, savedlendingPayinDetails, payment.getOtherAmount(), payment.getTerminalOrderId(), payment.getSource(), payment.getTransferType());
+            }
+        } catch (Exception e) {
+            log.error("Exception in creating lending payin details for loan: {}, payment: {}, exception: {}: {}", loan.getId(), payment, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void createLendingCollectionAuditForPayin(LendingPaymentSchedule lendingPaymentSchedule, LendingPayinDetails lendingPayinDetails, Double orderAmount, String txnId, String mode, String transferType) {
+        log.info("Creating Lending Collection Audit for Payin for loanId: {}, payinDetailsId: {}, amount: {}, txnId: {}, mode: {}, transferType: {}",
+                lendingPaymentSchedule.getId(), lendingPayinDetails.getId(), orderAmount, txnId, mode, transferType);
+
+        Date ledgerDate = new Date();
+
+        LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
+                .merchantId(lendingPaymentSchedule.getMerchantId())
+                .merchantStoreId(lendingPaymentSchedule.getMerchantStoreId())
+                .loanId(lendingPaymentSchedule.getId())
+                .applicationId(lendingPaymentSchedule.getLoanApplication().getId())
+                .bpLoanId(lendingPaymentSchedule.getLoanApplication().getExternalLoanId())
+                .nbfcId(lendingPaymentSchedule.getLoanApplication().getNbfcId())
+                .txnType("PAYIN")
+                .transferType(transferType == null ? CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name() : transferType)
+                .status("PENDING")
+                .amount(orderAmount)
+                .otherCharges(0D)
+                .penalty(0D)
+                .adjustmentMode(mode)
+                .transferDate(ledgerDate)  // todo: check for other mode
+                .terminalOrderId(txnId)
+                .lender(lendingPaymentSchedule.getNbfc())
+                .loanStatus(lendingPaymentSchedule.getStatus())
+                .loanClosingDate(lendingPaymentSchedule.getClosingDate())
+                .mobile(lendingPaymentSchedule.getMobile())
+                .ledgerId(lendingPayinDetails.getId())
+                .build();
+        lendingCollectionAuditDao.save(lendingCollectionAudit);
+        log.info("Created Lending Collection Audit for Payin: {} for loanId: {}, payinDetailsId: {}", lendingCollectionAudit, lendingPaymentSchedule.getId(), lendingPayinDetails.getId());
     }
 }

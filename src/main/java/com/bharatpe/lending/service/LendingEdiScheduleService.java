@@ -12,6 +12,7 @@ import com.bharatpe.lending.dto.EdiScheduleDTO;
 import com.bharatpe.lending.dto.EdiScheduleV2DTO;
 import com.bharatpe.lending.dto.LoanApplicationDetailsDto;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.Finance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,9 @@ public class LendingEdiScheduleService {
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    private EdiUtil ediUtil;
 
     public CommonResponse getEdiSchedule(Long merchantId, Long applicationId) {
         logger.info("Creating EDI Schedule for applicationId:{}", applicationId);
@@ -80,7 +84,8 @@ public class LendingEdiScheduleService {
                 Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * lendingApplication.getLoanAmount()));
                 double interest = round(lendingApplication.getEdi().intValue() - principal);
 
-                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())
+                        && ! ediUtil.isRoundDownEligibleLender(lendingApplication.getLender())) {
                     interest = roundToWhole(interest);
                     principal = lendingApplication.getEdi().intValue() - interest;
                 }
@@ -219,7 +224,8 @@ public class LendingEdiScheduleService {
                 Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * lendingApplication.getLoanAmount()));
                 double interest = round(lendingApplication.getEdi().intValue() - principal);
 
-                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())
+                        && ! ediUtil.isRoundDownEligibleLender(lendingApplication.getLender())) {
                     interest = roundToWhole(interest);
                     principal = lendingApplication.getEdi().intValue() - interest;
                 }
@@ -375,7 +381,8 @@ public class LendingEdiScheduleService {
                 Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * loanApplicationDetailsDto.getLoanAmount()));
                 double interest = round(edi.intValue() - principal);
 
-                if (Lender.PIRAMAL.name().equalsIgnoreCase(loanApplicationDetailsDto.getLender())) {
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(loanApplicationDetailsDto.getLender())
+                        && ! ediUtil.isRoundDownEligibleLender(loanApplicationDetailsDto.getLender())) {
                     interest = roundToWhole(interest);
                     principal = edi.intValue() - interest;
                 }
