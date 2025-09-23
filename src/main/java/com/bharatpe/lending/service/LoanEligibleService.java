@@ -2193,11 +2193,14 @@ public class LoanEligibleService {
         NACH_BOUNCE_AMOUNT_MAP = new HashMap<>();
         NACH_BOUNCE_AMOUNT_MAP.put(TRILLIONLOANS, 500);
         NACH_BOUNCE_AMOUNT_MAP.put(PAYU, 500);
-        NACH_BOUNCE_AMOUNT_MAP.put(PIRAMAL, 650);
+        NACH_BOUNCE_AMOUNT_MAP.put(PIRAMAL, 500);
         NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS, 650);
         NACH_BOUNCE_AMOUNT_MAP.put(CREDITSAISON, 650);
         NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS_P2P, 650);
         NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS_P2P_OF, 650);
+        NACH_BOUNCE_AMOUNT_MAP.put(OXYZO, 500);
+        NACH_BOUNCE_AMOUNT_MAP.put(UGRO, 500);
+        NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS_NBFC, 650);
     }
 
     public Integer getNachBounceAmount(Lender lender) {
@@ -2248,7 +2251,7 @@ public class LoanEligibleService {
             penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(5000L, 17000L, 500.0, "Rs. 5,000-17,000"));
             penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(17000L, 25000L, 1000.0, "Rs. 17,000-25,000"));
             penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(25000L, 50000L, 1250.0, "Rs. 25,000-50,000"));
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(50000L, null, 1500.0, "Rs. 50,000 & Above"));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(50000L, 1000000L, 1500.0, "Rs. 50,000 & Above"));
 
         }
         if(lender.equalsIgnoreCase(SMFG.name())){
