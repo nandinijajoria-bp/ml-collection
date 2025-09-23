@@ -1456,6 +1456,8 @@ public class LoanEligibleService {
                 METHOD, merchantId, loan.getTenureInMonths(), eligibleLenders);
 
         loan.setEligibleLenders(eligibleLenders);
+        AsyncLoggerUtil.logDebug(logger, "{} - Completed processing loan {} for merchantId: {}",
+                METHOD, loan, merchantId);
         return loan;
     }
 
