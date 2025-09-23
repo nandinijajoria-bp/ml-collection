@@ -3077,7 +3077,6 @@ public class LoanUtil {
 		}
 		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
 		return false;
-
 	}
 
 	public boolean isApplicableForAggregationFlowV2(Long merchantId, Long applicationId){

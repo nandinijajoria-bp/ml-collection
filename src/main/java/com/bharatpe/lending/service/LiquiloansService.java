@@ -52,6 +52,7 @@ import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
+import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.Finance;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -140,6 +141,9 @@ public class LiquiloansService {
 
     @Autowired
     S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    private EdiUtil ediUtil;
 
     @Value("${aws.s3.loan.agreement.bucket}")
     private String bucket;
@@ -1818,10 +1822,12 @@ public class LiquiloansService {
 
                     if (Lender.SMFG.name().equalsIgnoreCase(paymentSchedule.getNbfc())) {
                         interest = round((openingBalance * annualRoi) / 36500D);
-                        principal = round(paymentSchedule.getEdiAmount().intValue() - interest);
+                        interest = roundToWhole(interest);
+                        principal = paymentSchedule.getEdiAmount().intValue() - interest;
                     }
 
-                    if (Arrays.asList(Lender.PIRAMAL.name(),Lender.SMFG.name()).contains(paymentSchedule.getNbfc())) {
+                    if (Lender.PIRAMAL.name().equalsIgnoreCase(paymentSchedule.getNbfc())
+                            && ! ediUtil.isRoundDownEligibleLender(paymentSchedule.getNbfc())) {
                         interest = roundToWhole(interest);
                         principal = paymentSchedule.getEdiAmount().intValue() - interest;
                     }

@@ -1423,9 +1423,10 @@ public class PaymentService {
 
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
-        if ("UPI_AUTOPAY".equals(source)) {
+        if ("UPI_AUTOPAY".equals(source) || "LMS_PRECLOSURE".equals(source)) {
             transferType="EXTERNAL";
         }
+
         if (loanPaymentUtil.checkIfNewSettlementAllowed(activeLoan.getCreatedAt())  && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
             log.info("NewSettlement# started the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
@@ -2992,10 +2993,10 @@ public class PaymentService {
                     }
                     order.setCheckoutType(request.getCheckoutType());
                     loanPaymentOrderDao.save(order);
+
                     // TODO : call handle callback method
                     log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
                     handleCallback(convertToPgPaymentCallbackDTO(order));
-
                 }
                 return ;
             }
