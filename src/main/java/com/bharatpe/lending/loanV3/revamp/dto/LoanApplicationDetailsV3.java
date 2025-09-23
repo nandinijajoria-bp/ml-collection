@@ -63,6 +63,5 @@ public class LoanApplicationDetailsV3 {
     private Double apr;
 
     private Double annualRoi;
-
 }
 

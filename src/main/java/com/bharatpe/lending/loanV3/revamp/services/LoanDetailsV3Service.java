@@ -1349,6 +1349,7 @@ public class LoanDetailsV3Service {
     private static void setUpiAutopayResponse(UpiAutopayStateDTO upiAutopayStateDTO,LoanDetailsV3Response loanDetailsV3Response){
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         loanDetailsV3Response.setLender(upiAutopayStateDTO.getLender());
+        loanDetailsV3Response.setApplicationId(upiAutopayStateDTO.getApplicationId());
         UpiAutopayApplicationDetailsDTO upiAutopayDetails = UpiAutopayApplicationDetailsDTO.builder().loanAmount(upiAutopayStateDTO.getLoanAmount()).tenure(upiAutopayStateDTO.getTenure())
                         .loanType(upiAutopayStateDTO.getLoanType()).mandateStatus(upiAutopayStateDTO.getMandateStatus()).createdAt(upiAutopayStateDTO.getCreatedAt())
                         .waitTime(upiAutopayStateDTO.getWaitTime()).retryCount(upiAutopayStateDTO.getRetryCount()).errorCode(upiAutopayStateDTO.getErrorCode())
@@ -1357,6 +1358,7 @@ public class LoanDetailsV3Service {
         applicationDetails.setUpiAutopayDetails(upiAutopayDetails);
         loanDetailsV3Response.setAccountDetails(upiAutopayStateDTO.getBankDetails());
         loanDetailsV3Response.setMerchantId(upiAutopayStateDTO.getMerchantId());
+        loanDetailsV3Response.setIsCurrentLoanActive(upiAutopayStateDTO.isCurrentLoanActive());
         if(upiAutopayStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
