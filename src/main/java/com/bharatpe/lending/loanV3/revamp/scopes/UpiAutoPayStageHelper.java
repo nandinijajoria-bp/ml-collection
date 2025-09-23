@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
@@ -16,9 +17,11 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
+import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
@@ -40,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -69,6 +73,13 @@ public class UpiAutoPayStageHelper {
     public boolean isEligibleForFailedForceSkip(Long applicationId, Long merchantId) {
         if(!easyLoanUtil.percentScaleUp(merchantId, upiAutoPayForceSkipPercentage)){
             return false;
+        }
+        Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
+        if(lendingApplicationOptional.isPresent()){
+            LendingApplication lendingApplication = lendingApplicationOptional.get();
+            if(Constants.DISBURSED_LOAN.equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())){
+                return false;
+            }
         }
         if(isLowTpvMerchant(applicationId)){
             return false;
