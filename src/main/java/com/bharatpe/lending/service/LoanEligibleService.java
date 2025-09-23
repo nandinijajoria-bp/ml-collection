@@ -2237,6 +2237,11 @@ public class LoanEligibleService {
         if (!ObjectUtils.isEmpty(penaltyFeeConfigSlaves)) {
             for (PenaltyFeeConfigSlave penaltyFeeConfigSlave : penaltyFeeConfigSlaves) {
                 EligibleOffersResponseDTO.PenaltyConfig penaltyConfig = new EligibleOffersResponseDTO.PenaltyConfig();
+                if(lender.equalsIgnoreCase(PIRAMAL.name())){
+                    penaltyConfig.setLenderWisePenalty("24% per annum i.e. 2% on the outstanding amount till the actual payment date.");
+                    penaltyConfigs.add(penaltyConfig);
+                    continue;
+                }
                 penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
                 penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
                 penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
@@ -2245,13 +2250,13 @@ public class LoanEligibleService {
         }
         EligibleOffersResponseDTO.PenaltyConfig penaltyConfig = new EligibleOffersResponseDTO.PenaltyConfig();
         if(lender.equalsIgnoreCase(MUTHOOT.name())){
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(0L, 499L, 0.0, "Up to Rs. 499"));
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(500L, 1000L, 100.0, "Rs. 500-1,000"));
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(1000L, 5000L, 250.0, "Rs. 1,000-5,000"));
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(5000L, 17000L, 500.0, "Rs. 5,000-17,000"));
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(17000L, 25000L, 1000.0, "Rs. 17,000-25,000"));
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(25000L, 50000L, 1250.0, "Rs. 25,000-50,000"));
-            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(50000L, 1000000L, 1500.0, "Rs. 50,000 & Above"));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(0L, 499L, 0.0 ));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(500L, 1000L, 100.0 ));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(1000L, 5000L, 250.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(5000L, 17000L, 500.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(17000L, 25000L, 1000.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(25000L, 50000L, 1250.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(50000L, 1000000L, 1500.0));
 
         }
         if(lender.equalsIgnoreCase(SMFG.name())){
@@ -2264,10 +2269,6 @@ public class LoanEligibleService {
         }
         if(lender.equalsIgnoreCase(OXYZO.name())){
             penaltyConfig.setLenderWisePenalty("24% per annum on Overdue principal  till the actual date of payment");
-            penaltyConfigs.add(penaltyConfig);
-        }
-        if(lender.equalsIgnoreCase(PIRAMAL.name())){
-            penaltyConfig.setLenderWisePenalty("24% per annum i.e. 2% on the outstanding amount till the actual payment date.");
             penaltyConfigs.add(penaltyConfig);
         }
         return penaltyConfigs;
