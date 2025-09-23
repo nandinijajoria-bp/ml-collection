@@ -748,11 +748,17 @@ public class LoanEligibleService {
                 return null;
             }
 
+            AsyncLoggerUtil.logInfo(logger, "{} - Found {} eligible offers with lenders for merchantId: {}",
+                    METHOD, eligibleOffersWithLenders, merchantId);
+
             LenderDataCache cache = preloadLenderData(merchantId, evaluationId, eligibleOffersWithLenders);
 
             filterSwitchedOffLenders(eligibleOffersWithLenders, cache.switchedOffLenderNames, merchantId, evaluationId);
 
             List<String> rejectedLenders = processRejectedLenders(merchantId, eligibleOffersWithLenders, cache.openApplication);
+
+            AsyncLoggerUtil.logInfo(logger, "{} - After filtering, {} eligible offers remain for merchantId: {}",
+                    METHOD, eligibleOffersWithLenders, merchantId);
 
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders = processEligibleLoansOptimized(
                     merchantId, eligibleOffersWithLenders, lendingRiskVariables, evaluationId,
