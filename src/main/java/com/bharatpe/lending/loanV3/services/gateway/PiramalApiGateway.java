@@ -52,6 +52,9 @@ public class PiramalApiGateway extends ILenderGateway {
     @Value("${nbfc.eKyc.status.api:api/v3/lender/eKyc-status-check}")
     String nbfcEKycStatusUrl;
 
+    @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
+    String nbfcPennyDropUrl;
+
     @Value("${nbfc.rps.api:api/v3/lender/foreclosure-details}")
     String nbfcForeclosureFetchUrl;
 
@@ -104,6 +107,8 @@ public class PiramalApiGateway extends ILenderGateway {
                 return nbfcBaseUrl + nbfcEKycStatusUrl;
             case "GET_FORECLOSURE_DETAILS":
                 return nbfcBaseUrl + nbfcForeclosureFetchUrl;
+            case "PENNY_DROP":
+                return nbfcBaseUrl + nbfcPennyDropUrl;
             default:
                 return null;
         }
