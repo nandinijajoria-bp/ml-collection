@@ -1092,7 +1092,7 @@ public class LoanEligibleService {
                         merchantId,
                         null,
                         "FALLBACK_LENDERS",
-                        String.join(",", initialLendersList),
+                        String.join(",", fallbackLendersList),
                         loan.getAmount(),
                         loan.getTenureInMonths(),
                         cache.openApplication.getId()
