@@ -111,6 +111,8 @@ public class LenderAssociationStageFactory {
                     case ASSC_COMPLETED:
                         return LenderAssociationStages.PUSH_AUDIT;
                     case PUSH_AUDIT:
+                        return LenderAssociationStages.PENNY_DROP;
+                    case PENNY_DROP:
                         return LenderAssociationStages.DRAWDOWN;
                     case DRAWDOWN:
                         return LenderAssociationStages.COMPLETED;
@@ -160,6 +162,8 @@ public class LenderAssociationStageFactory {
                     case DRAWDOWN:
                         return Boolean.FALSE;
                     case DATA_UPLOAD:
+                        return Boolean.FALSE;
+                    case PENNY_DROP:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
