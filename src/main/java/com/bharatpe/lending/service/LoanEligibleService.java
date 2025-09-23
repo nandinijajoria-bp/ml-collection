@@ -2094,6 +2094,7 @@ public class LoanEligibleService {
         try {
             Double amount = eligibleLoanDTO.getAmount();
             Integer tenureInMonths = eligibleLoanDTO.getTenureInMonths();
+            AsyncLoggerUtil.logInfo(logger,"Inside getLenderData for merchantId: {} with lenders: {}", merchantId, eligibleLenders);
             if(!ObjectUtils.isEmpty(eligibleLenders)) {
                 List<LendingLenderQuota> lenderLimits;
                 lenderLimits = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(eligibleLenders, eligibleLoanDTO.getAmount());
@@ -2107,6 +2108,9 @@ public class LoanEligibleService {
                 }
             }
             List<EligibleOffersResponseDTO.LenderData> eligibleLenderList = new ArrayList<>();
+            if (!eligibleLenders.contains("TRILLIONLOANS")) {
+                eligibleLenders.add("TRILLIONLOANS");
+            }
 
             for (String lender : eligibleLenders) {
                 LendingLenderPricing lendingLenderPricing = null;
