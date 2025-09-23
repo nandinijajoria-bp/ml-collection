@@ -1688,12 +1688,20 @@ public class LoanEligibleService {
         }
         else{
             List<LendingApplication> rejectedApplicationList = lendingApplicationDao.getLastThreeRejectedApplications(merchantId);
-            for(LendingApplication rejectedApplication : rejectedApplicationList){
-                if(rejectedApplication.getLender().equalsIgnoreCase(lender)){
-                    if(NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(rejectedApplication.getManualKycReason()) ||
-                            NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(rejectedApplication.getPhysicalReason())
+            if (rejectedApplicationList == null) {
+                AsyncLoggerUtil.logInfo(logger, "No rejected applications found for merchantId {}", merchantId);
+                rejectedApplicationList = Collections.emptyList();
+            }
+             for(LendingApplication rejectedApplication : rejectedApplicationList){
+                if(rejectedApplication != null && rejectedApplication.getLender() != null &&
+                        rejectedApplication.getLender().equalsIgnoreCase(lender)){
+                    String manualKycReason = rejectedApplication.getManualKycReason();
+                    String physicalReason = rejectedApplication.getPhysicalReason();
+
+                    if((manualKycReason != null && NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(manualKycReason)) ||
+                            (physicalReason != null && NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(physicalReason))
                     ){
-                        AsyncLoggerUtil.logInfo(logger,"skipping lender {} due to last rejected application on negative category for merchantId {}", lender, merchantId);
+                        AsyncLoggerUtil.logInfo(logger, "skipping lender {} due to last rejected application on negative category for merchantId {}", lender, merchantId);
                         return false;
                     }
                 }
