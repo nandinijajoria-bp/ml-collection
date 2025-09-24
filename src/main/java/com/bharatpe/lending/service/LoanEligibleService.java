@@ -2154,6 +2154,9 @@ public class LoanEligibleService {
                     irr = lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount().intValue(), edi,amount, merchantId, lender);
                 }
                 else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
+                    AsyncLoggerUtil.logInfo(logger, "Processing fee calculation for merchantId: {}, amount={}, rate={}, result={}",
+                            merchantId, amount, lendingLenderPricing.getProcessingFeeRate(),
+                            Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100)));
                     processingFee =Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100));
                     String formattedRate = df.format(lendingLenderPricing.getInterestRate());
                     interestRate = Double.parseDouble(formattedRate);
@@ -2165,6 +2168,9 @@ public class LoanEligibleService {
                     irr = lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount().intValue(), edi,amount, merchantId, lender);
                 }
                 else{
+                    AsyncLoggerUtil.logInfo(logger, "Processing fee calculation for merchantId: {}, amount={}, rate={}, result={}",
+                            merchantId, amount, lendingLenderPricing.getProcessingFeeRate(),
+                            Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100)));
                     processingFee =Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100));
                     String formattedRate = df.format(lendingLenderPricing.getInterestRate());
                     interestRate = Double.parseDouble(formattedRate);
