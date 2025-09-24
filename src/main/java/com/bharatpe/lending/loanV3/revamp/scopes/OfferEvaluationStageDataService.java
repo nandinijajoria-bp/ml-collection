@@ -136,9 +136,12 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             if (scopeDataArgs.getLoanDetailsV3Request() != null ) {
                 eligibilityV3Service.fetchEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
+                Eligibility eligibility = eligibilityStateDTO.getEligibility();
                 if(requestData.getLendingRiskVariablesSnapshot()!=null && requestData.getLendingRiskVariablesSnapshot().getRegularLimit() != null) {
-                    Eligibility eligibility = eligibilityStateDTO.getEligibility();
                     eligibility.setMaxOfferAmount(requestData.getLendingRiskVariablesSnapshot().getRegularLimit());
+                }
+                else {
+                    eligibility.setMaxOfferAmount(eligibility.getLoanAmount());
                 }
 
             } else {
