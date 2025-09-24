@@ -2213,7 +2213,7 @@ public class LoanEligibleService {
         NACH_BOUNCE_AMOUNT_MAP.put(PAYU, 500);
         NACH_BOUNCE_AMOUNT_MAP.put(PIRAMAL, 500);
         NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS, 650);
-        NACH_BOUNCE_AMOUNT_MAP.put(CREDITSAISON, 650);
+        NACH_BOUNCE_AMOUNT_MAP.put(CREDITSAISON, 500);
         NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS_P2P, 650);
         NACH_BOUNCE_AMOUNT_MAP.put(LIQUILOANS_P2P_OF, 650);
         NACH_BOUNCE_AMOUNT_MAP.put(OXYZO, 500);
@@ -2260,6 +2260,11 @@ public class LoanEligibleService {
                     penaltyConfigs.add(penaltyConfig);
                     continue;
                 }
+                if(lender.equalsIgnoreCase(OXYZO.name())){
+                    penaltyConfig.setLenderWisePenalty("24% per annum on Overdue principal  till the actual date of payment");
+                    penaltyConfigs.add(penaltyConfig);
+                    continue;
+                }
                 penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
                 penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
                 penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
@@ -2283,10 +2288,6 @@ public class LoanEligibleService {
         }
         if(lender.equalsIgnoreCase(PAYU.name())){
             penaltyConfig.setLenderWisePenalty("36 % per annum may be charged per day on principal overdue amount for the Instalment that remains unpaid for period of 02 (two) days from the respective Pay-By Date, in addition to the applicable Interest Rate.");
-            penaltyConfigs.add(penaltyConfig);
-        }
-        if(lender.equalsIgnoreCase(OXYZO.name())){
-            penaltyConfig.setLenderWisePenalty("24% per annum on Overdue principal  till the actual date of payment");
             penaltyConfigs.add(penaltyConfig);
         }
         return penaltyConfigs;
