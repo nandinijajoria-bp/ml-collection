@@ -1144,11 +1144,11 @@ public class LoanDashboardService {
     }
 
     private void handleDiwaliBanner(BasicDetailsDto merchant, LoanDashboardResponse loanDashboardResponse) {
-        Date diwaliBannerOneRolloutDateParsed = parseDate(diwaliBannerOneRolloutDate);
-        Date diwaliBannerOneEndDateParsed = parseDate(diwaliBannerOneEndDate);
+        Date diwaliBannerOneRolloutDateParsed = loanUtil.parseDate(diwaliBannerOneRolloutDate);
+        Date diwaliBannerOneEndDateParsed = loanUtil.parseDate(diwaliBannerOneEndDate);
 
-        Date diwaliBannerTwoRolloutDateParsed = parseDate(diwaliBannerTwoRolloutDate);
-        Date diwaliBannerTwoEndDateParsed = parseDate(diwaliBannerTwoEndDate);
+        Date diwaliBannerTwoRolloutDateParsed = loanUtil.parseDate(diwaliBannerTwoRolloutDate);
+        Date diwaliBannerTwoEndDateParsed = loanUtil.parseDate(diwaliBannerTwoEndDate);
 
         if (!ObjectUtils.isEmpty(diwaliBannerOneRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerOneEndDateParsed)) {
             if (new Date().after(diwaliBannerOneRolloutDateParsed) && new Date().before(diwaliBannerOneEndDateParsed)) {
@@ -1167,15 +1167,6 @@ public class LoanDashboardService {
         }
     }
 
-    private Date parseDate(String stringDate) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
-            return sdf.parse(stringDate);
-        } catch (Exception e) {
-            log.info("Exception occurred while parsing date for string : {}", stringDate);
-        }
-        return null;
-    }
 
     private void cacheLoanDetailsData(LoanDashboardResponse loanDashboardResponse) {
         //Response should not be cached in case of countdown minutes, so merchant can see updated timer on app restart
