@@ -169,6 +169,10 @@ public abstract class LendingApplicationServiceV3Base {
             return new ApiResponse<>(false, "lending application details not found");
         }
         if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
+            if(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))) {
+                log.info("Lender aggregation flow in progress for applicationId {}", currentDraftApplication.getId());
+                lendingApplicationDetails.setApplicationViewState(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+            }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
                     .stage(LenderAssociationStages.LENDER_CHANGE)

@@ -152,9 +152,9 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
             trackFunnelEvent(String.valueOf(scopeDataArgs.getMerchant().getId()), FunnelEnums.StageEvent.COMPLETED);
 
-            if (requestData.getLendingApplication() != null && requestData.getLendingApplication().getId() != null) {
+            /*if (requestData.getLendingApplication() != null && requestData.getLendingApplication().getId() != null) {
                 loanDetailsV3Service.saveApplicationViewState(null, requestData.getLendingApplication().getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
-            }
+            }*/
 
             LendingViewStates nextState = requestData.getLendingApplication() != null ?
                     getNextLendingViewState(requestData.getLendingApplication()) :

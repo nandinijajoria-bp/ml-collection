@@ -1573,11 +1573,34 @@ public class LendingApplicationServiceV2 {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(applicationRequest.getCurrentAddressSameAsPermanentAddress());
             lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
+            lendingApplicationDetails.setApplicationViewState(getNextLendingViewState(lendingApplication).name());
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
         } catch (Exception e) {
             log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+    }
+
+    private LendingViewStates getNextLendingViewState(LendingApplication lendingApplication) {
+        if (lendingApplication == null) {
+            return LendingViewStates.OFFER_EVALUATION_PAGE;
+        }
+        boolean isAddressPresent = commonUtil.doesApplicationHaveCompleteAddress(lendingApplication);
+        if (!isAddressPresent) {
+            return LendingViewStates.SHOP_DETAILS_PAGE;
+        }
+        boolean hasValidShopPhotos = lendingShopDocumentsDao.hasValidProofTypes(
+                lendingApplication.getMerchantId(),
+                lendingApplication.getId()
+        ) > 0;
+        if(!hasValidShopPhotos)
+        {
+            return LendingViewStates.SHOP_PICTURES_PAGE;
+        }
+
+        Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);
+
+        return bpKycRequired ? LendingViewStates.KYC_PAGE : LendingViewStates.LENDER_EVALUATION_PAGE;
     }
 
     private boolean checkAndUpdateAddressMismatch(LendingApplication lendingApplication, AddressDetails addressDetails, ReqAddAddress reqAddAddress) {
