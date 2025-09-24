@@ -109,7 +109,7 @@ public class FLDGReportService {
                     LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).get();
                     if(Objects.isNull(lendingApplication.getNbfcId()) &&
                             Objects.isNull(lendingApplication.getDisburseTimestamp()) &&
-                            Objects.isNull(lendingApplication.getLoanDisbursalStatus())
+                            !Objects.equals(lendingApplication.getLoanDisbursalStatus(), "DISBURSED")
                     ) {
                         LendingNbfcRetry lendingNbfcRetry = lendingNbfcRetryDao.findTopByApplicationId(lendingApplication.getId());
                         if(Objects.isNull(lendingNbfcRetry)) {
