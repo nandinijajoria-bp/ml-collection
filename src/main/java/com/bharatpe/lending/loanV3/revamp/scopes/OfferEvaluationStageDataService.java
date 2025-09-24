@@ -140,9 +140,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 if(requestData.getLendingRiskVariablesSnapshot()!=null && requestData.getLendingRiskVariablesSnapshot().getRegularLimit() != null) {
                     eligibility.setMaxOfferAmount(requestData.getLendingRiskVariablesSnapshot().getRegularLimit());
                 }
-                else {
-                    eligibility.setMaxOfferAmount(eligibility.getLoanAmount());
-                }
 
             } else {
                 log.warn("LoanDetailsV3Request is null for merchant: {}", scopeDataArgs.getMerchant().getId());
