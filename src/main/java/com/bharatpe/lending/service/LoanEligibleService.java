@@ -2282,6 +2282,15 @@ public class LoanEligibleService {
             penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(50000L, 1000000L, 1500.0));
 
         }
+        if(lender.equalsIgnoreCase(CREDITSAISON.name())){
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(0L, 499L, 0.0 ));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(500L, 999L, 100.0 ));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(1000L, 4999L, 250.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(5000L, 16999L, 500.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(17000L, 24999L, 1000.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(25000L, 49999L, 1250.0));
+            penaltyConfigs.add(new EligibleOffersResponseDTO.PenaltyConfig(50000L, 1000000L, 1500.0));
+        }
         if(lender.equalsIgnoreCase(SMFG.name())){
             penaltyConfig.setLenderWisePenalty("Late Payment Charges of 2% per month of the overdue instalment amount calculated on day-to-day basis, plus applicable taxes");
             penaltyConfigs.add(penaltyConfig);
