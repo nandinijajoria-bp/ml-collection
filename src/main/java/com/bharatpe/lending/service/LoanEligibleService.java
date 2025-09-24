@@ -905,7 +905,7 @@ public class LoanEligibleService {
 
             for (String rejectedLender : rejectedLendersSet) {
                 String remarks = "Lender rejected based on risk variables";
-                createAndSaveLendingAuditTrial(merchantId, rejectedLender, "LENDER_REMOVED", remarks, null, null, null);
+                createAndSaveLendingAuditTrial(merchantId, rejectedLender, "LENDER_REJECTED", remarks, null, null, null);
             }
         }
 
@@ -1414,7 +1414,7 @@ public class LoanEligibleService {
                 EdiModel.SEVEN_DAY_MODEL,
                 null,
                 merchantId,
-                evaluationId);
+                openApplication);
 
         if (!eligibleLenders.contains("TRILLIONLOANS")) {
             eligibleLenders.add("TRILLIONLOANS");
@@ -1466,7 +1466,8 @@ public class LoanEligibleService {
                 loanRiskVariables,
                 eligibleLenders,
                 merchantDetails,
-                evaluationId);
+                evaluationId,
+                openApplication);
 
         AsyncLoggerUtil.logInfo(logger, "{} - Final eligible lenders for merchantId {}, tenure {}: {}",
                 METHOD, merchantId, loan.getTenureInMonths(), eligibleLenders);
@@ -1546,7 +1547,8 @@ public class LoanEligibleService {
                                                RiskVariablesDTO riskVariables,
                                                List<String> lenders,
                                                BasicDetailsDto merchantDetails,
-                                               String evaluationId) {
+                                               String evaluationId,
+                                               LendingApplication openApplication) {
 
         final String METHOD = "filterEligibleLenders";
         AsyncLoggerUtil.logInfo(logger, "ENTRY {} - Starting lender filtering for merchantId: {}, loan amount: {}, tenure: {}",
@@ -1577,12 +1579,12 @@ public class LoanEligibleService {
             if (!isPincodeEligible(lender, loan, lendingRiskVariables)) {
                 String rejectReason = "Pincode not eligible for merchantId";
                 AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
-                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, null);
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, openApplication!=null ? openApplication.getId():null);
                 iterator.remove();
                 continue;
             }
 
-            if (!lenderBaseChecksCleared(loan, lender, EdiModel.SEVEN_DAY_MODEL, riskVariables, merchantId, evaluationId)) {
+            if (!lenderBaseChecksCleared(loan, lender, EdiModel.SEVEN_DAY_MODEL, riskVariables, merchantId, openApplication)) {
                 AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - Base checks failed for merchantId: {}",
                         lender, merchantId);
                 iterator.remove();
@@ -1600,7 +1602,7 @@ public class LoanEligibleService {
                 if (!isPanAadhaarLinked) {
                     String rejectReason = "PAN-Aadhaar not linked for merchantId";
                     AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
-                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, null);
+                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, openApplication!=null ? openApplication.getId():null);
                     iterator.remove();
                     continue;
                 }
@@ -1610,7 +1612,7 @@ public class LoanEligibleService {
             if (!checkResponse.getKey()) {
                 String rejectReason = "Failed lender-specific checks: " + checkResponse.getValue();
                 AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} for merchantId: {}", lender, rejectReason, merchantId);
-                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, null);
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, openApplication!=null ? openApplication.getId():null);
                 iterator.remove();
                 continue;
             }
@@ -1618,7 +1620,7 @@ public class LoanEligibleService {
             if (additionalChecksFailed(merchantId, lender, merchantDetails, evaluationId)) {
                 String rejectReason = "Failed additional merchant checks for merchantId";
                 AsyncLoggerUtil.logInfo(logger, "Removing lender: {} - {} {}", lender, rejectReason, merchantId);
-                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, null);
+                createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", rejectReason, null, null, openApplication!=null ? openApplication.getId():null);
                 iterator.remove();
                 continue;
             }
@@ -1742,24 +1744,24 @@ public class LoanEligibleService {
     }
 
 
-    public boolean lenderBaseChecksCleared(EligibleLoanDTO eligibleLoan, String lender, EdiModel ediModel, RiskVariablesDTO riskVariables, Long merchantId, String evaluationId) {
+    public boolean lenderBaseChecksCleared(EligibleLoanDTO eligibleLoan, String lender, EdiModel ediModel, RiskVariablesDTO riskVariables, Long merchantId, LendingApplication openApplication) {
         if(maxIrrCheckFailedV2(eligibleLoan,ediModel, lender, riskVariables, merchantId)) {
             AsyncLoggerUtil.logInfo(logger,"skipping {} due to lender pricing based maxIrr checks failing for {}", lender, merchantId);
             String remarks = "skipping " + lender + " due to maxIrr checks failing for " + merchantId;
-            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, eligibleLoan.getAmount(), eligibleLoan.getTenureInMonths(), null);
+            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, eligibleLoan.getAmount(), eligibleLoan.getTenureInMonths(), openApplication!=null ? openApplication.getId():null);
             return false;
         }
         if(maxAprCheckFailedV2(eligibleLoan, ediModel, lender, riskVariables, merchantId)){
             AsyncLoggerUtil.logInfo(logger,"skipping {} due to lender pricing based maxApr checks failing for {}", lender, merchantId);
             String remarks = "skipping " + lender + " due to maxApr checks failing for " + merchantId;
-            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, eligibleLoan.getAmount(), eligibleLoan.getTenureInMonths(), null);
+            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, eligibleLoan.getAmount(), eligibleLoan.getTenureInMonths(), openApplication!=null ? openApplication.getId(): null);
             return false;
         }
 
         if(maxPfEligibleLender.contains(lender) && maxPfCheckFailedV2(eligibleLoan, merchantId,lender, riskVariables)){
             AsyncLoggerUtil.logInfo(logger,"skipping {} due to maxPf checks failing for {}", lender, merchantId);
             String remarks = "skipping " + lender + " due to maxPf checks failing for " + merchantId;
-            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, eligibleLoan.getAmount(), eligibleLoan.getTenureInMonths(), null);
+            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, eligibleLoan.getAmount(), eligibleLoan.getTenureInMonths(), openApplication!=null ? openApplication.getId():null);
             return false;
         }
         return true;
@@ -2284,7 +2286,7 @@ public class LoanEligibleService {
         return penaltyConfigs;
     }
 
-    List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender, Long merchantId, String evaluationId) {
+    List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender, Long merchantId, LendingApplication openApplication) {
         AsyncLoggerUtil.logInfo(logger,"Assigned Lender: {}  EdiModel: {}", assignedLender, ediModel );
         Set<String> eligibleLendersSet = new LinkedHashSet<>();
         AsyncLoggerUtil.logInfo(logger,"lender assignment rules: {}", lenderAssignmentRules);
@@ -2301,7 +2303,7 @@ public class LoanEligibleService {
                 if(PIRAMAL.name().equalsIgnoreCase(lender) && !loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, piramalRolloutPercentage)) {
                     AsyncLoggerUtil.logInfo(logger,"removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
                     String remarks = "removing " + lender + " from eligible list for merchantId : " + merchantId + " due to not in rollout percentage " + piramalRolloutPercentage;
-                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, null, null, null);
+                    createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, null, null, openApplication!=null ? openApplication.getId():null);
                     continue;
                 }
                 eligibleLendersSet.add(lender);
