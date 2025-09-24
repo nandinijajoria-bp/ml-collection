@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
@@ -13,6 +14,7 @@ import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
@@ -25,6 +27,8 @@ import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.LoanEligibleService;
+import com.bharatpe.lending.util.AsyncLoggerUtil;
 import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -35,10 +39,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Component
 @Slf4j
@@ -85,6 +86,12 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    LendingAuditTrialDao lendingAuditTrialDao;
+
+    @Autowired
+    LoanEligibleService loanEligibleService;
 
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
@@ -209,12 +216,48 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             return false;
         }
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        List<String> rejectedLenders = requestData.getPreviousLenders();
         Set<String> allAttemptedLenders = new HashSet<>(requestData.getPreviousLenders());
 
         if (lendingRiskVariables != null && !StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
             List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
             if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
                 rejectedLendersArray.forEach(l -> allAttemptedLenders.add(l.trim()));
+            }
+        }
+        LendingAuditTrial eligibleLenders = lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
+                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "ELIGIBLE_LENDERS");
+
+        List<LendingAuditTrial> removedLender = lendingAuditTrialDao.findAllByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
+                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "LENDER_REMOVED");
+
+        Set<String> distinctRemovedLenders = new HashSet<>();
+        if (eligibleLenders != null && !CollectionUtils.isEmpty(removedLender)) {
+            for (LendingAuditTrial lender : removedLender) {
+                if (lender.getRemarks() != null) {
+                    distinctRemovedLenders.add(lender.getOldStatus());
+                }
+            }
+            log.info("Found {} distinct removed lenders for merchant {}", distinctRemovedLenders.size(), merchantId);
+        }
+
+        if (!CollectionUtils.isEmpty(distinctRemovedLenders) && eligibleLenders != null &&
+                eligibleLenders.getRemarks() != null) {
+
+            String[] eligibleLendersList = eligibleLenders.getRemarks().split(",");
+            boolean allLendersRemoved = true;
+
+            for (String lender : eligibleLendersList) {
+                String trimmedLender = lender.trim();
+                if (!distinctRemovedLenders.contains(trimmedLender)) {
+                    allLendersRemoved = false;
+                    break;
+                }
+            }
+
+            if (allLendersRemoved) {
+                log.info("All eligible lenders have been removed for merchant {}", merchantId);
+                return true;
             }
         }
 

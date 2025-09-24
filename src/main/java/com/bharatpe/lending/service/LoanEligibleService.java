@@ -993,7 +993,7 @@ public class LoanEligibleService {
                         AsyncLoggerUtil.logInfo(logger, "Skipping {} due to lender in rejected lender list in lending risk variables for merchant: {}",
                                 lender, merchantId);
                         String remarks = "Skipping " + lender + " due to lender in rejected lender list in lending risk variables";
-                        createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, null, null, null);
+                        createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REJECTED", remarks, null, null, null);
                     })
                     .collect(Collectors.toSet());
 
@@ -1142,7 +1142,7 @@ public class LoanEligibleService {
         );
     }
 
-    private AuditTrialData processAuditTrialsOptimized(LendingAuditTrial initialAuditTrial, LendingAuditTrial fallbackAuditTrial, List<String> rejectedLenders) {
+    public AuditTrialData processAuditTrialsOptimized(LendingAuditTrial initialAuditTrial, LendingAuditTrial fallbackAuditTrial, List<String> rejectedLenders) {
         int initialMatchingLendersCount = 0;
         int fallbackMatchingLendersCount = 0;
 
@@ -1233,9 +1233,9 @@ public class LoanEligibleService {
         }
     }
 
-    private static class AuditTrialData {
-        final int initialMatchingLendersCount;
-        final int fallbackMatchingLendersCount;
+    public static class AuditTrialData {
+        public final int initialMatchingLendersCount;
+        public final int fallbackMatchingLendersCount;
 
         AuditTrialData(int initialMatchingLendersCount, int fallbackMatchingLendersCount) {
             this.initialMatchingLendersCount = initialMatchingLendersCount;
@@ -1419,6 +1419,16 @@ public class LoanEligibleService {
         if (!eligibleLenders.contains("TRILLIONLOANS")) {
             eligibleLenders.add("TRILLIONLOANS");
         }
+
+        createAndSaveLendingAuditTrial(
+                merchantId,
+                null,
+                "ELIGIBLE_LENDERS",
+                String.join(",", eligibleLenders),
+                loan.getAmount(),
+                loan.getTenureInMonths(),
+                openApplication != null ? openApplication.getId() : null
+        );
 
         AsyncLoggerUtil.logInfo(logger,"eligible lenders for merchantId : {}, {}", eligibleLenders, merchantId);
 

@@ -13,6 +13,7 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 
 	public List<LendingAuditTrial> findByMerchantIdAndApplicationIdAndNewStatus(Long merchantId, Long applicationId, String newStatus);
 
+
 	public List<LendingAuditTrial> findByApplicationIdAndMerchantIdAndType(Long applicationId, Long merchantId, String type);
 
 	LendingAuditTrial findByApplicationIdAndType(Long applicationId, String type);
@@ -23,6 +24,15 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 
 	LendingAuditTrial findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
 			Double loanAmount, Long applicationId, String type, Integer tenure);
+
+	// Fix the capitalization in method name
+	LendingAuditTrial findTopByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
+			Long applicationId, Long merchantId, Double loanAmount, String type);
+
+	// Fix the parameter order to match the method name
+	List<LendingAuditTrial> findAllByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
+			Long applicationId, Long merchantId, Double loanAmount, String type);
+
 
 	@Query(nativeQuery = true, value = "select COALESCE(old_status, '') from easy_loan.lending_audit_trial where application_id = :applicationId and merchant_id = :merchantId " +
 			"and type = :type order by id desc limit 1")
