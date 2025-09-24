@@ -3,6 +3,7 @@ package com.bharatpe.lending.service.helper;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
+import com.bharatpe.lending.dao.AutoPayUPIMerchantsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
@@ -30,16 +31,18 @@ public class MandateRegistrationHelper {
     private final LendingApplicationDao lendingApplicationDao;
     private final LendingApplicationDetailsDao lendingApplicationDetailsDao;
     private final AutoPayUPIDao autoPayUPIDao;
+    private final AutoPayUPIMerchantsDao autoPayUPIMerchantsDao;
 
-    @Value("${active.loan.autopay.eligible.merchant.ids:}")
-    private List<Long> upiAutoPayEligibleMerchantIds;
+//    @Value("${active.loan.autopay.eligible.merchant.ids:}")
+//    private List<Long> upiAutoPayEligibleMerchantIds;
 
-    public MandateRegistrationHelper(EnachHandler enachHandler, MerchantService merchantService, LendingApplicationDao lendingApplicationDao, LendingApplicationDetailsDao lendingApplicationDetailsDao, AutoPayUPIDao autoPayUPIDao) {
+    public MandateRegistrationHelper(EnachHandler enachHandler, MerchantService merchantService, LendingApplicationDao lendingApplicationDao, LendingApplicationDetailsDao lendingApplicationDetailsDao, AutoPayUPIDao autoPayUPIDao, AutoPayUPIMerchantsDao autoPayUPIMerchantsDao) {
         this.enachHandler = enachHandler;
         this.merchantService = merchantService;
         this.lendingApplicationDao = lendingApplicationDao;
         this.lendingApplicationDetailsDao = lendingApplicationDetailsDao;
         this.autoPayUPIDao = autoPayUPIDao;
+        this.autoPayUPIMerchantsDao = autoPayUPIMerchantsDao;
     }
 
     public boolean isMerchantNachableForMode(long merchantId, String nachMode) {
@@ -64,7 +67,10 @@ public class MandateRegistrationHelper {
             log.error("No active application found for applicationId: {}", applicationId);
             return false;
         }
-        if(!upiAutoPayEligibleMerchantIds.contains(activeApplication.get().getMerchantId())){
+//        if(!upiAutoPayEligibleMerchantIds.contains(activeApplication.get().getMerchantId())){
+//            return false;
+//        }
+        if (!autoPayUPIMerchantsDao.existsByMerchantId(activeApplication.get().getMerchantId())) {
             return false;
         }
 
@@ -81,4 +87,5 @@ public class MandateRegistrationHelper {
                 && ObjectUtils.isEmpty(autoPayUPI);
 
     }
+
 }
