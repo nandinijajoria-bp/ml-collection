@@ -2145,7 +2145,7 @@ public class LoanEligibleService {
                 if(!ObjectUtils.isEmpty(pricingExperiment)) {
                     String formattedRate = df.format(pricingExperiment.getInterestRate());
                     interestRate = Double.parseDouble(formattedRate);
-                    processingFee = Math.ceil(amount * (pricingExperiment.getProcessingFeeRate() / 100));
+                    processingFee = Math.ceil((amount * pricingExperiment.getProcessingFeeRate()) / 100);
                     Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
                     Double interestAmt = (amount * (pricingExperiment.getInterestRate() * tenureInMonths) / 100) ;
                     Double ediAmount = ((amount + interestAmt) / payableDays);
@@ -2156,8 +2156,8 @@ public class LoanEligibleService {
                 else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
                     AsyncLoggerUtil.logInfo(logger, "Processing fee calculation for merchantId: {}, amount={}, rate={}, result={}",
                             merchantId, amount, lendingLenderPricing.getProcessingFeeRate(),
-                            Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100)));
-                    processingFee =Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100));
+                            Math.ceil((amount * lendingLenderPricing.getProcessingFeeRate()) / 100));
+                    processingFee =Math.ceil((amount * lendingLenderPricing.getProcessingFeeRate()) / 100);
                     String formattedRate = df.format(lendingLenderPricing.getInterestRate());
                     interestRate = Double.parseDouble(formattedRate);
                     Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
@@ -2170,8 +2170,8 @@ public class LoanEligibleService {
                 else{
                     AsyncLoggerUtil.logInfo(logger, "Processing fee calculation for merchantId: {}, amount={}, rate={}, result={}",
                             merchantId, amount, lendingLenderPricing.getProcessingFeeRate(),
-                            Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100)));
-                    processingFee =Math.ceil(amount * (lendingLenderPricing.getProcessingFeeRate() / 100));
+                            Math.ceil((amount * lendingLenderPricing.getProcessingFeeRate()) / 100));
+                    processingFee =Math.ceil((amount * lendingLenderPricing.getProcessingFeeRate()) / 100);
                     String formattedRate = df.format(lendingLenderPricing.getInterestRate());
                     interestRate = Double.parseDouble(formattedRate);
                     Long payableDays = (long) OfferUtils.getEdiDays(tenureInMonths, LenderOffDays.valueOf(lender).getEdiModel());
