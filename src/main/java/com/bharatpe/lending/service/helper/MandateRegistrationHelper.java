@@ -16,7 +16,6 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.AutopayUpiConfigDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.entity.AutopayUPIConfig;
@@ -46,7 +45,6 @@ public class MandateRegistrationHelper {
     private final LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
     private final LoanDpdDao loanDpdDao;
     private final LoanUtil loanUtil;
-    private final DateTimeUtil dateTimeUtil;
 
 //    @Value("${active.loan.autopay.eligible.merchant.ids:}")
 //    private List<Long> upiAutoPayEligibleMerchantIds;
@@ -61,8 +59,7 @@ public class MandateRegistrationHelper {
                                      AutopayUpiConfigDao autopayUpiConfigDao,
                                      LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao,
                                      LoanDpdDao loanDpdDao,
-                                     LoanUtil loanUtil,
-                                     DateTimeUtil dateTimeUtil) {
+                                     LoanUtil loanUtil) {
         this.enachHandler = enachHandler;
         this.merchantService = merchantService;
         this.lendingApplicationDao = lendingApplicationDao;
@@ -73,7 +70,6 @@ public class MandateRegistrationHelper {
         this.lendingRiskVariablesSnapshotDao = lendingRiskVariablesSnapshotDao;
         this.loanDpdDao = loanDpdDao;
         this.loanUtil = loanUtil;
-        this.dateTimeUtil = dateTimeUtil;
     }
 
     public boolean isMerchantNachableForMode(long merchantId, String nachMode) {
