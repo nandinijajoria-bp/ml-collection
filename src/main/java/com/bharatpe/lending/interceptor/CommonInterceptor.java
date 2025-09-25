@@ -93,9 +93,8 @@ public class CommonInterceptor implements HandlerInterceptor {
         } catch (Throwable th){
             logger.error("Exception occurred in validating Hmac Value for the client {} and hmac {}", clientName, hmac, th);
         }
-        //sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
-        return true;
-        //return false;
+        sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+        return false;
     }
 
     private boolean validateToken(String token, HttpServletRequest request, HttpServletResponse response) throws Exception {

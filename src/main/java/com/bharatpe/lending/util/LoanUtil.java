@@ -113,9 +113,9 @@ public class LoanUtil {
 	public static final int COOL_OFF_PERIOD_DAYS = 3;
 	public static final String CLOSURE = "ANY";
 	private static final String RECEIVABLE = "RECEIVABLE";
-	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(PAYU.name(), OXYZO.name(), ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
-	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(ABFL.name(), PIRAMAL.name()));
-	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(ABFL.name(), PIRAMAL.name(),Lender.UGRO.name(), Lender.PAYU.name()));
+	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
+	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
+	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name(), Lender.PAYU.name()));
 
 	@Autowired
 	MongoLogPublisher mongoLogPublisher;
@@ -2140,52 +2140,52 @@ public class LoanUtil {
 			return null;
 		}
 		if (lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA2") || lender.equals("MAMTA")) {
-			finalLender = MAMTA.name();
+			finalLender = Lender.MAMTA.name();
 		}
 		if (lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")) {
-			finalLender = LIQUILOANS.name();
+			finalLender = Lender.LIQUILOANS.name();
 		}
 		if (lender.equals("LIQUILOANS_NBFC") || "TRILLIONLOANS".equalsIgnoreCase(lender)) {
 			finalLender = "TRILLIONS";
 		}
 		if (lender.equals("LIQUILOANS_P2P_OF")) {
-			finalLender = LIQUILOANS_P2P_OF.name();
+			finalLender = Lender.LIQUILOANS_P2P_OF.name();
 		}
 		if (lender.equals("HINDON")) {
-			finalLender = HINDON.name();
+			finalLender = Lender.HINDON.name();
 		}
 		if (lender.equals("LDC")) {
-			finalLender = LDC.name();
+			finalLender = Lender.LDC.name();
 		}
 		if (lender.equals("ABFL")) {
-			finalLender = ABFL.name();
+			finalLender = Lender.ABFL.name();
 		}
 		if (lender.equals("PIRAMAL")) {
-			finalLender = PIRAMAL.name();
+			finalLender = Lender.PIRAMAL.name();
 		}
 		if("USFB".equalsIgnoreCase(lender)) {
-			finalLender = USFB.name();
+			finalLender = Lender.USFB.name();
 		}
 		if("MUTHOOT".equalsIgnoreCase(lender)){
-			finalLender = MUTHOOT.name();
+			finalLender = Lender.MUTHOOT.name();
 		}
 		if("CAPRI".equalsIgnoreCase(lender)) {
-			finalLender = CAPRI.name();
+			finalLender = Lender.CAPRI.name();
 		}
 		if("PAYU".equalsIgnoreCase(lender)) {
-			finalLender = PAYU.name();
+			finalLender = Lender.PAYU.name();
 		}
 		if("CREDITSAISON".equalsIgnoreCase(lender)) {
-			finalLender = CREDITSAISON.name();
+			finalLender = Lender.CREDITSAISON.name();
 		}
 		if("SMFG".equalsIgnoreCase(lender)) {
-			finalLender = SMFG.name();
+			finalLender = Lender.SMFG.name();
 		}
 		if(UGRO.name().equalsIgnoreCase(lender)) {
-			finalLender = UGRO.name();
+			finalLender = Lender.UGRO.name();
 		}
 		if("OXYZO".equalsIgnoreCase(lender)) {
-			finalLender = OXYZO.name();
+			finalLender = Lender.OXYZO.name();
 		}
 		return finalLender;
 	}
@@ -2209,7 +2209,7 @@ public class LoanUtil {
 	public boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender, boolean autoPayUpiCheck) {
 
 		if (ObjectUtils.isEmpty(lender)) return false;
-		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) && isBTApplication(lendingApplication)) {
+		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) && isBTApplication(lendingApplication)) {
 			logger.info("skip nach flow is not applicable for BT application {}", lendingApplication.getId());
 			return false;
 		}
@@ -3438,7 +3438,7 @@ public class LoanUtil {
 		return PiramalForeclosureChargesRequestDto.builder()
 				.applicationId(lendingApplicationLenderDetails.getApplicationId())
 				.productName("LENDING")
-				.lender(PIRAMAL.name())
+				.lender(Lender.PIRAMAL.name())
 				.payload(PiramalForeclosureChargesRequestDto.Payload.builder()
 						.productId("BRTPE")
 						.uniqueReferenceId(String.valueOf(penaltyFeeLedger.getId()))
@@ -3870,9 +3870,9 @@ public class LoanUtil {
 	public boolean isNonTLToTLTopup(LendingApplication currentLendingApplication) {
 		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
 		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
-				&& TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
 				&& !ObjectUtils.isEmpty(previousLendingApplication)
-				&& !TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+				&& !Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
 	}
 
 
@@ -3886,9 +3886,9 @@ public class LoanUtil {
 	public boolean isTLToTLTopup(LendingApplication currentLendingApplication) {
 		LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
 		return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
-				&& TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
 				&& !ObjectUtils.isEmpty(previousLendingApplication)
-				&& TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+				&& Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
 	}
 
 	public boolean isPaymentLockAcquired(String lockKey) {

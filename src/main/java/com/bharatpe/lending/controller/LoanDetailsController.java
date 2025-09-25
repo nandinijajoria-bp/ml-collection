@@ -83,10 +83,6 @@ public class LoanDetailsController {
 	private LoanUtil loanUtil;
 
 	@Autowired
-	private LenderRankingEngine lenderRankingEngine;
-
-
-	@Autowired
 	@Qualifier("documentDetailProxy")
 	private EdiEmiProxyHelper<Map<String,String>, Map<String,String>, Map<String,String>, DocumentDetailsDto> documentDetailProxy;
 

@@ -74,10 +74,6 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and client {}", hmac, clientName);
                 return true;
             }
-            InternalClientSlave internalClient1 = internalClientDaoSlave.findByClientName("lending-2");
-            if(lendingHmacCalculator.validateExternalGatewayV2(payload, internalClient1.getSecret(), hmac)){
-                return true;
-            }
             logger.info("Hmac Verification failed for hmac Value for the hmac {} and client {}", hmac, clientName);
         } catch (Throwable th){
             logger.error("Exception occurred in validating Hmac Value for the client {} and hmac {}", clientName, hmac, th);

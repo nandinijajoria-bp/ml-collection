@@ -48,10 +48,8 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
-import com.bharatpe.lending.loanV2.dto.LoanDetailsResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.impl.LenderAssignService;
@@ -286,30 +284,6 @@ public class LoanEligibleService {
 
     @Autowired
     ForeClosureConfigDao foreClosureDao;
-
-    @Value("${usfb.rollout.percent:1}")
-    Integer usfbRolloutPercentage;
-
-    @Value("${trillionLoans.rollout.percent:1}")
-    Integer trillionLoansRolloutPercentage;
-
-    @Value("${muthoot.rollout.percent:1}")
-    Integer muthootRolloutPercentage;
-
-    @Value("${capri.rollout.percent:1}")
-    Integer capriRolloutPercent;
-
-    @Value("${payu.rollout.percent:1}")
-    Integer payuRolloutPercent;
-
-    @Autowired
-    UgroConfig ugroConfig;
-
-    @Autowired
-    OxyzoConfig oxyzoConfig;
-
-    @Autowired
-    CreditSaisonConfig creditSaisonConfig;
 
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
@@ -2346,53 +2320,6 @@ public class LoanEligibleService {
         } catch (Exception e) {
             logger.info("Exception in saving lender remove log for merchantId {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
-    }
-
-
-    private boolean lenderRolloutFailedCheck(String lender, Long merchantId, String evaluationId) {
-        List<Lender> skipRolloutCheckForLenders = Arrays.asList(LDC, MAMTA, HINDON, LIQUILOANS, LIQUILOANS_NBFC, LIQUILOANS_P2P, LIQUILOANS_P2P_OF, MAMTA0, MAMTA1, MAMTA2, ABFL,PIRAMAL);
-        if(skipRolloutCheckForLenders.contains(valueOf(lender))) {
-            return false;
-        }
-        Integer rolloutPercent = 0;
-        switch (lender) {
-            case "USFB":
-                rolloutPercent = usfbRolloutPercentage;
-                break;
-            case "TRILLIONLOANS":
-                rolloutPercent = trillionLoansRolloutPercentage;
-                break;
-            case "MUTHOOT":
-                rolloutPercent = muthootRolloutPercentage;
-                break;
-            case "CAPRI":
-                rolloutPercent = capriRolloutPercent;
-                break;
-            case "PAYU":
-                rolloutPercent = payuRolloutPercent;
-                break;
-            case "CREDITSAISON":
-                rolloutPercent = creditSaisonConfig.getRolloutPercent();
-                break;
-            case "SMFG":
-                rolloutPercent = smfgConfig.getRolloutPercentage();
-                break;
-            case "UGRO":
-                rolloutPercent = ugroConfig.getRolloutPercentage();
-                break;
-            case "OXYZO":
-                rolloutPercent = oxyzoConfig.getRolloutPercentage();
-                break;
-            default:
-                rolloutPercent = 0;
-        }
-        if(!loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, rolloutPercent)) {
-            AsyncLoggerUtil.logInfo(logger,"removing {} from eligible lender list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, rolloutPercent);
-            String remarks = "removing " + lender + " from eligible list for merchantId : " + merchantId + " due to not in rollout percentage " + rolloutPercent;
-            createAndSaveLendingAuditTrial(merchantId, lender, "LENDER_REMOVED", remarks, null, null, null);
-            return true;
-        }
-        return false;
     }
 
     public CommonResponse getEdiScheduleForEdi(EligibleLoanDTO eligibleLoan, Double edi, Long merchantId, String lender ) {

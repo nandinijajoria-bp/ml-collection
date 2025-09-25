@@ -1126,30 +1126,6 @@ public class LendingApplicationServiceV2 {
     }
 
     private LendingApplication  updateLendingApplicationV2(LendingApplication lendingApplication, BasicDetailsDto merchantBasicDetails,  EligibleLoanDTO eligibleLoan, CreateApplicationRequest lendingApplicationRequest) {
-        /*BigDecimal processingFee;
-        BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
-        MaxPricingValuesDTO maxPricingValuesDTO = null;
-        if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantBasicDetails.getId());
-            maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, eligibleLoan.getTenureInMonths());
-        }
-        if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            BigDecimal maxProcessingFeeRateBD = BigDecimal.valueOf(maxPricingValuesDTO.getMaxProcessingFeeRate());
-            processingFee = maxProcessingFeeRateBD.multiply(amountBD)
-                    .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
-        }
-        else {
-            if(eligibleLoan.getProcessingFee() != null) {
-                processingFee = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
-
-            }else{
-                throw new NullPointerException("processing fee cannot be null for eligible loan");
-            }
-
-        }
-        if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            loanUtil.setAndUpdateEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
-        }*/
 
         lendingApplication.setLender(eligibleLoan.getLender());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));

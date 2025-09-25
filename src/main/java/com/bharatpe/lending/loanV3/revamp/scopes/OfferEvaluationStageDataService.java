@@ -70,9 +70,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     EligibilityV3Service eligibilityV3Service;
 
     @Autowired
-    LoanDetailsV3Service loanDetailsV3Service;
-
-    @Autowired
     CommonUtil commonUtil;
 
     @Autowired
@@ -89,9 +86,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
-
-    @Autowired
-    LoanEligibleService loanEligibleService;
 
     @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
     private List<String> activeLenders;
@@ -151,10 +145,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             }
 
             trackFunnelEvent(String.valueOf(scopeDataArgs.getMerchant().getId()), FunnelEnums.StageEvent.COMPLETED);
-
-            /*if (requestData.getLendingApplication() != null && requestData.getLendingApplication().getId() != null) {
-                loanDetailsV3Service.saveApplicationViewState(null, requestData.getLendingApplication().getId(), LendingViewStates.OFFER_EVALUATION_PAGE);
-            }*/
 
             LendingViewStates nextState = requestData.getLendingApplication() != null ?
                     getNextLendingViewState(requestData.getLendingApplication()) :
