@@ -231,7 +231,7 @@ public abstract class LendingApplicationServiceV3Base {
                 boolean isEdiChanged = false;
                 boolean isProcessingFeeChanged = false;
                 boolean isDowngradeCase = false;
-                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId) && ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))) {
                     Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
                     if (eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()) {
                         log.info("EDI decreased for applicationId {}", currentDraftApplication.getId());

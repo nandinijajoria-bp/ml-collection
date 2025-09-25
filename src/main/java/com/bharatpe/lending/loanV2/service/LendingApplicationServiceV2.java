@@ -908,7 +908,7 @@ public class LendingApplicationServiceV2 {
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
 
             LendingAuditTrial lendingAuditTrialInitial =
-                    lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), lendingApplication.getId(), "INITIAL_LENDERS",lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "INITIAL_LENDERS",lendingApplication.getTenureInMonths());
             if (lendingAuditTrialInitial != null) {
                 log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
                 lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
@@ -920,15 +920,27 @@ public class LendingApplicationServiceV2 {
 
 
             LendingAuditTrial lendingAuditTrialFallback =
-                    lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), lendingApplication.getId(), "FALLBACK_LENDERS", lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "FALLBACK_LENDERS", lendingApplication.getTenureInMonths());
             if (lendingAuditTrialFallback != null) {
-                log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
+                log.info("Fallback lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
                 lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
                 lendingAuditTrialDao.save(lendingAuditTrialFallback);
                 log.info("Updated fallback lenders audit trail with applicationId: {}", lendingApplication.getId());
             } else {
                 log.error("No fallback lenders audit trail found for evaluationId: {}", evaluationId);
             }
+
+            LendingAuditTrial lendingEligibleLenders =
+                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "ELIGIBLE_LENDERS", lendingApplication.getTenureInMonths());
+            if (lendingEligibleLenders != null) {
+                log.info("Eligible lenders audit trail found for evaluationId: {} : {}", lendingEligibleLenders, lendingEligibleLenders.getId());
+                lendingEligibleLenders.setApplicationId(lendingApplication.getId());
+                lendingAuditTrialDao.save(lendingEligibleLenders);
+                log.info("Updated fallback lenders audit trail with applicationId: {}", lendingApplication.getId());
+            } else {
+                log.error("No fallback lenders audit trail found for evaluationId: {}", evaluationId);
+            }
+
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
 
             final boolean rejected = checkAndRejectPilotIdentifierApplication(lendingApplication);
@@ -1112,7 +1124,7 @@ public class LendingApplicationServiceV2 {
         replicateApplicationData(merchantBasicDetails,lendingApplication);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
         lenderAssignService.saveLenderChangeAudit(lendingApplication, lendingApplication.getLender(), null);
-        updateLendingAuditTrial(merchantBasicDetails.getId(), lendingApplication);
+        //updateLendingAuditTrial(merchantBasicDetails.getId(), lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));
         executorService.execute(() -> {

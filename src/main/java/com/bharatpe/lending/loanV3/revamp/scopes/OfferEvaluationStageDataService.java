@@ -215,8 +215,8 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 rejectedLendersArray.forEach(l -> allAttemptedLenders.add(l.trim()));
             }
         }
-        LendingAuditTrial eligibleLenders = lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
-                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "ELIGIBLE_LENDERS");
+        LendingAuditTrial eligibleLenders = lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(
+                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), lendingApplication.getTenureInMonths(), "ELIGIBLE_LENDERS");
 
         List<LendingAuditTrial> removedLender = lendingAuditTrialDao.findAllByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
                 lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "LENDER_REMOVED");
@@ -228,7 +228,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                     distinctRemovedLenders.add(lender.getOldStatus());
                 }
             }
-            log.info("Found {} distinct removed lenders for merchant {}", distinctRemovedLenders.size(), merchantId);
+            log.info("Found {} distinct removed lenders for merchant {}", distinctRemovedLenders, merchantId);
         }
 
         if (!CollectionUtils.isEmpty(distinctRemovedLenders) && eligibleLenders != null &&
@@ -256,7 +256,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
     private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
         log.info("Max lender attempts reached for merchant: {}", merchantId);
-        lendingApplication.setStatus(ApplicationStatus.REJECTED.name());
+        lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
         lendingApplication.setRejectionReason("Max lender selection attempts reached");
         lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name().toLowerCase());
         lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");

@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.entity.LenderMetricsHistory;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.loanV3.revamp.dto.OfferEvaluationRequestDTO;
 import org.springframework.http.ResponseEntity;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
@@ -117,6 +118,9 @@ public class LoanEligibleService {
 
     @Autowired
     LenderBusinessCategoryDao lenderBusinessCategoryDao;
+
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
     FunnelService funnelService;
@@ -677,6 +681,12 @@ public class LoanEligibleService {
             List<EligibleOffersResponseDTO.TenureWithLender> tenureWithLenders;
             try {
                 tenureWithLenders = getEligibleLenderList(merchantId, eligibleLoans, merchantDetails, lendingRiskVariables, evaluationId);
+                OfferEvaluationRequestDTO requestData = collectRequestData(merchantId);
+
+                if (isMaxLenderAttemptsReached(requestData, merchantId)) {
+                    handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(merchantId));
+                    return ApiResponseUtil.badRequest("Maximum lender selection attempts reached", "APPLICATION_REJECTED");
+                }
                 if (tenureWithLenders == null || tenureWithLenders.isEmpty()) {
                     AsyncLoggerUtil.logInfo(logger, "EXIT {} - No eligible lenders found for merchantId: {}", METHOD, merchantId);
                     return ApiResponseUtil.notFound("No lenders available for the requested amount", "NO_ELIGIBLE_LENDERS");
@@ -709,6 +719,108 @@ public class LoanEligibleService {
             return ApiResponseUtil.internalError("An unexpected error occurred", e.getMessage());
         }
     }
+
+    private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
+        AsyncLoggerUtil.logInfo(logger, "Max lender attempts reached for merchant: {}", merchantId);
+        lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setRejectionReason("Max lender selection attempts reached");
+        lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+        lendingApplication.setLender("NONE_ELIGIBLE_LENDER");
+        lendingApplicationDao.save(lendingApplication);
+
+        funnelService.submitEventV3(Long.valueOf(merchantId),null, lendingApplication.getId(), FunnelEnums.StageId.OFFER_EVALUATION_PAGE,
+                FunnelEnums.StageEvent.REJECTED, null, null);
+    }
+
+    public OfferEvaluationRequestDTO collectRequestData(Long merchantId) {
+        OfferEvaluationRequestDTO.OfferEvaluationRequestDTOBuilder builder = OfferEvaluationRequestDTO.builder()
+                .merchantId(String.valueOf(merchantId))
+                .accountDetails(loanUtil.getAccountDetails(merchantId))
+                .kycStatus(kycHandler.getPanStatus(merchantId));
+
+        // Get Experian data if available
+        Experian experian = experianDao.getByMerchantId(merchantId);
+        if (experian != null) {
+            builder.experianData(experian);
+        }
+
+        // Get lending application
+        LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(
+                merchantId, "draft");
+
+        if (lendingApplication != null) {
+            LendingRiskVariablesSnapshot riskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+            builder.lendingApplication(lendingApplication)
+                    .previousLenders(lendingApplicationLenderDetailsDao.findPreviousLenders(lendingApplication.getId()))
+                    .isRepeatLoan(loanUtil.isRepeatLoan(lendingApplication.getMerchantId()))
+                    .lenderAggregationScreen(loanUtil.getLenderAggregationScreenV2(lendingApplication.getId(), lendingApplication.getMerchantId()))
+                    .lendingRiskVariablesSnapshot(riskVariablesSnapshot);
+        }
+
+        return builder.build();
+    }
+
+
+    public boolean isMaxLenderAttemptsReached(OfferEvaluationRequestDTO requestData, Long merchantId) {
+        LendingApplication lendingApplication = requestData.getLendingApplication();
+        if (lendingApplication == null) {
+            return false;
+        }
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        Set<String> allAttemptedLenders = new HashSet<>(requestData.getPreviousLenders());
+
+        if (lendingRiskVariables != null && !StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
+            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
+            if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
+                rejectedLendersArray.forEach(l -> allAttemptedLenders.add(l.trim()));
+            }
+        }
+
+        LendingAuditTrial eligibleLenders = lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(
+                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), lendingApplication.getTenureInMonths(), "ELIGIBLE_LENDERS");
+
+        AsyncLoggerUtil.logInfo(logger, "Eligible lenders from audit trial for merchant {}: {}", merchantId, eligibleLenders != null ? eligibleLenders.getRemarks() : "None");
+
+        List<LendingAuditTrial> removedLender = lendingAuditTrialDao.findAllByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
+                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "LENDER_REMOVED");
+
+        AsyncLoggerUtil.logInfo(logger,"Removed lenders from audit trial for merchant {}: {}", merchantId, !CollectionUtils.isEmpty(removedLender) ? removedLender : null);
+
+        Set<String> distinctRemovedLenders = new HashSet<>();
+        if (eligibleLenders != null && !CollectionUtils.isEmpty(removedLender)) {
+            for (LendingAuditTrial lender : removedLender) {
+                if (lender.getOldStatus() != null) {  // Check oldStatus instead of remarks
+                    distinctRemovedLenders.add(lender.getOldStatus().trim());
+                    AsyncLoggerUtil.logInfo(logger,"Adding removed lender to set: {}", lender.getOldStatus().trim());
+                }
+            }
+            AsyncLoggerUtil.logInfo(logger,"Found {} distinct removed lenders for merchant {}: {}", distinctRemovedLenders.size(), merchantId, distinctRemovedLenders);
+        }
+
+        if (!CollectionUtils.isEmpty(distinctRemovedLenders) && eligibleLenders != null &&
+                eligibleLenders.getRemarks() != null) {
+
+            String[] eligibleLendersList = eligibleLenders.getRemarks().split(",");
+            boolean allLendersRemoved = true;
+
+            for (String lender : eligibleLendersList) {
+                String trimmedLender = lender.trim();
+                if (!distinctRemovedLenders.contains(trimmedLender)) {
+                    allLendersRemoved = false;
+                    break;
+                }
+            }
+
+            if (allLendersRemoved) {
+                AsyncLoggerUtil.logInfo(logger,"All eligible lenders have been removed for merchant {}", merchantId);
+                return true;
+            }
+        }
+
+        return allAttemptedLenders.size() >= activeLenders.size();
+    }
+
 
     public List<EligibleOffersResponseDTO.TenureWithLender> getEligibleLenderList(Long merchantId, List<EligibleLoanDTO> eligibleLoans, BasicDetailsDto merchantDetails, LendingRiskVariables lendingRiskVariables, String evaluationId) {
         final String METHOD = "getEligibleLenderList";
@@ -1092,6 +1204,54 @@ public class LoanEligibleService {
             );
         }
 
+        if(cache.openApplication == null) {
+            Set<String> eligibleLenders = new HashSet<>(initialLendersList);
+            eligibleLenders.addAll(fallbackLendersList);
+            createAndSaveLendingAuditTrial(
+                    merchantId,
+                    null,
+                    "ELIGIBLE_LENDERS",
+                    String.join(",", eligibleLenders),
+                    loan.getAmount(),
+                    loan.getTenureInMonths(),
+                    null
+            );
+        }
+        else {
+            LendingAuditTrial existingFallbackAudit = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
+                    loan.getAmount(),
+                    cache.openApplication.getId(),
+                    "FALLBACK_LENDERS",
+                    loan.getTenureInMonths());
+
+            LendingAuditTrial existingInitialAudit = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
+                    loan.getAmount(),
+                    cache.openApplication.getId(),
+                    "INITIAL_LENDERS",
+                    loan.getTenureInMonths());
+
+            List<String> existingInitialLenders = existingInitialAudit == null || StringUtils.isEmpty(existingInitialAudit.getRemarks()) ?
+                    Collections.emptyList() :
+                    Arrays.asList(existingInitialAudit.getRemarks().split(","));
+
+            List<String> existingFallbackLenders = existingFallbackAudit == null || StringUtils.isEmpty(existingFallbackAudit.getRemarks()) ?
+                    Collections.emptyList() :
+                    Arrays.asList(existingFallbackAudit.getRemarks().split(","));
+
+            Set<String> eligibleLenders = new HashSet<>(existingInitialLenders);
+            eligibleLenders.addAll(existingFallbackLenders);
+
+            createAndSaveLendingAuditTrial(
+                    merchantId,
+                    null,
+                    "ELIGIBLE_LENDERS",
+                    String.join(",", eligibleLenders),
+                    loan.getAmount(),
+                    loan.getTenureInMonths(),
+                    cache.openApplication.getId()
+            );
+        }
+
         AsyncLoggerUtil.logInfo(logger, "Fallback lenders for loan with tenure {} months: {} for merchantId: {}",
                 loan.getTenureInMonths(), fallbackLendersList, merchantId);
 
@@ -1398,7 +1558,7 @@ public class LoanEligibleService {
         createAndSaveLendingAuditTrial(
                 merchantId,
                 null,
-                "ELIGIBLE_LENDERS",
+                "ELIGIBLE_LENDERS_LIST",
                 String.join(",", eligibleLenders),
                 loan.getAmount(),
                 loan.getTenureInMonths(),
