@@ -23,7 +23,6 @@ import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
-import com.bharatpe.lending.common.query.entity.MasterKeySlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingGlobalAPICacheService;
 import com.bharatpe.lending.common.service.LendingNotificationService;

@@ -87,7 +87,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
 
-    @Value("#{'ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO'.split(',')}")
+    @Value("#{'${active.lenders:ABFL,PIRAMAL,TRILLIONLOANS,MUTHOOT,PAYU,CREDITSAISON,SMFG,UGRO,OXYZO}'.split(',')}")
     private List<String> activeLenders;
 
     @Override
