@@ -14,8 +14,10 @@ import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
 import com.bharatpe.lending.loanV3.utils.EmiUtils;
 import com.bharatpe.lending.loanV3.utils.LrvUtility;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -38,6 +40,9 @@ public class PlanSelectionStageService implements IStageDataService<EligibilityS
     private final LrvUtility lrvUtility;
     private final EmiUtils emiUtils;
 
+    @Autowired
+    LoanUtil loanUtil;
+
     @Override
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         return null;
@@ -55,7 +60,16 @@ public class PlanSelectionStageService implements IStageDataService<EligibilityS
         log.info("lending_risk_variable entry and emi_dashboard response for merchant_id: {} is: {}, {}",
                 scopeDataArgs.getMerchant().getId(), emiDashboardResponse, lendingRiskVariables);
         eligibilityStateDTO.setEmiEligibility(getEmiEligibility(emiDashboardResponse, lendingRiskVariables));
-        return LendingStateDTO.<EligibilityStateDTO>builder().data(eligibilityStateDTO).scopeState(LendingViewStates.PLAN_SELECTION_PAGE).lendingViewStates(LendingViewStates.OFFER_PAGE).build();
+
+        LendingViewStates lendingViewStates;
+        if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null)) {
+            // When aggregation flow is applicable, use OFFER_EVALUATION_PAGE
+            lendingViewStates = LendingViewStates.OFFER_EVALUATION_PAGE;
+        } else {
+            // When aggregation flow is not applicable, use OFFER_PAGE
+            lendingViewStates = LendingViewStates.OFFER_PAGE;
+        }
+        return LendingStateDTO.<EligibilityStateDTO>builder().data(eligibilityStateDTO).scopeState(LendingViewStates.PLAN_SELECTION_PAGE).lendingViewStates(lendingViewStates).build();
     }
 
     /**
