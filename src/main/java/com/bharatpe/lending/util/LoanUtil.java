@@ -41,7 +41,6 @@ import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
-import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
@@ -103,7 +102,6 @@ import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.enums.MandatesInJourney.*;
-import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
@@ -484,9 +482,6 @@ public class LoanUtil {
 
 	@Value("${payment.lock.rollout.date:}")
 	public String paymentLockRolloutDate;
-
-	@Autowired
-	private LmsLoanDetailsService lmsLoanDetailsService;
 
 	@PostConstruct
 	public void init(){
@@ -1759,26 +1754,6 @@ public class LoanUtil {
 		return prevLoanUnpaidAmount;
 	}
 
-
-	public double getForeclosureAmountForLdc (LendingPaymentScheduleDTO lendingPaymentSchedule) {
-
-		double prevLoanUnpaidAmount = 0;
-
-		final LdcForeclosureDetailsApiResponseDTO ldcForeclosureDetails =
-				apiGatewayService.getLdcForeclosureDetails(lendingPaymentSchedule.getApplicationId());
-
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-
-		String dateString = format.format(addDays(new Date(), ldcForecloseAmountDateDiff));
-
-		final LdcForeclosureDetailsApiResponseDTO.ForeclosureData foreclosureData = ldcForeclosureDetails.getData().getData().get(dateString);
-
-		logger.info("foreclosure amount picked for date : {} {}", dateString, foreclosureData);
-
-		prevLoanUnpaidAmount = foreclosureData.getTotalOutstandingAmount();
-		return prevLoanUnpaidAmount;
-	}
-
 	public double getForeclosureAmountForLdc (LendingPaymentScheduleSlave lendingPaymentSchedule) {
 
 		double prevLoanUnpaidAmount = 0;
@@ -1805,17 +1780,8 @@ public class LoanUtil {
 			netForeclosureAtLender = (double) getForeclosureAmount(lendingPaymentSchedule);
 			return netForeclosureAtLender;
 		}
-		if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())){
-			LendingApplication lendingApplication = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId()).orElse(null);
-			if (ObjectUtils.isEmpty(lendingApplication)){
-				logger.error("Empty lending application for application id : {}", lendingPaymentSchedule.getApplicationId());
-				return netForeclosureAtLender;
-			}
-			netForeclosureAtLender = (double) lmsLoanDetailsService.getForeclosureAmount(lendingApplication.getMerchantId(), lendingApplication.getExternalLoanId());
-		}else {
-			LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = lenderForeclosureCachingService.getLenderForeclosureAmount(lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchantId());
-			netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
-		}
+		LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = lenderForeclosureCachingService.getLenderForeclosureAmount(lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchantId());
+		netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
 		return netForeclosureAtLender;
 	}
 
