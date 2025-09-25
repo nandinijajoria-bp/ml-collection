@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.enums.LMSPaymentStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.lms.client.LendingPlatformHttpClient;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.lendingplatform.lms.dto.request.PaymentAsynchronousRequest;
@@ -113,7 +114,10 @@ public class PaymentAsynchronousService {
     private PaymentAsynchronousRequest getPaymentAsynchronousRequest(
             Double amount, String source, String terminalOrderId, LendingApplication lendingApplication, BankDetailsDto merchantBankDetail, LendingApplicationLenderDetails lald, Date transferDate, Long orderId, boolean foreclosureEligibility) {
         double foreclosureCharges = 0;
-        LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        LoanForeClosureCharges loanForeClosureCharges = null;
+        if(!LoanType.TOPUP.name().equals(source)) {
+            loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        }
         if(!ObjectUtils.isEmpty(loanForeClosureCharges)){
             log.info("Foreclosure charges table found for orderId; {}", orderId);
             foreclosureCharges = loanForeClosureCharges.getAmount() + loanForeClosureCharges.getTax();

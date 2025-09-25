@@ -163,6 +163,7 @@ public class AssociationServiceUtil {
     PayUDocUploadService payUDocUploadService;
 
     @Autowired
+    @Lazy
     PayUBreService payUBreService;
 
     @Autowired
