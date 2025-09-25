@@ -2,16 +2,13 @@ package com.bharatpe.lending.loanV3.services;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
-import com.bharatpe.lending.lendingplatform.lms.service.ForeclosureService;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -23,8 +20,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 
 @Slf4j
@@ -41,9 +36,6 @@ public class LenderForeclosureCachingService {
 
     @Autowired
     private LenderAssociationStageFactory lenderAssociationStageFactory;
-
-    @Autowired
-    private ForeclosureService foreclosureService;
 
     @Value("${lenderForeclosureDetails.caching.enabled.lenders:}")
     private String lenderForeclosureCachingEnabledLenders;
@@ -69,40 +61,6 @@ public class LenderForeclosureCachingService {
                     log.info("returning cached lenderForeclosureDetails {} of {} for applicationId {}", lenderForeclosureDetails, lender, applicationId);
                     return lenderForeclosureDetails;
                 }
-            }
-            ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name()).getLenderAssociationService(lender);
-            if(!ObjectUtils.isEmpty(iLenderAssociationService)) {
-                lenderForeclosureDetails = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(applicationId, null);
-                if (!ObjectUtils.isEmpty(lenderForeclosureDetails)
-                        && !ObjectUtils.isEmpty(lenderForeclosureDetails.getForeclosureAmount())
-                        && lenderForeclosureDetails.getForeclosureAmount() != 0D) {
-                    cacheLenderForeclosureDetails(lenderForeclosureDetails, lender, applicationId, isCachingApplicable);
-                    return lenderForeclosureDetails;
-                }
-            }
-        } catch (Exception e) {
-            log.error("Exception in fetching {} foreclosure amount for application {} {}", lender, applicationId, Arrays.asList(e.getStackTrace()));
-        }
-        return null;
-    }
-
-
-    public LenderForeclosureDetailsDTO getLenderForeclosureAmount(String lender, Long applicationId, Long merchantId, LendingPaymentSchedule lendingPaymentSchedule) {
-        try {
-            LenderForeclosureDetailsDTO lenderForeclosureDetails = null;
-            Boolean isCachingApplicable = isCachingApplicableForLenderForeclosureDetails(lender, merchantId);
-            if(isCachingApplicable) {
-                lenderForeclosureDetails = fetchCachedLenderForeclosureDetails(lender, applicationId);
-                if(!ObjectUtils.isEmpty(lenderForeclosureDetails)) {
-                    log.info("returning cached lenderForeclosureDetails {} of {} for applicationId {}", lenderForeclosureDetails, lender, applicationId);
-                    return lenderForeclosureDetails;
-                }
-            }
-            if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())){
-                Double foreclosureAmount = foreclosureService.getLenderForeclosureAmount(lendingPaymentSchedule);
-                lenderForeclosureDetails= new LenderForeclosureDetailsDTO();
-                lenderForeclosureDetails.setForeclosureAmount(foreclosureAmount);
-                return lenderForeclosureDetails;
             }
             ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name()).getLenderAssociationService(lender);
             if(!ObjectUtils.isEmpty(iLenderAssociationService)) {
