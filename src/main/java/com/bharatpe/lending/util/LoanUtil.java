@@ -1994,7 +1994,6 @@ public class LoanUtil {
 				.tenureInMonths(tenureDetail.getTenure())
 				.merchantId(merchantId)
 				.status("ACTIVE")
-				.offerType(offerType)
 				.ediFreeDays(0)
 				.ioEdi(0)
 				.ioEdiDays(0)
