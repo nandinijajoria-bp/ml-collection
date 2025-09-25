@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -133,7 +134,7 @@ public class MandateRegistrationHelper {
             return false;
         }
 
-        Date calculatedDate = dateTimeUtil.getDatePlusDays(tentativeClosing, dpd * 60);
+        Date calculatedDate = Date.from(tentativeClosing.toInstant().plus(dpd, ChronoUnit.DAYS));
         log.info("tentative closing date: {}, dpd: {}, threshold date: {}", tentativeClosing, dpd, calculatedDate);
         return Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus())
                 && LoanStatus.ACTIVE.name().equals(lps.getStatus())
