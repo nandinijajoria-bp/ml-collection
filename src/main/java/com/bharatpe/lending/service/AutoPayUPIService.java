@@ -19,6 +19,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
+import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +35,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.bharatpe.lending.common.Constants.AutoPayCheckoutEnum.*;
-import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.FAILED;
 import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.REVOKED;
 
 
@@ -151,9 +151,11 @@ public class AutoPayUPIService {
         return flag;
     }
 
-    public String handleMandatePgCallback(PgPaymentCallbackDTO request) {
+    public String handleMandatePgCallback(PgPaymentCallbackDTO request, AutoPayUPI autoPayUPI) {
         log.info("Received mandate callback request for order ID {} : {}", request.getMandate().getOrderId(), request);
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByOrderId(request.getMandate().getOrderId());
+        if(autoPayUPI == null){
+            autoPayUPI = autoPayUPIDao.findTop1ByOrderId(request.getMandate().getOrderId());
+        }
         try {
             if (autoPayUPI == null) {
                 log.error("No order for order id {}", request.getOrderId());
@@ -242,7 +244,7 @@ public class AutoPayUPIService {
             if ("ACTIVE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
                 log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
-                handleMandatePgCallback(response.getData());
+                handleMandatePgCallback(response.getData(), mandateApplication);
             } else if ("FAILURE".equalsIgnoreCase(response.getData().getPaymentStatus()) ||
                     "FAILURE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf("FAILED"));
@@ -424,7 +426,12 @@ public class AutoPayUPIService {
                 autoPayUPI.setApplicationId(lendingApplication.getId());
                 autoPayUPI.setGateway(DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? DR_CASHFREE.name() : "JS_CASHFREE");
                 autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
-                autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
+
+                //Doing only for Cashfree as per the requirement
+                autoPayUPI.setIsAutoPayUpiDeduction(Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus())
+                        ? DeductionStatusEnum.HARD_QR_DEDUCTION.name() : DeductionStatusEnum.AUTO_PAY_UPI.name());
+//                autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
+                autoPayUPI.setStandaloneAutopaySetup(Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus()));
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
                 autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 

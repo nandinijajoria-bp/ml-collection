@@ -128,6 +128,7 @@ public class LoanDetailsV3Response {
     private Boolean dkycEligible;
     private Boolean skipKycEligible;
     private Boolean showShopDetailsOnBankDisbursementPage;
+    private Boolean isCurrentLoanActive;
     private AddressDetails addressDetails;
     private LendingApplication lendingApplication;
     private String lenderAggregationScreen;

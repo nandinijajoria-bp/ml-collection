@@ -60,8 +60,6 @@ import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.dto.trillions.TrillionForeclosureRequestDto;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
-import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -952,7 +950,7 @@ public class PaymentService {
         if (request.getEvent() != null && request.getMandate() !=null) {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
-                return autoPayUPIService.handleMandatePgCallback(request);
+                return autoPayUPIService.handleMandatePgCallback(request, null);
             } else if ("transaction".equalsIgnoreCase(request.getEvent()) && !request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
                 log.info("inside settlement of amount of autopay upi presentment");
                 try {

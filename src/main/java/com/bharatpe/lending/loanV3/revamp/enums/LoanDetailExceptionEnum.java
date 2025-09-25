@@ -38,7 +38,9 @@ public enum LoanDetailExceptionEnum {
 
     INVALID_LENDER_STAGE_FOR_VKYC("LEN00012", "Invalid lender stage for VKYC"),
 
-    APPLICATION_DETAILS_NOT_FOUND("LEN00013", "Application Details not found");
+    APPLICATION_DETAILS_NOT_FOUND("LEN00013", "Application Details not found"),
+
+    APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY("LEN00014", "Application not eligible for UPI autopay");
 
 
 

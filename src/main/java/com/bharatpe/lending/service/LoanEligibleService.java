@@ -442,7 +442,7 @@ public class LoanEligibleService {
                         continue; // Skip this loan if risk checks fail
                     }
 
-                    newEligibleLoan = eligibleLoanDao.save(eligibleLoan);
+                    newEligibleLoan = eligibleLoanDao.save(newEligibleLoan);
                     validEligibleLoans.add(newEligibleLoan);
                 } catch (Exception e) {
                     logger.error("Error processing eligible loan for merchantId: {}, amount: {}",
