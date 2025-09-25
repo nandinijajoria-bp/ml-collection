@@ -23,4 +23,5 @@ public class Eligibility {
     private String loanType;
     private Double clubV2Amount;
     private Long uniqueKey;
+    private Double maxOfferAmount;
 }

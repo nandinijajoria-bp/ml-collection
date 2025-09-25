@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -14,6 +15,7 @@ import com.bharatpe.lending.enums.LoanSegment;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
+import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.dto.UpiAutopayApplicationDetailsDTO;
@@ -194,6 +196,10 @@ public class LoanDetailsV3Service {
             switch (lendingStateDTO.getScopeState()) {
                 case OFFER_PAGE:
                     setOfferResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+                case OFFER_EVALUATION_PAGE:
+                    setOfferEvaluationResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case PAN_PIN_PAGE:
@@ -1300,6 +1306,31 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setShowShopDetailsOnBankDisbursementPage(eligibilityStateDTO.isShowShopDetailsOnBankDisbursementPage());
         loanDetailsV3Response.setAddressDetails(eligibilityStateDTO.getAddressDetails());
         loanDetailsV3Response.setBusinessName(eligibilityStateDTO.getBusinessName());
+        if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
+            loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
+        }
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO.getRefreshCountDownMinutes())){
+            loanDetailsV3Response.setRefreshCountDownMinutes(eligibilityStateDTO.getRefreshCountDownMinutes());
+        }
+    }
+
+    private static void setOfferEvaluationResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
+        loanDetailsV3Response.setErrorString(eligibilityStateDTO.getErrorString());
+        loanDetailsV3Response.setEdiDaysModel(eligibilityStateDTO.getEdiDaysModel());
+        loanDetailsV3Response.setKycPanStatus(eligibilityStateDTO.getKycPanStatus());
+        loanDetailsV3Response.setPancard(eligibilityStateDTO.getPancard());
+        loanDetailsV3Response.setPincode(eligibilityStateDTO.getPincode());
+        loanDetailsV3Response.setBpClubMember(eligibilityStateDTO.getBpClubMember());
+        loanDetailsV3Response.setClubV2Member(eligibilityStateDTO.getClubV2Member());
+        loanDetailsV3Response.setAccountDetails(eligibilityStateDTO.getAccountDetails());
+        loanDetailsV3Response.setEligibility(eligibilityStateDTO.getEligibility());
+        loanDetailsV3Response.setIsPreapprovedRepeatLoan(eligibilityStateDTO.getIsPreapprovedRepeatLoan());
+        loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
+        loanDetailsV3Response.setOfferIncreased(eligibilityStateDTO.getOfferIncreased());
+        loanDetailsV3Response.setPreviousFinalOffer(eligibilityStateDTO.getPreviousFinalOffer());
+        loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
+        loanDetailsV3Response.setLendingApplication(eligibilityStateDTO.getLendingApplication());
+        loanDetailsV3Response.setLenderAggregationScreen(eligibilityStateDTO.getScreenType());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }

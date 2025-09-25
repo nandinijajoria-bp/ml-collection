@@ -12,8 +12,11 @@ import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.TopupEligibilityResponseData;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProxyHelper;
 import com.bharatpe.lending.service.*;
+import com.bharatpe.lending.util.ApiResponseUtil;
+import com.bharatpe.lending.util.AsyncLoggerUtil;
 import com.bharatpe.lending.util.BQPublisherUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import lombok.Data;
 import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +24,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
-
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -238,6 +242,46 @@ public class LoanDetailsController {
 		logger.info("EligibleLendingOffers response: {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
+
+	@GetMapping(
+			value = "/eligible_offers/v2",
+			consumes = MediaType.APPLICATION_JSON_VALUE,
+			produces = MediaType.APPLICATION_JSON_VALUE
+	)
+	public ResponseEntity<ApiResponseDTOV2<EligibleOffersResponseDTO>> getEligibleOfferDetailsV2(
+			@RequestAttribute BasicDetailsDto merchant,
+			@RequestParam(name = "query_amount", required = true) Double queryAmount,
+			@RequestParam(name = "edi_model", required = false) Integer ediModel) {
+
+		final String METHOD = "getEligibleOfferDetailsV2";
+		AsyncLoggerUtil.logInfo(logger, "ENTRY {} - merchantId: {}, amount: {}, ediModel: {}",
+				METHOD, merchant.getId(), queryAmount, ediModel);
+
+		try {
+			// Validate input parameters
+			if (queryAmount == null || queryAmount <= 0) {
+				AsyncLoggerUtil.logError(logger, "EXIT {} - Invalid query amount: {}", METHOD, queryAmount);
+				return ApiResponseUtil.badRequest("Invalid query amount", "INVALID_PARAMETERS");
+			}
+
+			// Use default ediModel if not provided
+			Integer finalEdiModel = (ediModel == null) ? lendingEdiModel : ediModel;
+
+			// Get eligible offers from service
+			ResponseEntity<ApiResponseDTOV2<EligibleOffersResponseDTO>> serviceResponse =
+					loanEligibleService.getEligibilityDetailsV2(merchant.getId(), queryAmount, finalEdiModel, merchant);
+
+			AsyncLoggerUtil.logInfo(logger, "EXIT {} - Completed processing for merchantId: {}",
+					METHOD, merchant.getId());
+			return serviceResponse;
+
+		} catch (Exception e) {
+			AsyncLoggerUtil.logError(logger, "EXIT {} - Unexpected error for merchantId: {}: {}",
+					METHOD, merchant.getId(), e.getMessage(), e);
+			return ApiResponseUtil.internalError("An unexpected error occurred", e.getMessage());
+		}
+	}
+
 
 	@PostMapping (value = "/topup_eligible_offers", consumes = "application/json", produces = "application/json")
 	public ResponseEntity<TopUpOfferResponseDto> getTopupEligibleOfferDetails(

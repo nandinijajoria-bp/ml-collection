@@ -114,7 +114,7 @@ public class LoanUtil {
 	public static final String CLOSURE = "ANY";
 	private static final String RECEIVABLE = "RECEIVABLE";
 	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
-	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), PIRAMAL.name()));
+	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
 	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name(), Lender.PAYU.name()));
 
 	@Autowired
@@ -294,6 +294,9 @@ public class LoanUtil {
 	@Value("${aggregation.flow.experimentId:}")
 	String isAggregationFlowApplicableExperimentId;
 
+	@Value("${aggregation.flow.experimentIdV2:}")
+	String isAggregationFlowApplicableExperimentIdV2;
+
 	@Value("${payment.bank.change.flow.applicable:false}")
 	boolean isPaymentBankChangeFlowApplicable;
 
@@ -398,6 +401,9 @@ public class LoanUtil {
 
 	@Value("${lender.aggregation.screens:}")
 	String lenderAggregationScreens;
+
+	@Value("${lender.aggregation.screensV2:}")
+	String lenderAggregationScreensV2;
 
 	@Value("#{'${api.token:}'.split(',')}")
 	List<String> apiTokens;
@@ -1951,6 +1957,57 @@ public class LoanUtil {
 		return sevenDayEligibleLoanOffer;
 	}
 
+	public EligibleLoanDTO calculateLoanOfferBreakup(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version
+	) {
+
+		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
+		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		List<EligibleLoanDTO> eligibleLoanList = new ArrayList<>();
+
+		BigDecimal processingFee;
+		BigDecimal amountBD = new BigDecimal(amount);
+		BigDecimal processingFeeRateBD = BigDecimal.valueOf(tenureDetail.getProcessingFee());
+		if(tenureDetail.getProcessingFee() != null){
+			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
+		}
+		else{
+			throw new NullPointerException(
+				"Failed to calculate loan offer breakup: processing fee is missing in tenure details for merchantId=" + merchantId
+				+ ", loanType=" + loanType
+				+ ", offerType=" + offerType
+				+ ", version=" + version
+				+ ". Please ensure the processing fee is provided in the offer details before proceeding."
+			);
+		}
+
+		EligibleLoanDTO sevenDayEligibleLoanOffer = EligibleLoanDTO.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(sevenDayRepayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.initialRoi(tenureDetail.getInitialRoi())
+				.edi(sevenDayEdiAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getTenure() * 30)
+				.processingFee(processingFee.intValue())
+				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.processingFeeRate(tenureDetail.getProcessingFee())
+				.build();
+		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		logger.info("Eligible Loan Offer: {}", sevenDayEligibleLoanOffer);
+		return sevenDayEligibleLoanOffer;
+	}
+
 	public LendingEligibleLoan calculateLoanBreakupV2(
 			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
 			Double version
@@ -2100,7 +2157,7 @@ public class LoanUtil {
 			finalLender = Lender.LDC.name();
 		}
 		if (lender.equals("ABFL")) {
-			finalLender = ABFL.name();
+			finalLender = Lender.ABFL.name();
 		}
 		if (lender.equals("PIRAMAL")) {
 			finalLender = Lender.PIRAMAL.name();
@@ -2124,7 +2181,7 @@ public class LoanUtil {
 			finalLender = Lender.SMFG.name();
 		}
 		if(UGRO.name().equalsIgnoreCase(lender)) {
-			finalLender = UGRO.name();
+			finalLender = Lender.UGRO.name();
 		}
 		if("OXYZO".equalsIgnoreCase(lender)) {
 			finalLender = Lender.OXYZO.name();
@@ -3021,7 +3078,80 @@ public class LoanUtil {
 		return false;
 	}
 
-	public String getLenderAggregationScreen(Long applicationId){
+	public boolean isApplicableForAggregationFlowV2(Long merchantId, Long applicationId){
+		try{
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
+			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
+			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
+				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
+				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+					lendingAuditTrial.setApplicationId(applicationId);
+					lendingAuditTrial.setMerchantId(merchantId);
+					lendingAuditTrial.setType(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+					lendingAuditTrial.setLoanId("BPL"+applicationId);
+					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
+					lendingAuditTrialDao.save(lendingAuditTrial);
+				}
+				return true;
+			}
+		} catch (Exception ex) {
+			logger.error("Exception occurred while deciding aggregation flow :{}", ex);
+		}
+		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
+		return false;
+	}
+
+	public ExperimentConfigResponseDTOV2 getLenderAggregationScreenType(Long merchantId, Long applicationId){
+		try{
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = launchLabsHandler.experimentConfigv2(Long.valueOf(isAggregationFlowApplicableExperimentIdV2), merchantId);
+			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
+			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
+				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
+				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+					lendingAuditTrial.setApplicationId(applicationId);
+					lendingAuditTrial.setMerchantId(merchantId);
+					lendingAuditTrial.setType(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+					lendingAuditTrial.setLoanId("BPL"+applicationId);
+					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
+					lendingAuditTrialDao.save(lendingAuditTrial);
+				}
+				return experimentConfigResponseDTO;
+			}
+		} catch (Exception ex) {
+			logger.error("Exception occurred while deciding aggregation flow :{}", ex.getMessage());
+		}
+		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
+		return null;
+	}
+
+	public String getLenderAggregationScreenV2(Long applicationId, Long merchantId) {
+		try {
+			if(applicationId != null) {
+				LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findTopByApplicationIdAndType(applicationId, LendingViewStates.OFFER_EVALUATION_PAGE.name());
+
+				if(!ObjectUtils.isEmpty(lendingAuditTrial) && !StringUtils.isEmpty(lendingAuditTrial.getOldStatus())) {
+					logger.info("Lender aggregation screen already shown for applicationId {} is {}", applicationId, lendingAuditTrial.getOldStatus());
+					return lendingAuditTrial.getOldStatus();
+				}
+			}
+
+			ExperimentConfigResponseDTOV2 experimentConfigResponseDTO = getLenderAggregationScreenType(merchantId, applicationId);
+			if(ObjectUtils.isEmpty(experimentConfigResponseDTO)) {
+				return null;
+			} else {
+				logger.info("Lender aggregation screen for applicationId {} is {}", applicationId, experimentConfigResponseDTO.getVariationId());
+				return experimentConfigResponseDTO.getVariationId();
+			}
+
+		} catch (Exception ex) {
+			logger.error("Exception occurred while getting lender aggregation screen: {}", ex);
+		}
+		return null;
+	}
+
+	public String getLenderAggregationScreen(Long applicationId, Long MerchantId) {
 		try{
 			LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.LENDER_AGGREGATION.name());
 			if(!ObjectUtils.isEmpty(lendingAuditTrial)){
@@ -3160,6 +3290,45 @@ public class LoanUtil {
 		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
 		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
 		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
+		eligibleLoanDao.save(eligibleLoan);
+	}
+
+	public void setAndUpdateEligibleLoan(EligibleLoanDTO eligibleLoanDTO, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender) {
+
+		eligibleLoanDTO.setRateOfInterest(interestRate);
+		Double interestAmt = (eligibleLoanDTO.getAmount() * (eligibleLoanDTO.getRateOfInterest() * eligibleLoanDTO.getTenureInMonths()) / 100);
+		double ediAmount = ((eligibleLoanDTO.getAmount() + interestAmt) / eligibleLoanDTO.getEdiCount());
+
+		if (!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)) {
+			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.floor(ediAmount);
+		} else {
+			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.ceil(ediAmount);
+		}
+
+		Double repayment = ediAmount * eligibleLoanDTO.getEdiCount();
+		eligibleLoanDTO.setProcessingFee(processingFee.intValue());
+		eligibleLoanDTO.setRepayment(repayment.intValue());
+		eligibleLoanDTO.setEdi((int) ediAmount);
+		eligibleLoanDTO.setIrr(lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount(), Double.valueOf(eligibleLoanDTO.getEdi()), loanAmount, eligibleLoanDTO.getMerchantId(), null));
+		eligibleLoanDTO.setApr(lendingApplicationServiceV2.getApr(eligibleLoanDTO.getEdiCount(), Double.valueOf(eligibleLoanDTO.getEdi()), loanAmount - processingFee.intValue(), eligibleLoanDTO.getMerchantId(), null));
+
+		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoanDTO.getApr(), eligibleLoanDTO.getIrr(), eligibleLoanDTO.getProcessingFee(), eligibleLoanDTO.getRateOfInterest(), eligibleLoanDTO.getRepayment(), eligibleLoanDTO.getEdi());
+
+		LendingEligibleLoan eligibleLoan = new LendingEligibleLoan();
+		eligibleLoan.setMerchantId(eligibleLoanDTO.getMerchantId());
+		eligibleLoan.setAmount(eligibleLoanDTO.getAmount());
+		eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
+		eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
+		eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
+		eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
+		eligibleLoan.setRepayment(eligibleLoanDTO.getRepayment());
+		eligibleLoan.setEdi(eligibleLoanDTO.getEdi());
+		eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
+		eligibleLoan.setApr(eligibleLoanDTO.getApr());
+
+		// Save the entity
 		eligibleLoanDao.save(eligibleLoan);
 	}
 
@@ -3413,7 +3582,7 @@ public class LoanUtil {
 				.createdAt(new Date())
 				.updatedAt(new Date())
 				.source("LENDING")
-				.remarks("Audit trail created for SHOP_DETAILS")
+				.remarks("Audit trail created for CreateApplication")
 				.build();
 		saveLendingAuditTrailToBQ(lendingAuditTrailDTO);
 	}
