@@ -91,6 +91,7 @@ public class LoanDashboardService {
 
     @Autowired
     MileStoneHelperService mileStoneHelperService;
+    @Lazy
     @Autowired
     private LoanUtil loanUtil;
 
