@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.enums.VkycStatus;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
@@ -129,6 +130,8 @@ public class LoanDetailsV3Response {
     private Boolean showShopDetailsOnBankDisbursementPage;
     private Boolean isCurrentLoanActive;
     private AddressDetails addressDetails;
+    private LendingApplication lendingApplication;
+    private String lenderAggregationScreen;
 
     @Data
     @ToString

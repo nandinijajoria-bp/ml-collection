@@ -169,12 +169,19 @@ public abstract class LendingApplicationServiceV3Base {
             return new ApiResponse<>(false, "lending application details not found");
         }
         if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
+            if(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))) {
+                log.info("Lender aggregation flow in progress for applicationId {}", currentDraftApplication.getId());
+                lendingApplicationDetails.setApplicationViewState(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+            }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
                     .stage(LenderAssociationStages.LENDER_CHANGE)
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                     .lender(currentDraftApplication.getLender())
-                    .isApplicableForAggregationFlow(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId())))
+                    .isApplicableForAggregationFlow(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), merchantId)))
+                    .isApplicableForAggregationFlowV2(
+                            !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))
+                    )
                     .applicationId(currentDraftApplication.getId())
                     .build());
         }
@@ -224,7 +231,7 @@ public abstract class LendingApplicationServiceV3Base {
                 boolean isEdiChanged = false;
                 boolean isProcessingFeeChanged = false;
                 boolean isDowngradeCase = false;
-                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId) && ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))) {
                     Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
                     if (eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()) {
                         log.info("EDI decreased for applicationId {}", currentDraftApplication.getId());
@@ -333,7 +340,7 @@ public abstract class LendingApplicationServiceV3Base {
             log.info("BP Selfie will be initiated after skip kyc flow for applicationId {}", currentDraftApplication.getId());
             return false;
         }
-        if(LenderAssociationStages.INIT.equals(stage) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId())) && ObjectUtils.isEmpty(consentKycDetails)) {
+        if(LenderAssociationStages.INIT.equals(stage) && (!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), currentDraftApplication.getMerchantId())) || !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId(), currentDraftApplication.getMerchantId())) )&& ObjectUtils.isEmpty(consentKycDetails)) {
             log.info("BP KYC flow not initiated even once for application {}", currentDraftApplication.getId());
             return true;
         }
