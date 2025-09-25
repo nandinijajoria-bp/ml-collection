@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
@@ -395,7 +396,8 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
 
     public LendingStateDTO<EligibilityStateDTO> offerEvaluationWorkflow(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = null;
-        if (null == scopeDataArgs.getOpenApplication() || "rejected".equalsIgnoreCase(scopeDataArgs.getOpenApplication().getStatus())) {
+        if(scopeDataArgs.getOpenApplication() == null ||
+                ApplicationStatus.REJECTED.name().equalsIgnoreCase(scopeDataArgs.getOpenApplication().getStatus())) {
             EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
             eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
             eligibilityV3Service.fetchEligibilityWithoutScopeRequest(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);

@@ -955,7 +955,7 @@ public class LoanDetailsServiceV2 {
 
     public List<EligibleLoanDTO> recomputeEligibleOfferLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
         if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
-            log.info("Global Limit not found");
+            log.info("Global Limit not found for merchantId: {}", merchantId);
             return null;
         }
 

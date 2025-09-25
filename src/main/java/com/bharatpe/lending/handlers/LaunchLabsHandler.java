@@ -20,6 +20,9 @@ public class LaunchLabsHandler {
     @Value("${launch.labs.base.url:http://launch-labs-prod2-service}")
     private String BASE_URL;
 
+    @Value("${launch.labs.config.v3.path:/launch-labs/v3/experiment/config/}")
+    private String launchLabsConfigV3Path;
+
     @Autowired
     private RestTemplate restTemplate;
 
@@ -69,7 +72,7 @@ public class LaunchLabsHandler {
         try {
             log.info("Calling Launch Labs experiment config API for experimentId: {}, merchantId: {}", experimentId, merchantId);
 
-            String url = BASE_URL + "/launch-labs/v3/experiment/config/" + experimentId + "/" + merchantId;
+            String url = BASE_URL + launchLabsConfigV3Path + experimentId + "/" + merchantId;
 
             ResponseEntity<ExperimentConfigResponseDTOV2> apiResponse = restTemplate.getForEntity(url, ExperimentConfigResponseDTOV2.class);
             log.info("Experiment config API response body: {}", apiResponse.getBody());

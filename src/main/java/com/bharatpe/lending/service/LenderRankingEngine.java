@@ -52,7 +52,7 @@ public class LenderRankingEngine {
         populateInterestRates(allLenders,merchantId, tenureInMonths);
         try {
             List<OfferRankingConfig> sortedRules = getSortedRules(rankingRules, rankingType);
-            log.info("sorted rules : {}", sortedRules);
+            log.info("sorted rules : {} for merchantId : {}", sortedRules, merchantId);
             Comparator<LenderMetricsHistory> comparator = buildComparatorChain(sortedRules);
             List<String> lenders = allLenders.stream()
                     .filter(l -> sortedRules.stream()
@@ -62,7 +62,7 @@ public class LenderRankingEngine {
                     .map(LenderMetricsHistory::getLender)
                     .collect(Collectors.toList());
 
-            log.info("approved lenders : {}", lenders);
+            log.info("approved lenders : {} for merchantId: {}", lenders, merchantId);
 
             return lenders;
 

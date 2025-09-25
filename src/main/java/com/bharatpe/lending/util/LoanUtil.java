@@ -3096,7 +3096,7 @@ public class LoanUtil {
 				return true;
 			}
 		} catch (Exception ex) {
-			logger.error("Exception occurred while deciding aggregation flow :{}", ex.getMessage());
+			logger.error("Exception occurred while deciding aggregation flow :{}", ex);
 		}
 		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
 		return false;
@@ -3146,7 +3146,7 @@ public class LoanUtil {
 			}
 
 		} catch (Exception ex) {
-			logger.error("Exception occurred while getting lender aggregation screen: {}", ex.getMessage());
+			logger.error("Exception occurred while getting lender aggregation screen: {}", ex);
 		}
 		return null;
 	}
