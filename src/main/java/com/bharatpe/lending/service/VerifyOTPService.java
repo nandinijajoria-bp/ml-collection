@@ -43,10 +43,6 @@ import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
 import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
-import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
-import com.bharatpe.lending.lendingplatform.lms.service.ForeclosureService;
-import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
-import com.bharatpe.lending.lendingplatform.lms.service.PaymentAsynchronousService;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -265,14 +261,6 @@ public class VerifyOTPService {
 
     @Autowired
     VKycService vkycService;
-
-    @Autowired
-    private ForeclosureService foreclosureService;
-    @Autowired
-    private PaymentAsynchronousService paymentAsynchronousService;
-
-    @Autowired
-    private LmsLoanDetailsService lmsLoanDetailsService;
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -1051,14 +1039,7 @@ public class VerifyOTPService {
                                 - lendingApplicationOptional.get().getDisbursalAmount()
                                 - lendingApplicationOptional.get().getProcessingFee();
 
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplicationOptional.get().getId(), lendingApplicationOptional.get().getLender());
-        if( !ObjectUtils.isEmpty(lendingApplicationLenderDetails) && lendingApplicationLenderDetails.getRearchFlow() ){
-            logger.info("1LMS Topup: Settling previous 1LMS loan with loanId : {}" , previousLoan.getId());
-            lmsAdjustmentForTopUp(previousLoan, previousAmount, lendingApplicationOptional.get(), previousLendingApplicationOptional.get());
-        }
-        else {
-            ledgerAdjustmentForTopup(previousLoan, lendingApplicationOptional.get(), previousAmount);
-        }
+        ledgerAdjustmentForTopup(previousLoan, lendingApplicationOptional.get(), previousAmount);
 
         // send loan closure consent to LDC
         if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
@@ -1067,49 +1048,6 @@ public class VerifyOTPService {
 
         finalResponse.put("message", "successfully settled previous loan");
         return finalResponse;
-    }
-
-    public void lmsAdjustmentForTopUp(LendingPaymentSchedule previousLoan, double previousAmount, LendingApplication presentApplication, LendingApplication previousLendingApplication) {
-
-        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(previousLoan.getApplicationId());
-        if(!lendingApplication.isPresent()){
-            logger.error("Lending application not found for id : " + previousLoan.getApplicationId());
-            return;
-        }
-
-        LoanDetailsResponse.LoanSummary loanSummary = lmsLoanDetailsService.getLoanSummaryFromOneLms(lendingApplication.get().getExternalLoanId()).getLoanSummary();
-
-        double paidAmount = ObjectUtils.isEmpty(loanSummary.getTotalPaidAmount()) ? previousLoan.getPaidAmount() : loanSummary.getTotalPaidAmount().doubleValue();
-        double paidPrincipal = ObjectUtils.isEmpty(loanSummary.getPaidPrincipalAmount()) ? previousLoan.getPaidPrinciple() : loanSummary.getPaidPrincipalAmount().doubleValue();
-        double paidInterest = ObjectUtils.isEmpty(loanSummary.getPaidInterestAmount()) ? previousLoan.getPaidInterest() : loanSummary.getPaidInterestAmount().doubleValue();
-        double duePenalty = Objects.nonNull(previousLoan.getDuePenalty()) ? previousLoan.getDuePenalty() : 0;
-
-        previousLoan.setStatus("CLOSED");
-        previousLoan.setClosingDate(new Date());
-        previousLoan.setPaidAmount(paidAmount);
-        previousLoan.setPaidPrinciple(paidPrincipal);
-        previousLoan.setPaidInterest(paidInterest);
-        previousLoan.setDueAmount(0D);
-        previousLoan.setDuePrinciple(0D);
-        previousLoan.setDueInterest(0D);
-        previousLoan.setDuePenalty(0D);
-        previousLoan.setPaidPenalty(ObjectUtils.isEmpty(previousLoan.getPaidPenalty()) ? 0D : previousLoan.getPaidPenalty()  + duePenalty);
-        lendingPaymentScheduleDao.save(previousLoan);
-
-        logger.info("1LMS Topup: Closed previous 1LMS loan with loanId : {}" , previousLoan.getId());
-        int foreClosureAmount=0;
-        try {
-            logger.info("1LMS Topup: fethcing foreclosure amount for 1LMS loanId : {}" , previousLoan.getId());
-            foreClosureAmount = foreclosureService.getForeclosureAmount(previousLoan);
-        }
-        catch (Exception e){
-            logger.error("1LMS Topup: Error in fetching foreclosure amount for 1LMS loanId : {}" , previousLoan.getId());
-            return;
-        }
-
-        String terminalOrderId = "topup-adjustment-" + presentApplication.getNbfcId();
-        paymentAsynchronousService.postPaymentDetails(previousLoan, (double) foreClosureAmount, presentApplication.getLoanType(), terminalOrderId, null, true);
-        logger.info("1LMS Topup: Posted foreclosure payment to 1LMS for loanId : {}" , previousLoan.getId());
     }
 
     public void sendPennyDrop(Long merchantId, Long applicationId) {

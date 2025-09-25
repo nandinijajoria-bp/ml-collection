@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
 
@@ -202,13 +201,6 @@ public class CommonUtil {
         } else {
             return Double.parseDouble(loanAmountStr);
         }
-    }
-
-    public static Double convertBigDecimalToDouble (BigDecimal value) {
-        if (value == null) {
-            return 0.0;
-        }
-        return value.doubleValue();
     }
 
     public boolean doesApplicationHaveCompleteAddress(LendingApplication lendingApplication) {
