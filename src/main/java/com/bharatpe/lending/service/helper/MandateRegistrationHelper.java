@@ -118,17 +118,18 @@ public class MandateRegistrationHelper {
         }
 
         Optional<LoanDpd> loanDpdOptional = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(lps.getId());
+        int dpd = 0;
         if (!loanDpdOptional.isPresent()) {
             log.error("No entry in loan_dpd for loanId: {}", lps.getId());
-            return false;
+        }else{
+            dpd = loanDpdOptional.get().getDpd();
         }
 
-        int dpd = loanDpdOptional.get().getDpd();
         Date cutoffDate = loanUtil.parseDate(autopayUpiCutoffDate);
         Date tentativeClosing = lps.getTentativeClosingDate();
 
         if (cutoffDate == null || tentativeClosing == null) {
-            log.error("Tentative closing date or cut-off date is null for {}", lendingApplication.getId());
+            log.error("Tentative closing date or cut-off date is null for application {}", lendingApplication.getId());
             return false;
         }
 
