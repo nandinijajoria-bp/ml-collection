@@ -111,7 +111,7 @@ public class MandateRegistrationHelper {
 
         AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(applicationId, Status.ACTIVE.name());
         LendingApplication lendingApplication = activeApplication.get();
-        AutopayUPIConfig autopayUPIConfig = autopayUpiConfigDao.findAutoPayUpiConfigByLenderAndLoanSegment(lendingApplication.getLender(), lendingRiskVariablesSnapshot.getLoanSegment());lendingApplication.getLender().equals(autopayUPIConfig.getLender());
+        AutopayUPIConfig autopayUPIConfig = autopayUpiConfigDao.findAutoPayUpiConfigByLenderAndLoanSegment(lendingApplication.getLender(), lendingRiskVariablesSnapshot.getLoanSegment());
         if(ObjectUtils.isEmpty(autopayUPIConfig)) {
             log.error("No entry found in autopay_upi_config for lender: {} & segment: {}", lendingApplication.getLender(), lendingRiskVariablesSnapshot.getLoanSegment());
             return false;
