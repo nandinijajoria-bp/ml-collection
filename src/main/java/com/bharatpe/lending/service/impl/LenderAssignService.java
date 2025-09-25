@@ -944,7 +944,7 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if(lendingApplication.isPresent()){
 
-            if(loanUtil.isApplicableForAggregationFlowV2(applicationId,lendingApplication.get().getMerchantId())){
+            if(loanUtil.isApplicableForAggregationFlowV2(lendingApplication.get().getMerchantId(),applicationId)){
                 log.info("Lender aggregation screen v2 is enabled for application id : {} and merchant id : {}", applicationId, lendingApplication.get().getMerchantId());
                 return null;
             }
