@@ -205,21 +205,15 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         if (lendingApplication == null) {
             return false;
         }
-        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-        List<String> rejectedLenders = requestData.getPreviousLenders();
-        Set<String> allAttemptedLenders = new HashSet<>(requestData.getPreviousLenders());
-
-        if (lendingRiskVariables != null && !StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
-            if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
-                rejectedLendersArray.forEach(l -> allAttemptedLenders.add(l.trim()));
-            }
-        }
         LendingAuditTrial eligibleLenders = lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(
                 lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), lendingApplication.getTenureInMonths(), "ELIGIBLE_LENDERS");
 
+        log.info("Eligible lenders audit trial for application {}: {}", lendingApplication.getId(), eligibleLenders != null ? eligibleLenders.getRemarks() : "None");
+
         List<LendingAuditTrial> removedLender = lendingAuditTrialDao.findAllByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
                 lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "LENDER_REMOVED");
+
+        log.info("Removed lenders audit trials for application {}: {}", lendingApplication.getId(), !CollectionUtils.isEmpty(removedLender) ? removedLender : 0);
 
         Set<String> distinctRemovedLenders = new HashSet<>();
         if (eligibleLenders != null && !CollectionUtils.isEmpty(removedLender)) {
@@ -251,7 +245,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
             }
         }
 
-        return allAttemptedLenders.size() >= activeLenders.size();
+        return false;
     }
 
     private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
