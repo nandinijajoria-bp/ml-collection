@@ -767,15 +767,6 @@ public class LoanEligibleService {
         if (lendingApplication == null) {
             return false;
         }
-        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-        Set<String> allAttemptedLenders = new HashSet<>(requestData.getPreviousLenders());
-
-        if (lendingRiskVariables != null && !StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-            List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
-            if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
-                rejectedLendersArray.forEach(l -> allAttemptedLenders.add(l.trim()));
-            }
-        }
 
         LendingAuditTrial eligibleLenders = lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(
                 lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), lendingApplication.getTenureInMonths(), "ELIGIBLE_LENDERS");
@@ -818,7 +809,7 @@ public class LoanEligibleService {
             }
         }
 
-        return allAttemptedLenders.size() >= activeLenders.size();
+        return false;
     }
 
 
