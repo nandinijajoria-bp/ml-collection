@@ -660,8 +660,8 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
             eligibleLoan.setApr(eligibleLoanDTO.getApr());
             eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
-            eligibleLoan.setLoanType(lendingRiskVariables.getRiskSegment()!=null ?
-                    RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()).name() :
+            eligibleLoan.setLoanType(lendingRiskVariables.getLoanType()!=null ?
+                    RiskSegment.valueOf(lendingRiskVariables.getLoanType()).name() :
                     eligibleLoanDTO.getLoanType());
             eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
             eligibleLoan.setUpdatedAt(new Date());
@@ -703,8 +703,8 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setRepayment(eligibleLoanDTO.getRepaymentAmount());
             eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
             eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType());
-            eligibleLoan.setLoanType(lendingRiskVariables.getRiskSegment()!=null ?
-                    RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()).name() :
+            eligibleLoan.setLoanType(lendingRiskVariables.getLoanType()!=null ?
+                    RiskSegment.valueOf(lendingRiskVariables.getLoanType()).name() :
                     eligibleLoanDTO.getLoanType());
             eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
