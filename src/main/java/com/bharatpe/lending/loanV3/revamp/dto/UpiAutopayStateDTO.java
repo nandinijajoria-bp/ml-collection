@@ -32,4 +32,5 @@ public class UpiAutopayStateDTO {
     private boolean isUpiAutopayMandateEligible;
     private boolean isEnachEligible;
     private boolean isCurrentLoanActive;
+    private boolean isActiveApplicationAutoPaySetupFlow;
 }
