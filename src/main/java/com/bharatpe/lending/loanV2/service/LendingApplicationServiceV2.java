@@ -661,7 +661,7 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setApr(eligibleLoanDTO.getApr());
             eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
             eligibleLoan.setLoanType(lendingRiskVariables.getLoanType()!=null ?
-                    RiskSegment.valueOf(lendingRiskVariables.getLoanType()).name() :
+                    lendingRiskVariables.getLoanType() :
                     eligibleLoanDTO.getLoanType());
             eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
             eligibleLoan.setUpdatedAt(new Date());
@@ -704,7 +704,7 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
             eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType());
             eligibleLoan.setLoanType(lendingRiskVariables.getLoanType()!=null ?
-                    RiskSegment.valueOf(lendingRiskVariables.getLoanType()).name() :
+                    lendingRiskVariables.getLoanType() :
                     eligibleLoanDTO.getLoanType());
             eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
