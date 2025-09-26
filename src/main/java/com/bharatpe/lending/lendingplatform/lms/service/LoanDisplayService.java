@@ -497,7 +497,7 @@ public class LoanDisplayService {
                 boolean trillionTopupV2Flow = TRILLIONLOANS.name().equals(topupLender) && merchantsWithTrillionTopupV2FlowEnabled.contains(merchantId);
                 boolean isTopupV2Flow =
                         (easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(topupLender))
-                                || trillionTopupV2Flow;
+                                && trillionTopupV2Flow;
 
                 log.info("Topup flow chosen: {}", isTopupV2Flow ?
                         (trillionTopupV2Flow ? "TRILLION_TOPUP_V2" : "DEFAULT_TOPUP_V2") : "LEGACY_TOPUP");
