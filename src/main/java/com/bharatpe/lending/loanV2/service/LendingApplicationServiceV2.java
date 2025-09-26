@@ -662,6 +662,7 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
             eligibleLoan.setApr(eligibleLoanDTO.getApr());
             eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
+            eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
             eligibleLoan.setUpdatedAt(new Date());
             eligibleLoan.setOfferType("CUSTOM");
 
@@ -701,6 +702,7 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType());
             eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
+            eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
             eligibleLoan.setApr(eligibleLoanDTO.getApr());
             eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
             eligibleLoan.setUpdatedAt(new Date());
