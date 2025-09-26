@@ -102,6 +102,8 @@ public class RolloutUtil {
     private int eligibleLendingPlatformTrillionloansMerchantRollout;
     @Value("${lending.platform.trillion.application.limit:0}")
     private int lendingPlatformTrillionloansApplicationLimit;
+    @Value("${lending.platform.lms.topup.eligibility:0}")
+    private int oneLmsTopupRolloutPercent;
 
 
     private final LmsLoanStatusDao lmsLoanStatusDao;
@@ -363,5 +365,11 @@ public class RolloutUtil {
         int bucket = hash % 100;
 
         return bucket < percent;
+    }
+
+
+
+    public boolean isEligibleForTopupLoan(Long merchantId) {
+        return merchantId % 100 <= oneLmsTopupRolloutPercent;
     }
 }
