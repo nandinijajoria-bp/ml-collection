@@ -635,19 +635,17 @@ public class LendingApplicationServiceV2 {
     public void updateEligibleLoan(Long merchantId, EligibleLoanDTO eligibleLoanDTO) {
         log.info("Updating eligible loan for merchantId: {}", merchantId);
 
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+
         try {
             if (Objects.isNull(merchantId) || Objects.isNull(eligibleLoanDTO)) {
                 AsyncLoggerUtil.logError(log, "MerchantId or EligibleLoanDTO is null for merchantId: {}", merchantId);
                 return;
             }
 
-            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, eligibleLoanDTO.getOfferType());
-            if (eligibleLoan == null) {
-                eligibleLoan = new LendingEligibleLoan();
-                eligibleLoan.setMerchantId(merchantId);
-                eligibleLoan.setCreatedAt(new Date());
-            }
-
+            LendingEligibleLoan eligibleLoan =  new LendingEligibleLoan();
+            eligibleLoan.setMerchantId(merchantId);
+            eligibleLoan.setCreatedAt(new Date());
             eligibleLoan.setCategory(eligibleLoanDTO.getCategory());
             eligibleLoan.setAmount(eligibleLoanDTO.getAmount());
             eligibleLoan.setTenure(eligibleLoanDTO.getTenure() != null ? String.valueOf(eligibleLoanDTO.getTenure()) : null);
@@ -662,6 +660,9 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
             eligibleLoan.setApr(eligibleLoanDTO.getApr());
             eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
+            eligibleLoan.setLoanType(lendingRiskVariables.getRiskSegment()!=null ?
+                    RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()).name() :
+                    eligibleLoanDTO.getLoanType());
             eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
             eligibleLoan.setUpdatedAt(new Date());
             eligibleLoan.setOfferType("CUSTOM");
@@ -680,13 +681,15 @@ public class LendingApplicationServiceV2 {
     public void createEligibleLoan(Long merchantId, EligibleLoanDTO eligibleLoanDTO) {
         log.info("Updating eligible loan for merchantId: {}", merchantId);
 
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+
         try {
             if (Objects.isNull(merchantId) || Objects.isNull(eligibleLoanDTO)) {
                 AsyncLoggerUtil.logError(log, "MerchantId or EligibleLoanDTO is null for merchantId: {}", merchantId);
                 return;
             }
 
-            LendingEligibleLoan   eligibleLoan = new LendingEligibleLoan();
+            LendingEligibleLoan  eligibleLoan = new LendingEligibleLoan();
             eligibleLoan.setMerchantId(merchantId);
             eligibleLoan.setCreatedAt(new Date());
 
@@ -700,6 +703,9 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setRepayment(eligibleLoanDTO.getRepaymentAmount());
             eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
             eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType());
+            eligibleLoan.setLoanType(lendingRiskVariables.getRiskSegment()!=null ?
+                    RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()).name() :
+                    eligibleLoanDTO.getLoanType());
             eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
             eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
