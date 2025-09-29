@@ -1768,7 +1768,6 @@ public class SupportService {
         if (response.getSuccess()) {
           byte[] pdfByteArray = response.getPdfAsBytes();
           inStream = new ByteArrayInputStream(pdfByteArray);
-          s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
         } else {
           log.error("Failed to generate PDF for applicationId: {}", lendingApplication.getId());
           throw new Exception("Unable to generate Agreement Doc for applicationID" + lendingApplication.getId());
