@@ -146,9 +146,7 @@ public class UpiAutoPayStageHelper {
         lendingApplicationDetails.setApplicationViewState(nextPage.name());
         lendingApplicationDetails.setAutoPayUpiEligible(false);
         lendingApplicationDetails.setNachEligible(true);
-        Map<String, Object> metadata = Objects.isNull(lendingApplicationDetails.getMetaData()) ? new HashMap<>() : lendingApplicationDetails.getMetaData();
-        metadata.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.AUTOPAY_NACH);
-        lendingApplicationDetails.setMetaData(metadata);
+        lendingApplicationDetails.setMandateType(MandateType.AUTOPAY_NACH);
         lendingApplicationDetails.setMandateFlagsToggledOn(new Date());
         lendingApplicationDao.save(lendingApplication);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);

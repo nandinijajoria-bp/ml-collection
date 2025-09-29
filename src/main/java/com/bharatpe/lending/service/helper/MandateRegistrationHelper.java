@@ -6,25 +6,33 @@ import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.dao.AutoPayUPIMerchantsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.enums.MandateType;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
+import com.bharatpe.lending.util.LoanUtil;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.BooleanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
-@Component
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class MandateRegistrationHelper {
     private final EnachHandler enachHandler;
     private final MerchantService merchantService;
@@ -36,13 +44,30 @@ public class MandateRegistrationHelper {
 //    @Value("${active.loan.autopay.eligible.merchant.ids:}")
 //    private List<Long> upiAutoPayEligibleMerchantIds;
 
-    public MandateRegistrationHelper(EnachHandler enachHandler, MerchantService merchantService, LendingApplicationDao lendingApplicationDao, LendingApplicationDetailsDao lendingApplicationDetailsDao, AutoPayUPIDao autoPayUPIDao, AutoPayUPIMerchantsDao autoPayUPIMerchantsDao) {
-        this.enachHandler = enachHandler;
-        this.merchantService = merchantService;
-        this.lendingApplicationDao = lendingApplicationDao;
-        this.lendingApplicationDetailsDao = lendingApplicationDetailsDao;
-        this.autoPayUPIDao = autoPayUPIDao;
-        this.autoPayUPIMerchantsDao = autoPayUPIMerchantsDao;
+    public boolean isDigioUpiCase(LendingApplicationDetails lendingApplicationDetails){
+        if(Objects.nonNull(lendingApplicationDetails) && MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType())){
+            log.info("eligible for digio upiautopay");
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isDigioUpiCase(LendingApplication lendingApplication){
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        return isDigioUpiCase(lendingApplicationDetails);
+    }
+
+    public boolean isDigioUpiDone(Long merchantId, Long applicationId) {
+        MerchantNachDetailsResponseDTO nachDetail = enachHandler.findSuccessEnach(merchantId, applicationId);
+        log.info("nach details fetched for applicationId:{}, is: {}", applicationId, nachDetail);
+        if(Objects.isNull(nachDetail)){
+            return false;
+        }
+        if(EnachMode.UPI.name().equals(nachDetail.getMode())){
+            log.info("found upimode nach for applicationId: {}", applicationId);
+            return true;
+        }
+        return false;
     }
 
     public boolean isMerchantNachableForMode(long merchantId, String nachMode) {
@@ -52,7 +77,7 @@ public class MandateRegistrationHelper {
             merchantBankDetail = bankDetailsDtoOptional.get();
         if (merchantBankDetail == null) return true;
         LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfscAndMode(merchantBankDetail.getIfsc().substring(0, 4), nachMode);
-        return lendingNachBank != null;
+        return lendingNachBank != null && BooleanUtils.isTrue(lendingNachBank.getUpiMandate());
     }
 
     public boolean isAutopayRequiredForActiveApplication(LendingPaymentScheduleSlave lps) {

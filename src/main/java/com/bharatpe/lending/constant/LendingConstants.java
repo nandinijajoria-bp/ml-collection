@@ -42,6 +42,10 @@ public interface LendingConstants {
 	String ENACH_BANK_MESSAGE="<p class='inel-note'>Note: Your Bank A/C is not eNACH-able and our lending partners don’t process a loan application in this Bank A/C. Please change your Bank A/C by clicking <b>here</b> and try again.</p>";
 	String BANK_CHANGE_DEEPLINK="bharatpe://dynamic?key=add-bank-account&wroute=easy-loans";
 	String COLLECT_VPA_CREATE_TXN_URL = "/startTxn";
+	String OWNER_ID = "ownerId";
+	String MERCHANT_ID = "merchant_id";
+	String MANDATE_ID = "mandate_id";
+	String MANDATE_NACH_STATUS = "mandate_nach_status";
 	long MAX_MERCHANT_REFERENCES_ALLOWED = 3L;
 	String MANDATE_TYPE_KEY = "mandate_type";
 

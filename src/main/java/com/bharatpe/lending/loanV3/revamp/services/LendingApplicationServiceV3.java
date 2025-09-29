@@ -2,13 +2,15 @@ package com.bharatpe.lending.loanV3.revamp.services;
 
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Objects;
 
@@ -22,6 +24,10 @@ public class LendingApplicationServiceV3 {
 
     @Autowired
     private LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    private LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
 
     public LendingApplicationSlave getLendingApplicationSlave(Long applicationId,Long merchantId){
         LendingApplicationSlave lendingApplication;
@@ -43,5 +49,12 @@ public class LendingApplicationServiceV3 {
             lendingApplication=lendingApplicationDao.findInProgressLoanApplication(merchantId);
         }
         return lendingApplication;
+    }
+
+    public LendingApplicationDetails getLendingApplicationDetailsByApplicationId(Long applicationId){
+        if (ObjectUtils.isEmpty(applicationId)) {
+            return null;
+        }
+        return lendingApplicationDetailsDao.findByApplicationId(applicationId);
     }
 }
