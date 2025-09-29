@@ -20,7 +20,7 @@ public class DateUtils {
     private static SimpleDateFormat DD_MMM_YY = new SimpleDateFormat("dd MMM yy");
     private static SimpleDateFormat HH_mm_a = new SimpleDateFormat("HH:mm a");
     private static final SimpleDateFormat YYYY_MM_DD_HH_mm_ss_S = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S");
-
+    private static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
 
     /*
@@ -110,6 +110,16 @@ public class DateUtils {
             catch(ParseException e){
                 log.info("Failed to parse dob: {}, with format : {}", dob, dateFormat);
             }
+        }
+        return null;
+    }
+
+    public static Date parseDate(String stringDate) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
+            return sdf.parse(stringDate);
+        } catch (Exception e) {
+            log.info("Exception occurred while parsing date for string : {}", stringDate);
         }
         return null;
     }

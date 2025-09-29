@@ -51,6 +51,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
 import com.bharatpe.lending.loanV3.revamp.enums.PreApprovedLoanEnums;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
 import com.bharatpe.lending.service.MileStoneHelperService;
@@ -1145,11 +1146,11 @@ public class LoanDashboardService {
     }
 
     private void handleDiwaliBanner(BasicDetailsDto merchant, LoanDashboardResponse loanDashboardResponse) {
-        Date diwaliBannerOneRolloutDateParsed = loanUtil.parseDate(diwaliBannerOneRolloutDate);
-        Date diwaliBannerOneEndDateParsed = loanUtil.parseDate(diwaliBannerOneEndDate);
+        Date diwaliBannerOneRolloutDateParsed = DateUtils.parseDate(diwaliBannerOneRolloutDate);
+        Date diwaliBannerOneEndDateParsed = DateUtils.parseDate(diwaliBannerOneEndDate);
 
-        Date diwaliBannerTwoRolloutDateParsed = loanUtil.parseDate(diwaliBannerTwoRolloutDate);
-        Date diwaliBannerTwoEndDateParsed = loanUtil.parseDate(diwaliBannerTwoEndDate);
+        Date diwaliBannerTwoRolloutDateParsed = DateUtils.parseDate(diwaliBannerTwoRolloutDate);
+        Date diwaliBannerTwoEndDateParsed = DateUtils.parseDate(diwaliBannerTwoEndDate);
 
         if (!ObjectUtils.isEmpty(diwaliBannerOneRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerOneEndDateParsed)) {
             if (new Date().after(diwaliBannerOneRolloutDateParsed) && new Date().before(diwaliBannerOneEndDateParsed)) {

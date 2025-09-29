@@ -3876,15 +3876,5 @@ public class LoanUtil {
 		return null;
 	}
 
-	public Date parseDate(String stringDate) {
-		try {
-			SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
-			return sdf.parse(stringDate);
-		} catch (Exception e) {
-			logger.info("Exception occurred while parsing date for string : {}", stringDate);
-		}
-		return null;
-	}
-
 }
 

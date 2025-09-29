@@ -21,7 +21,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.entity.AutopayUPIConfig;
 import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
-import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -44,7 +44,6 @@ public class MandateRegistrationHelper {
     private final AutopayUpiConfigDao autopayUpiConfigDao;
     private final LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
     private final LoanDpdDao loanDpdDao;
-    private final LoanUtil loanUtil;
 
 //    @Value("${active.loan.autopay.eligible.merchant.ids:}")
 //    private List<Long> upiAutoPayEligibleMerchantIds;
@@ -58,8 +57,7 @@ public class MandateRegistrationHelper {
     public MandateRegistrationHelper(EnachHandler enachHandler, MerchantService merchantService, LendingApplicationDao lendingApplicationDao, LendingApplicationDetailsDao lendingApplicationDetailsDao, AutoPayUPIDao autoPayUPIDao, AutoPayUPIMerchantsDao autoPayUPIMerchantsDao,
                                      AutopayUpiConfigDao autopayUpiConfigDao,
                                      LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao,
-                                     LoanDpdDao loanDpdDao,
-                                     LoanUtil loanUtil) {
+                                     LoanDpdDao loanDpdDao) {
         this.enachHandler = enachHandler;
         this.merchantService = merchantService;
         this.lendingApplicationDao = lendingApplicationDao;
@@ -69,7 +67,6 @@ public class MandateRegistrationHelper {
         this.autopayUpiConfigDao = autopayUpiConfigDao;
         this.lendingRiskVariablesSnapshotDao = lendingRiskVariablesSnapshotDao;
         this.loanDpdDao = loanDpdDao;
-        this.loanUtil = loanUtil;
     }
 
     public boolean isMerchantNachableForMode(long merchantId, String nachMode) {
@@ -130,7 +127,7 @@ public class MandateRegistrationHelper {
             dpd = loanDpdOptional.get().getDpd();
         }
 
-        Date cutoffDate = loanUtil.parseDate(autopayUpiCutoffDate);
+        Date cutoffDate = DateUtils.parseDate(autopayUpiCutoffDate);
         Date tentativeClosing = lps.getTentativeClosingDate();
 
         if (cutoffDate == null || tentativeClosing == null) {
