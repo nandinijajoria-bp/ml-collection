@@ -12,6 +12,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDate;
+import java.util.Date;
+
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -22,6 +25,7 @@ public class LoanDashboardResponse {
     private boolean activeLoan = false;
     private Boolean activeEMILoan;
     private String ineligible;
+    private LocalDate derogMerchantReapplyDate;
 
     private boolean changeBankAccount;
     private Eligibility eligibility;

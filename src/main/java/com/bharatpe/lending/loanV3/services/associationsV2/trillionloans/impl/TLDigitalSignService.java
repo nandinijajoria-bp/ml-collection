@@ -24,7 +24,6 @@ import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.html2pdf.HtmlConverter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

@@ -70,6 +70,7 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -259,6 +260,9 @@ public class LoanDashboardService {
 
     @Autowired
     private LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    private MerchantMetadataDao merchantMetadataDao;
 
     @Autowired
     private MandateRegistrationHelper mandateHelper;
@@ -1070,6 +1074,10 @@ public class LoanDashboardService {
         }
 
         String ineligibleReason = getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse);
+        if(IneligibleType.DEROG.name().equals(ineligibleReason)){
+            LocalDate reapplyTime = getReapplyTime(merchant.getId());
+            loanDashboardResponse.setDerogMerchantReapplyDate(reapplyTime);
+        }
         loanDashboardResponse.setIneligible(ineligibleReason);
         loanDashboardResponse.setChangeBankAccount(IneligibleType.CHANGE_BANK_ACCOUNT.name().equalsIgnoreCase(ineligibleReason));
         if(Objects.nonNull(loanDashboardResponse.getIneligible()) &&
@@ -1280,7 +1288,7 @@ public class LoanDashboardService {
                 return IneligibleType.OGL.name();
             }
             if (isDerog.booleanValue()) {
-                log.info("Derog merchant:{}", merchantId);
+                log.info("Derog merchant: {}", merchantId);
                 return IneligibleType.DEROG.name();
             }
 
@@ -1295,6 +1303,48 @@ public class LoanDashboardService {
         log.info("Ineligible merchant:{}", merchantId);
         return RejectionReason.LOW_TRANSACTION.getReason();
     }
+
+    public LocalDate getReapplyTime(Long merchantId) {
+        MerchantMetadata merchantMetadata = merchantMetadataDao.findByMerchantId(merchantId);
+
+        // Case 1: First time derog → set initial reapply date = now + 90 days
+        if (ObjectUtils.isEmpty(merchantMetadata)|| ObjectUtils.isEmpty(merchantMetadata.getReapplyTime())) {
+            LocalDate reapplyDate = LocalDate.now().plusDays(90);
+            merchantMetadata = new MerchantMetadata();
+            merchantMetadata.setMerchantId(merchantId);
+            merchantMetadata.setReapplyTime(reapplyDate);
+            merchantMetadataDao.save(merchantMetadata);
+            log.info("Initial reapply date (90 days later) set for merchant {}: {}", merchantId, reapplyDate);
+            return reapplyDate;
+        }
+
+        LocalDate existingDate = merchantMetadata.getReapplyTime();
+        LocalDate today = LocalDate.now();
+
+        // Case 2a: One day before expiry → extend by 90 days from expiry date
+        if (today.isEqual(existingDate.minusDays(1))) {
+            LocalDate newDate = existingDate.plusDays(90);
+            merchantMetadata.setReapplyTime(newDate);
+            merchantMetadataDao.save(merchantMetadata);
+            log.info("Reapply date extended for merchant {} (expiry -1 day): {} -> {}",
+                    merchantId, existingDate, newDate);
+            return newDate;
+        }
+
+        // Case 2b: Already past expiry → extend by 90 days from today
+        if (today.isAfter(existingDate)) {
+            LocalDate newDate = today.plusDays(90);
+            merchantMetadata.setReapplyTime(newDate);
+            merchantMetadataDao.save(merchantMetadata);
+            log.info("Reapply date expired. New date set for merchant {}: {}", merchantId, newDate);
+            return newDate;
+        }
+
+        // Case 3: Otherwise → return existing
+        log.info("Existing reapply date for merchant {}: {}", merchantId, existingDate);
+        return existingDate;
+    }
+
 
     public LendingEligibleLoan recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
         if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
