@@ -250,52 +250,72 @@ public class ArcSoldLoanService {
          * Check if the lender is in the newPdfGenerationMethodLenders list
          */
         if (newPdfGenerationMethodLenders.contains(lendingPaymentSchedule.getNbfc())) {
+            log.info("Using new PDF generation method for ARC Communication Letter - lpsId: {}, lender: {}", 
+                    lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
+            
             String headerImageUrl = null;
             String footerImageUrl = null;
             boolean footerOnAllPages = false;
 
             if (Lender.HINDON.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                log.info("Processing HINDON lender for ARC Communication Letter - lpsId: {}", lendingPaymentSchedule.getId());
                 if (!lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                         ApplicationDocType.HINDON_LETTERHEAD_HEADER).isEmpty()) {
                     headerImageUrl = lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                             ApplicationDocType.HINDON_LETTERHEAD_HEADER);
+                    log.info("Header image URL set for HINDON ARC Communication Letter - lpsId: {}", lendingPaymentSchedule.getId());
                 }
                 if (!lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                         ApplicationDocType.HINDON_LETTERHEAD_FOOTER).isEmpty()) {
                     footerImageUrl = lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                             ApplicationDocType.HINDON_LETTERHEAD_FOOTER);
                     footerOnAllPages = true;
+                    log.info("Footer image URL set for HINDON ARC Communication Letter - lpsId: {}", lendingPaymentSchedule.getId());
                 }
             } else {
+                log.info("Processing non-HINDON lender for ARC Communication Letter - lpsId: {}, lender: {}", 
+                        lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
                 if (!lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                         ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                     headerImageUrl = lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                             ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC);
+                    log.info("Header image URL set for ARC Communication Letter - lpsId: {}, lender: {}", 
+                            lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
                 }
             }
 
-            log.info("ARC Communication Letter Doc getting generated for lpsId: {}", lendingPaymentSchedule.getId());
+            log.info("Starting PDF generation for ARC Communication Letter using PdfGeneratorUtilV2 - lpsId: {}, headerImageUrl: {}, footerImageUrl: {}", 
+                    lendingPaymentSchedule.getId(), headerImageUrl != null ? "present" : "null", footerImageUrl != null ? "present" : "null");
 
             PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
                     .html(html);
 
             if (headerImageUrl != null) {
                 requestBuilder.headerImageUrl(headerImageUrl);
+                log.debug("Added header image to PDF generation request - lpsId: {}", lendingPaymentSchedule.getId());
             }
             if (footerImageUrl != null) {
                 requestBuilder.footerImageUrl(footerImageUrl);
                 requestBuilder.footerOnAllPages(footerOnAllPages);
+                log.debug("Added footer image to PDF generation request - lpsId: {}, footerOnAllPages: {}", 
+                        lendingPaymentSchedule.getId(), footerOnAllPages);
             }
 
             PdfGenerationRequest request = requestBuilder.build();
+            log.info("Calling PdfGeneratorUtilV2.generatePdf for ARC Communication Letter - lpsId: {}", lendingPaymentSchedule.getId());
             PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
 
             if (response.getSuccess()) {
                 byte[] pdfByteArray = response.getPdfAsBytes();
+                log.info("PDF generation successful for ARC Communication Letter - lpsId: {}, pdfSize: {} bytes", 
+                        lendingPaymentSchedule.getId(), pdfByteArray.length);
                 ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
                 s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, bucket);
+                log.info("Successfully uploaded ARC Communication Letter to S3 - lpsId: {}, fileName: {}", 
+                        lendingPaymentSchedule.getId(), fileName);
             } else {
-                log.error("Failed to generate PDF for lpsId: {}", lendingPaymentSchedule.getId());
+                log.error("PDF generation failed for ARC Communication Letter - lpsId: {}, response: {}", 
+                        lendingPaymentSchedule.getId(), response);
                 throw new Exception("Unable to generate ARC Communication Letter pdf doc for lpsId: " + lendingPaymentSchedule.getId());
             }
         }
@@ -303,10 +323,15 @@ public class ArcSoldLoanService {
 
         else {
             // Old iText flow for non-configured lenders
+            log.info("Using legacy iText PDF generation method for ARC Communication Letter - lpsId: {}, lender: {}", 
+                    lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
+            
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
+            
             if (Lender.HINDON.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                log.info("Processing HINDON lender with legacy iText method - lpsId: {}", lendingPaymentSchedule.getId());
                 ImageData headerImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                   ApplicationDocType.HINDON_LETTERHEAD_HEADER));
                 ImageData footerImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
@@ -315,17 +340,26 @@ public class ArcSoldLoanService {
                 pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
                 Footer footerHandler = new Footer(footerImageData);
                 pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
+                log.info("Added header and footer handlers for HINDON ARC Communication Letter - lpsId: {}", lendingPaymentSchedule.getId());
             } else {
+                log.info("Processing non-HINDON lender with legacy iText method - lpsId: {}, lender: {}", 
+                        lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
                 ImageData logoImageData = ImageDataFactory.create(lendingApplicationServiceV2.getLenderLogo(lendingPaymentSchedule.getNbfc(),
                   ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                 Header headerHandler = new Header(logoImageData);
                 pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+                log.info("Added header handler for ARC Communication Letter - lpsId: {}", lendingPaymentSchedule.getId());
             }
 
+            log.info("Converting HTML to PDF using legacy iText HtmlConverter - lpsId: {}", lendingPaymentSchedule.getId());
             InputStream htmlStringInputStream = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
             HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
             ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            log.info("Successfully generated PDF using legacy iText method - lpsId: {}, pdfSize: {} bytes", 
+                    lendingPaymentSchedule.getId(), outStream.size());
             s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, bucket);
+            log.info("Successfully uploaded ARC Communication Letter to S3 using legacy method - lpsId: {}, fileName: {}", 
+                    lendingPaymentSchedule.getId(), fileName);
         }
 
         String shortUrl = fetchArcCommunicationFromS3andPresignedUrl(fileName);

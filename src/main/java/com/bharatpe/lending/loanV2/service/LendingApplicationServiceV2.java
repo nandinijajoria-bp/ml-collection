@@ -3107,28 +3107,39 @@ public class LendingApplicationServiceV2 {
                 }
             }
 
-            log.info("Sanction Loan Agreement Doc getting generated for applicationId:" + lendingApplication.getId());
+            log.info("Starting PDF generation for Sanction Loan Agreement using PdfGeneratorUtilV2 - applicationId: {}, lender: {}, headerImageUrl: {}, footerImageUrl: {}", 
+                    lendingApplication.getId(), lendingApplication.getLender(), 
+                    headerImageUrl != null ? "present" : "null", footerImageUrl != null ? "present" : "null");
 
             PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
                     .html(sanctionCumLoanAgreementHtml);
 
             if (headerImageUrl != null) {
                 requestBuilder.headerImageUrl(headerImageUrl);
+                log.debug("Added header image to PDF generation request - applicationId: {}", lendingApplication.getId());
             }
             if (footerImageUrl != null) {
                 requestBuilder.footerImageUrl(footerImageUrl);
                 requestBuilder.footerOnAllPages(footerOnAllPages);
+                log.debug("Added footer image to PDF generation request - applicationId: {}, footerOnAllPages: {}", 
+                        lendingApplication.getId(), footerOnAllPages);
             }
 
             PdfGenerationRequest request = requestBuilder.build();
+            log.info("Calling PdfGeneratorUtilV2.generatePdf for Sanction Loan Agreement - applicationId: {}", lendingApplication.getId());
             PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
 
             if (response.getSuccess()) {
                 byte[] pdfByteArray = response.getPdfAsBytes();
+                log.info("PDF generation successful for Sanction Loan Agreement - applicationId: {}, pdfSize: {} bytes", 
+                        lendingApplication.getId(), pdfByteArray.length);
                 ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
                 s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                log.info("Successfully uploaded Sanction Loan Agreement to S3 - applicationId: {}, fileName: {}", 
+                        lendingApplication.getId(), fileName);
             } else {
-                log.error("Failed to generate PDF for applicationId: {}", lendingApplication.getId());
+                log.error("PDF generation failed for Sanction Loan Agreement - applicationId: {}, response: {}", 
+                        lendingApplication.getId(), response);
                 throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + lendingApplication.getId());
             }
         }
@@ -3526,25 +3537,36 @@ public class LendingApplicationServiceV2 {
                     }
                 }
 
+                log.info("Starting PDF generation for KFS document using PdfGeneratorUtilV2 - applicationId: {}, lender: {}, headerImageUrl: {}, footerImageUrl: {}", 
+                        lendingApplication.getId(), lendingApplication.getLender(), 
+                        headerImageUrl != null ? "present" : "null", footerImageUrl != null ? "present" : "null");
+
                 PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
                         .html(docHtml);
 
                 if (headerImageUrl != null) {
                     requestBuilder.headerImageUrl(headerImageUrl);
+                    log.debug("Added header image to KFS PDF generation request - applicationId: {}", lendingApplication.getId());
                 }
                 if (footerImageUrl != null) {
                     requestBuilder.footerImageUrl(footerImageUrl);
                     requestBuilder.footerOnAllPages(footerOnAllPages);
+                    log.debug("Added footer image to KFS PDF generation request - applicationId: {}, footerOnAllPages: {}", 
+                            lendingApplication.getId(), footerOnAllPages);
                 }
 
                 PdfGenerationRequest request = requestBuilder.build();
+                log.info("Calling PdfGeneratorUtilV2.generatePdf for KFS document - applicationId: {}", lendingApplication.getId());
                 PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
 
                 if (response.getSuccess()) {
                     byte[] pdfByteArray = response.getPdfAsBytes();
+                    log.info("PDF generation successful for KFS document - applicationId: {}, pdfSize: {} bytes", 
+                            lendingApplication.getId(), pdfByteArray.length);
                     inStream = new ByteArrayInputStream(pdfByteArray);
                 } else {
-                    log.error("Failed to generate PDF using new method for applicationId: {}", lendingApplication.getId());
+                    log.error("PDF generation failed for KFS document - applicationId: {}, response: {}", 
+                            lendingApplication.getId(), response);
                     throw new Exception("Unable to generate PDF doc for applicationID" + lendingApplication.getId());
                 }
             } else {
@@ -5569,19 +5591,24 @@ public class LendingApplicationServiceV2 {
              * New Library is being used to generate PDF for selected lenders
              */
             if (newPdfGenerationMethodLenders.contains(lendingApplication.getLender())) {
-                log.info("Using new PDF generation method for Signed Details for applicationId: {} and lender: {}", lendingApplication.getId(), lendingApplication.getLender());
+                log.info("Starting PDF generation for Signed Details using PdfGeneratorUtilV2 - applicationId: {}, lender: {}", 
+                        lendingApplication.getId(), lendingApplication.getLender());
                 
                 PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
                         .html(html);
 
                 PdfGenerationRequest request = requestBuilder.build();
+                log.info("Calling PdfGeneratorUtilV2.generatePdf for Signed Details - applicationId: {}", lendingApplication.getId());
                 PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
 
                 if (response.getSuccess()) {
                     byte[] pdfByteArray = response.getPdfAsBytes();
+                    log.info("PDF generation successful for Signed Details - applicationId: {}, pdfSize: {} bytes", 
+                            lendingApplication.getId(), pdfByteArray.length);
                     inStream = new ByteArrayInputStream(pdfByteArray);
                 } else {
-                    log.error("Failed to generate PDF using new method for Signed Details for applicationId: {}", lendingApplication.getId());
+                    log.error("PDF generation failed for Signed Details - applicationId: {}, response: {}", 
+                            lendingApplication.getId(), response);
                     throw new Exception("Unable to generate Signed Details PDF for applicationID" + lendingApplication.getId());
                 }
             } else {
