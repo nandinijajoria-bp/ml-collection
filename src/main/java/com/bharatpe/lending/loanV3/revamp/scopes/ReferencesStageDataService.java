@@ -22,6 +22,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
 
 @Component
 @Slf4j
@@ -96,7 +97,8 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
 
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-                nextLendingViewState = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication);
+                nextLendingViewState = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication,
+                        Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isIOS());
             }
 
         } catch (Exception e) {

@@ -31,4 +31,5 @@ public class EnachStateDTO {
     private Long merchantId;
     private boolean isPaymentBank;
     private boolean hasLinkedPaymentBank;
+    private boolean isNativeMandateRequired;
 }

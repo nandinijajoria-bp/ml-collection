@@ -51,6 +51,7 @@ public class AutoPayUPIController {
             @RequestAttribute BasicDetailsDto merchant,
             @RequestParam (required = true) String orderId
     ) {
+        log.info("received request for status check for orderId: {}", orderId);
         return autoPayUPIService.checkStatus(merchant, orderId);
     }
 

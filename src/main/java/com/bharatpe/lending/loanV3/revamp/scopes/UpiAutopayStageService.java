@@ -312,7 +312,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
                 upiAutopayStateDTO.setUpiAutopayMandateEligible(true);
                 upiAutopayStateDTO.setEnachEligible(false);
             }else {
-                loanUtil.updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
+                loanUtil.updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount(), scopeDataArgs.getLoanDetailsV3Request().isIOS());
                 upiAutopayStateDTO.setUpiAutopayMandateEligible(lendingApplicationDetails.isAutoPayUpiEligible());
                 upiAutopayStateDTO.setEnachEligible(lendingApplicationDetails.isNachEligible());
             }

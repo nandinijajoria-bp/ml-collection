@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.enums.MandateType;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dto.MandateUPIStatusResponse;
 import com.bharatpe.lending.enums.LoanType;
@@ -202,74 +203,77 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
             }
 
             if(lendingApplicationDetails.getMandateFlagsToggledOn() != null || loanUtil.isMandateSwitchEnabled(lendingApplication)) {
-                loanUtil.updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
+                loanUtil.updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount(), scopeDataArgs.getLoanDetailsV3Request().isIOS());
                 kfsStageResponseV3.setUpiAutopayMandateEligible(lendingApplicationDetails.isAutoPayUpiEligible());
                 kfsStageResponseV3.setEnachEligible(lendingApplicationDetails.isNachEligible());
             }
             log.info("Kfs stage response for application id {} is {}", lendingApplication.getId(), kfsStageResponseV3);
-            if (enableAutopayUPIRegistration
+            boolean isEligibleForAutoPayUPI = enableAutopayUPIRegistration
                     && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
                     && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)
-                    && !loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent);
+            boolean isEligibleForUpiNach = MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType());
 
-                log.info("setting autopay for application id {}", lendingApplication.getId());
-                kfsStageResponseV3.setUpiAutoPayEligible(true);
-                kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(false);
+            if (isEligibleForAutoPayUPI && isEligibleForUpiNach && !scopeDataArgs.getLoanDetailsV3Request().isIOS()) {
+                kfsStageResponseV3.setUpiAutoPayEligible(false);
+            } else if (isEligibleForAutoPayUPI) {
+                boolean isDedicatedScreenEligible = loanUtil.isUpiDedicatedScreenEligible(lendingApplication);
+                if (!isDedicatedScreenEligible) {
+                    log.info("setting autopay for application id {}", lendingApplication.getId());
+                    kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(false);
 
-                AutoPayUPI autoPayUPIExistingEntityMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),"ACTIVE");
-                boolean autoPayEligible= nonRegularMandateRegistrationChecks(lendingApplication,autoPayUPIExistingEntityMerchantId);
-                kfsStageResponseV3.setUpiAutoPayEligible(autoPayEligible);
+                    AutoPayUPI autoPayUPIExistingEntityMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(
+                            lendingApplication.getMerchantId(), "ACTIVE");
+                    boolean autoPayEligible = nonRegularMandateRegistrationChecks(lendingApplication, autoPayUPIExistingEntityMerchantId);
+                    kfsStageResponseV3.setUpiAutoPayEligible(autoPayEligible);
 
-                if(Arrays.asList("REGULAR", "TOPUP").contains( lendingApplication.getLoanType()) && !autoPayEligible && autoPayUPIExistingEntityMerchantId != null){
-                    autoPayUPIExistingEntityMerchantId.setApplicationId(lendingApplication.getId());
-                    autoPayUPIDao.save(autoPayUPIExistingEntityMerchantId);
-                }
-                if("REGULAR".equalsIgnoreCase( lendingApplication.getLoanType()) && autoPayUPIExistingEntityMerchantId != null && autoPayEligible){
-                    // revoke previous mandate
-                    autoPayUPIService.revokeMandate(lendingApplication,autoPayUPIExistingEntityMerchantId);
-                }
-                log.info("autopay flag status {}",kfsStageResponseV3.getUpiAutoPayEligible());
+                    String loanType = lendingApplication.getLoanType();
+                    boolean isRegularOrTopup = "REGULAR".equalsIgnoreCase(loanType) || "TOPUP".equalsIgnoreCase(loanType);
 
-                AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
-                log.info("autopay upi found for application id {} is {}",lendingApplication.getId(),autoPayUPIExistingEntity);
-                log.info("autopay flag status {}",kfsStageResponseV3.getUpiAutoPayEligible());
-                if (Objects.nonNull(autoPayUPIExistingEntity)) {
-                    if (autoPayUPIExistingEntity.getStatus().equals(AutoPayStatusEnum.PENDING))
-                    {
-                        final MandateUPIStatusResponse mandateUPIStatusResponse = autoPayUPIService.checkStatus(scopeDataArgs.getMerchant(), autoPayUPIExistingEntity.getOrderId());
-                        kfsStageResponseV3.setUpiAutoPayMandateStatus(mandateUPIStatusResponse.data.getStatus().name());
-                    }else if(AutoPayStatusEnum.FAILED.equals(autoPayUPIExistingEntity.getStatus()) && "API_ERROR".equalsIgnoreCase(autoPayUPIExistingEntity.getErrorCode())){
-                        kfsStageResponseV3.setUpiAutoPayMandateStatus(autoPayUPIExistingEntity.getStatus().name());
-                        kfsStageResponseV3.setUpiAutoPayEligible(false);
-                    } else {
-                        kfsStageResponseV3.setUpiAutoPayMandateStatus(autoPayUPIExistingEntity.getStatus().name());
+                    if (isRegularOrTopup && !autoPayEligible && autoPayUPIExistingEntityMerchantId != null) {
+                        autoPayUPIExistingEntityMerchantId.setApplicationId(lendingApplication.getId());
+                        autoPayUPIDao.save(autoPayUPIExistingEntityMerchantId);
                     }
-                }
-                log.info("autopay flag status {}",kfsStageResponseV3.getUpiAutoPayEligible());
+                    if ("REGULAR".equalsIgnoreCase(loanType) && autoPayUPIExistingEntityMerchantId != null && autoPayEligible) {
+                        autoPayUPIService.revokeMandate(lendingApplication, autoPayUPIExistingEntityMerchantId);
+                    }
 
-                if (Objects.nonNull(lendingApplication.getAgreementAt()))
-                    kfsStageResponseV3.setAgreementDone(true);
-                else kfsStageResponseV3.setAgreementDone(false);
-
-            } else if (enableAutopayUPIRegistration
-                    && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
-                    && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)
-                    && loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
-                log.info("setting dedicated upi autopay for application id {} true", lendingApplication.getId());
-                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-                    log.info("Loan type is TOPUP, fetching existing autopay upi for application id {}", lendingApplication.getId());
                     AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
                     log.info("autopay upi found for application id {} is {}", lendingApplication.getId(), autoPayUPIExistingEntity);
-                    if(!ObjectUtils.isEmpty(autoPayUPIExistingEntity)) {
-                        log.info("autopay upi found for application id {} is {}", lendingApplication.getId(), autoPayUPIExistingEntity);
-                        kfsStageResponseV3.setUpiAutoPayMandateStatus(autoPayUPIExistingEntity.getStatus().name());
+
+                    if (autoPayUPIExistingEntity != null) {
+                        AutoPayStatusEnum status = autoPayUPIExistingEntity.getStatus();
+                        if (AutoPayStatusEnum.PENDING.equals(status)) {
+                            MandateUPIStatusResponse mandateUPIStatusResponse = autoPayUPIService.checkStatus(
+                                    scopeDataArgs.getMerchant(), autoPayUPIExistingEntity.getOrderId());
+                            kfsStageResponseV3.setUpiAutoPayMandateStatus(mandateUPIStatusResponse.data.getStatus().name());
+                        } else {
+                            kfsStageResponseV3.setUpiAutoPayMandateStatus(status.name());
+                            if (AutoPayStatusEnum.FAILED.equals(status)
+                                    && "API_ERROR".equalsIgnoreCase(autoPayUPIExistingEntity.getErrorCode())) {
+                                kfsStageResponseV3.setUpiAutoPayEligible(false);
+                            }
+                        }
                     }
+
+                    kfsStageResponseV3.setAgreementDone(Objects.nonNull(lendingApplication.getAgreementAt()));
+
+                } else {
+                    log.info("setting dedicated upi autopay for application id {} true", lendingApplication.getId());
+                    if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                        AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+                        log.info("autopay upi found for application id {} is {}", lendingApplication.getId(), autoPayUPIExistingEntity);
+                        if (autoPayUPIExistingEntity != null) {
+                            kfsStageResponseV3.setUpiAutoPayMandateStatus(autoPayUPIExistingEntity.getStatus().name());
+                        }
+                    }
+                    kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(true);
+                    kfsStageResponseV3.setUpiAutoPayEligible(false);
                 }
-                kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(true);
+
+            } else {
                 kfsStageResponseV3.setUpiAutoPayEligible(false);
-            } else kfsStageResponseV3.setUpiAutoPayEligible(false);
+            }
 
             scopeDataArgs.setApplicationId(lendingApplication.getId());
             kfsStageResponseV3.setLender(lendingApplication.getLender());

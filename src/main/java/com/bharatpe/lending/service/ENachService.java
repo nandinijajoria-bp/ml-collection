@@ -35,6 +35,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -163,6 +164,12 @@ public class ENachService {
     @Lazy
     VKycService vkycService;
 
+    @Autowired
+    private MandateRegistrationHelper mandateHelper;
+
+    @Autowired
+    private AutoPayUPIService autoPayUPIService;
+
 
     private final List<String> preFinalNachStatus = Arrays.asList(NachStatus.INPROCESS.name(), NachStatus.PENDING.name(),NachStatus.PENDING_VERIFICATION.name());
     private final List<String> nachCancellationInProgressStatus = Arrays.asList(NachStatus.CANCEL_INIT.name(), NachStatus.CANCEL_PENDING.name());
@@ -178,7 +185,6 @@ public class ENachService {
             logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
             return responseDTO;
         }
-
         if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true)) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Nach can be skipped");
@@ -297,6 +303,10 @@ public class ENachService {
                     logger.info("lendingAuditTrial -> {}", lendingAuditTrial);
                     lendingAuditTrialDao.save(lendingAuditTrial);
                 }
+            }
+
+            if(mandateHelper.isDigioUpiCase(lendingApplicationDetails)){
+                autoPayUPIService.submitDigioUpi(lendingApplication,eNachIntitiationResponseDTO.getData());
             }
 
             if("RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage())){

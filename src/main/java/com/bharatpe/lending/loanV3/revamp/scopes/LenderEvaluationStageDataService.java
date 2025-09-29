@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 @Component
 @Slf4j
@@ -129,13 +130,15 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     } else if (LenderAssociationStatus.RE_KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                        LendingViewStates nextLendingViewStateForTopup = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication);
+                        LendingViewStates nextLendingViewStateForTopup = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication,
+                                Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isIOS());
                         log.info("Next lending view state for topup application {} is {}", lendingApplication.getId(), nextLendingViewStateForTopup);
 
                         nextPage = referencePageDisabledForTopup ?  nextLendingViewStateForTopup : LendingViewStates.REFERENCE_PAGE;
                         if(nextPage.equals(LendingViewStates.REFERENCE_PAGE) && loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
                             log.info("Skipping reference page as reference not required for topup application {}", lendingApplication.getId());
-                            nextPage = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication);
+                            nextPage = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication,
+                                    Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isIOS());
                         }
                     }
                 }
