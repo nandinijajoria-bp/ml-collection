@@ -79,6 +79,7 @@ import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.util.pdf.HTMLEdittor.HTMLEditor;
+import com.bharatpe.util.pdf.PdfCompressorUtil;
 import com.bharatpe.util.pdf.dto.PdfGenerationRequest;
 import com.bharatpe.util.pdf.dto.PdfGenerationResponse;
 import com.bharatpe.util.pdf.PdfGeneratorUtilV2;
@@ -3449,6 +3450,11 @@ public class LendingApplicationServiceV2 {
 
                 if (response.getSuccess()) {
                     byte[] pdfByteArray = response.getPdfAsBytes();
+                    try{
+                      pdfByteArray = PdfCompressorUtil.compressPdf(pdfByteArray,0.7f);
+                    }catch (Exception e){
+                      log.error("Error while compressing KFS pdf for applicationId: {}, proceeding with uncompressed pdf. Exception: {}", lendingApplication.getId(), e.getMessage());
+                    }
                     ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
                     s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
                 } else {
