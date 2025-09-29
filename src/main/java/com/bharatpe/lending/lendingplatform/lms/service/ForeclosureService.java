@@ -177,7 +177,7 @@ public class ForeclosureService {
                 Double minAmount = foreClosureConfig.getMinAmount();
                 if(minAmount == null) minAmount = 0.0;
                 logger.info("loan is {} and min amount is {} and foreclosure config rate  is {}  ",activeLoan,minAmount, foreClosureConfig.getRate());
-                foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(((loanDetailsResponse.getLoanSummary().getLoanAmount() - safeBigDecimalToInt(loanDetailsResponse.getLoanSummary().getPendingPrincipal()) - safeBigDecimalToInt(loanDetailsResponse.getLoanSummary().getOverduePrincipal()) * foreClosureConfig.getRate()) / 100.0)), minAmount));
+                foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil((((loanDetailsResponse.getLoanSummary().getLoanAmount() - safeBigDecimalToInt(loanDetailsResponse.getLoanSummary().getPendingPrincipal()) - safeBigDecimalToInt(loanDetailsResponse.getLoanSummary().getOverduePrincipal())) * foreClosureConfig.getRate()) / 100.0)), minAmount));
                 foreClosureDetailDTO.setGst(Math.ceil((foreClosureDetailDTO.getForeclosureCharges() * foreClosureConfig.getGst())/100.0));
                 logger.info("going to return fore closure charges {} ",foreClosureDetailDTO);
                 return foreClosureDetailDTO;
