@@ -1,8 +1,10 @@
 package com.bharatpe.lending.ai.controller;
 
 import com.bharatpe.lending.ai.dto.LoanDetailResponse;
+import com.bharatpe.lending.ai.services.IAutoPayApiService;
 import com.bharatpe.lending.ai.services.ILonaApplicationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.entity.AutoPayUpi;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Optional;
+
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -20,13 +24,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class LoanDetailsAiController {
 
     private final ILonaApplicationService  lonaApplicationService;
+    private  final IAutoPayApiService autoPayApiService;
 
     @GetMapping(value = "/latest",produces = "application/json")
-    public ResponseEntity<ApiResponse<LoanDetailResponse>> getApplicationDetail(
+    public ResponseEntity<ApiResponse<Object>> getApplicationDetail(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
-            @RequestParam(required = false) Long merchantId) {
+            @RequestParam(required = false) Long merchantId,
+            @RequestParam(required = false) String intent) {
         if(merchant!=null){
             merchantId=merchant.getId();
+        }
+        log.info("request received with intent: {}", intent);
+        if("upi_autopay".equalsIgnoreCase(intent)){
+            log.info("Request received for autopay details for merchantId: {}", merchantId);
+            Optional<AutoPayUpi> autoPayDetails = autoPayApiService.getAutoPayDetails(merchantId);
+            return autoPayDetails.<ResponseEntity<ApiResponse<Object>>>map(autoPayUpi -> ResponseEntity.ok(new ApiResponse<>(autoPayUpi))).orElseGet(() -> ResponseEntity.ok(new ApiResponse<>(true, "no autopay details found")));
         }
         log.info("Request received to get loan application details for merchantId: {}", merchantId);
         LoanDetailResponse loanDetailResponse = lonaApplicationService.getLoanApplicationDetails(merchantId);
