@@ -28,6 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.text.ParseException;
@@ -670,18 +671,41 @@ public class AutoPayUPIService {
     }
 
     public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto, Long merchantId) {
-        if (autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
-                getAllowedLenderForUPIAutoPay(autoPayUPIMandatePluginLenders).contains(requestDto.getPayload().getLender()) &&
-                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionMerchantPlugin)) {
-            return UNITY.name();
-        }
-
-        if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
-                getAllowedLenderForUPIAutoPay(allowedLendersForDirectCashfree).contains(requestDto.getPayload().getLender()) &&
-                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree) && easyLoanUtil.percentScaleUp(merchantId, autoPayUPIMandateDirectCashfreePercentRollout)) {
-            return DR_CASHFREE.name();
-        }
-
-        return JS_CASHFREE.name();
+        return null;
     }
+
+    public AutoPayRequiredDto isUPIAutoPayRequired(BasicDetailsDto merchant) {
+        AutoPayRequiredDto autoPayRequired = new AutoPayRequiredDto();
+        if(merchant == null || merchant.getId() == null){
+            autoPayRequired.setMessage("Merchant id is required");
+            autoPayRequired.setUPIAutoPayRequired(false);
+            return autoPayRequired;
+        }
+
+        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Collections.singletonList("ACTIVE"));
+        if(ObjectUtils.isEmpty(lendingPaymentSchedule) || lendingPaymentSchedule.getApplicationId() == null){
+            log.info("No active loan found for merchant id {}", merchant.getId());
+            autoPayRequired.setMessage("No active loan found");
+            autoPayRequired.setUPIAutoPayRequired(false);
+            return autoPayRequired;
+        }
+        if(!loanUtil.isApplicationEligibleForAutoPayUpi(lendingPaymentSchedule.getNbfc())){
+            return new AutoPayRequiredDto("Lender not eligible for UPI AutoPay", false);
+        }
+        log.info("Found active loan for merchant id {} and application id {} with lender {}", merchant.getId(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatusAndLender(lendingPaymentSchedule.getApplicationId(), AutoPayStatusEnum.ACTIVE.name(), lendingPaymentSchedule.getNbfc());
+        if(ObjectUtils.isEmpty(autoPayUPI)){
+            log.info("No active UPI AutoPay mandate found for merchant id {} and application id {}", merchant.getId(), lendingPaymentSchedule.getApplicationId());
+            autoPayRequired.setMessage("No active UPI AutoPay mandate found");
+            autoPayRequired.setUPIAutoPayRequired(true);
+            return autoPayRequired;
+        }else{
+            log.info("Found active UPI AutoPay mandate for merchant id {} and application id {}", merchant.getId(), lendingPaymentSchedule.getApplicationId());
+            autoPayRequired.setMessage("Active UPI AutoPay mandate found");
+            autoPayRequired.setUPIAutoPayRequired(false);
+            return autoPayRequired;
+        }
+
+    }
+
 }

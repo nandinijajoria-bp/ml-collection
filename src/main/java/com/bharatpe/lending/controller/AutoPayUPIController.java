@@ -7,7 +7,6 @@ import com.bharatpe.lending.service.AutoPayUPIService;
 import com.bharatpe.lending.service.validator.AutoPayUPIServiceValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -71,6 +70,11 @@ public class AutoPayUPIController {
             @RequestAttribute BasicDetailsDto merchant,
             @RequestBody UpdateFrequencyRequestDto dto) {
         return ResponseEntity.ok(autoPayUPIService.updateFrequencyForMandate(merchant, dto));
+    }
+
+    @GetMapping(value = "/is-upi-autopay-required")
+    public ResponseEntity<AutoPayRequiredDto> upiAutoPayRequired(@RequestAttribute BasicDetailsDto merchant){
+        return ResponseEntity.ok(autoPayUPIService.isUPIAutoPayRequired(merchant));
     }
 
 
