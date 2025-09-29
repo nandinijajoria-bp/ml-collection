@@ -39,6 +39,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
         registry.addInterceptor(validateTokenInterceptor)
 				.excludePathPatterns("/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/lending/topup_eligibility","/support/fetchBulkContacts/**","/support/showBulkContacts",
 				"/lending/push_lead_response", "/lms/v1/**",
+				"/ai/**",
 				"/lending/csPanel/**",
 				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
 				"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",

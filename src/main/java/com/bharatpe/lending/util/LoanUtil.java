@@ -3143,6 +3143,11 @@ public class LoanUtil {
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
 				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
+					if(!ObjectUtils.isEmpty(lendingApplication) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+						logger.info("lender aggregation flow not applicable for merchantId {} as loan type is {}", merchantId, lendingApplication.getLoanType());
+						return null;
+					}
 					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 					lendingAuditTrial.setApplicationId(applicationId);
 					lendingAuditTrial.setMerchantId(merchantId);
