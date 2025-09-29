@@ -72,7 +72,7 @@ public class AutoPayUPIController {
         return ResponseEntity.ok(autoPayUPIService.updateFrequencyForMandate(merchant, dto));
     }
 
-    @GetMapping(value = "/is-required")
+    @GetMapping(value = "/required")
     public ResponseEntity<AutoPayRequiredDto> upiAutoPayRequired(@RequestAttribute BasicDetailsDto merchant){
         return ResponseEntity.ok(autoPayUPIService.isUPIAutoPayRequired(merchant));
     }
