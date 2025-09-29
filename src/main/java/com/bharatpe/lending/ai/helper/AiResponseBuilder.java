@@ -8,7 +8,7 @@ import com.bharatpe.lending.dto.SupportResponseDTO;
 public class AiResponseBuilder {
 
     public static AiSupportLoanResponse getSupportResponse(SupportResponseDTO supportResponse) {
-        if (supportResponse == null || supportResponse.getData()!=null) {
+        if (supportResponse == null || supportResponse.getData() == null) {
             return new AiSupportLoanResponse(false, "No data available");
         }
         SupportLoanResponseDTO data = (SupportLoanResponseDTO) supportResponse.getData();
