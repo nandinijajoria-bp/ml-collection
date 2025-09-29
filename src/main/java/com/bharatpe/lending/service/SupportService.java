@@ -244,7 +244,7 @@ public class SupportService {
     @Autowired
     InsuranceService insuranceService;
 
-  @Value("${new.pdf.generation.method.lenders:}")
+  @Value("${new.pdf.generation.method.lenders:-}")
   String newPdfGenerationMethodLenders;
 
   @Autowired

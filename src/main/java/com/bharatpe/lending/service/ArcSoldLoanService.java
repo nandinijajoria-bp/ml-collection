@@ -70,7 +70,7 @@ public class ArcSoldLoanService {
     @Autowired
     PdfGeneratorUtilV2 pdfGeneratorUtil;
 
-    @Value("${new.pdf.generation.method.lenders:}")
+    @Value("${new.pdf.generation.method.lenders:-}")
     String newPdfGenerationMethodLenders;
 
     static Map<String, String> lenderNames = new HashMap<String, String>(){{

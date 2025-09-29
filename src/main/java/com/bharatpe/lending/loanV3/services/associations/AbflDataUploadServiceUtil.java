@@ -138,7 +138,7 @@ public class AbflDataUploadServiceUtil {
     @Value("${lender.doc.generate.topup.enabled.lenders:}")
     String lenderDocGenerateTopUpEnabledLenders;
 
-    @Value("${new.pdf.generation.method.lenders:}")
+    @Value("${new.pdf.generation.method.lenders:-}")
     String newPdfGenerationMethodLenders;
 
     @Autowired

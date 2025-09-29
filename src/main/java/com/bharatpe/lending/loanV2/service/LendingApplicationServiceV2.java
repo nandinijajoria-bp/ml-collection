@@ -434,7 +434,7 @@ public class LendingApplicationServiceV2 {
     @Autowired
     InsuranceService insuranceService;
 
-    @Value("${new.pdf.generation.method.lenders:}")
+    @Value("${new.pdf.generation.method.lenders:-}")
     String newPdfGenerationMethodLenders;
 
     private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
