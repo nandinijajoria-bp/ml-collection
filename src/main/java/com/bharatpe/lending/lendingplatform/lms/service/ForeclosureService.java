@@ -80,7 +80,7 @@ public class ForeclosureService {
         double finalForeclosureAtLender = 0d;
          data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, overdueDays, true, activeLoan.getEdiRemainingCount(), (double) loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmountAsInt());
         data.setExcessBalance((double) loanDetailsResponse.getLoanSummary().getExcessPayable());
-        int lmsForeclosureAmount = getForeclosureAmount(activeLoan);
+        int lmsForeclosureAmount = getForeclosureAmount(activeLoan.getApplicationId(), activeLoan.getMerchantId());
         netForeclosureAtLender = getLenderForeclosureAmount(activeLoan);
         int finalForeclosureAmount = Math.max(lmsForeclosureAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
         data.setPrincipalDueAmount(finalForeclosureAmount);
@@ -120,9 +120,9 @@ public class ForeclosureService {
         return data;
     }
 
-    public int getForeclosureAmount(LendingPaymentSchedule activeLoan) {
+    public int getForeclosureAmount(Long applicationId, Long merchantId) {
         try {
-            LendingApplication lendingApplication = loanDetailsService.getLendingApplicationByApplicationId(activeLoan.getApplicationId());
+            LendingApplication lendingApplication = loanDetailsService.getLendingApplicationByApplicationId(applicationId);
             Map<String, String> requestParams = new HashMap<>();
             requestParams.put("bpLoanId", lendingApplication.getExternalLoanId());
             ApiResponse<ForeclosureDetailsResponse> foreclosureResponse = lendingPlatformHttpClient.sendGetRequestWithParams(GET_FORECLOSURE_AMOUNT,
@@ -130,10 +130,10 @@ public class ForeclosureService {
                     ForeclosureDetailsResponse.class);
             if (!ObjectUtils.isEmpty(foreclosureResponse) && foreclosureResponse.isSuccess() && !ObjectUtils.isEmpty(foreclosureResponse.getData())
                     && !ObjectUtils.isEmpty(foreclosureResponse.getData().getForeclosureAmount())) {
-                log.info("Foreclosure Amount fetched successfully. Merchant ID: {}", activeLoan.getMerchantId());
+                log.info("Foreclosure Amount fetched successfully. Merchant ID: {}", merchantId);
                 return (int) Math.ceil(foreclosureResponse.getData().getForeclosureAmount().doubleValue());
             }
-            log.error("Loan request failed: Empty or invalid response received for Merchant ID: {}", activeLoan.getMerchantId());
+            log.error("Loan request failed: Empty or invalid response received for Merchant ID: {}", merchantId);
             throw new RuntimeException("Loan initiation failed: Invalid response from lending platform.");   //TODO - check & add exceptions
         } catch (Exception e) {
             log.error("Exception occurred while initiating loan request: {}", e.getMessage(), e);
