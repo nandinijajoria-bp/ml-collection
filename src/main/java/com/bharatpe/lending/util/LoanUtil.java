@@ -1746,6 +1746,35 @@ public class LoanUtil {
 		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
 	}
 
+	public BigDecimal getForeclosureAmountBD(LendingPaymentScheduleDTO lendingPaymentSchedule) {
+		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+			return BigDecimal.ZERO;
+		}
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		BigDecimal advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ?
+				BigDecimal.valueOf(lendingPrepayment.getAdvanceEdiAmount()) : BigDecimal.ZERO;
+
+		BigDecimal excessCollectionBalance = new BigDecimal(excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId()).toString());
+		BigDecimal extraInterestofPerpetualDpdLoan = BigDecimal.valueOf(fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId()));
+
+		BigDecimal loanAmount = BigDecimal.valueOf(lendingPaymentSchedule.getLoanAmount());
+
+		BigDecimal paidPrinciple = lendingPaymentSchedule.getPaidPrinciple() != null ?
+				BigDecimal.valueOf(lendingPaymentSchedule.getPaidPrinciple()) : BigDecimal.ZERO;
+
+		BigDecimal dueInterest = lendingPaymentSchedule.getDueInterest() != null ?
+				BigDecimal.valueOf(lendingPaymentSchedule.getDueInterest()) : BigDecimal.ZERO;
+
+
+		BigDecimal foreclosureAmount = loanAmount.subtract(paidPrinciple)
+				.add(dueInterest)
+				.subtract(advanceEdiAmount)
+				.subtract(excessCollectionBalance)
+				.subtract(extraInterestofPerpetualDpdLoan);
+
+		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
+	}
+
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
 
 		double prevLoanUnpaidAmount = 0;
@@ -1894,6 +1923,11 @@ public class LoanUtil {
 
 	//This method returns the PF value in Big Decimal
 	public BigDecimal getIoHalfPFBD(LendingPaymentSchedule lendingPaymentSchedule) {
+		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
+		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
+	}
+
+	public BigDecimal getIoHalfPFBD(LendingPaymentScheduleDTO lendingPaymentSchedule) {
 		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
 		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
 	}

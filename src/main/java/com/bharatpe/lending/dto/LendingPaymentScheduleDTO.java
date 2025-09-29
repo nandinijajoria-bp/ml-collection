@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -140,10 +141,100 @@ public class LendingPaymentScheduleDTO {
         return dto;
     }
 
+    public static LendingPaymentScheduleDTO fromEntity(LendingPaymentSchedule entity) {
+        if (entity == null) {
+            return null;
+        }
+
+        LendingPaymentScheduleDTO dto = new LendingPaymentScheduleDTO();
+        dto.setId(entity.getId());
+        dto.setMerchantId(entity.getMerchantId());
+        dto.setMerchantStoreId(entity.getMerchantStoreId());
+        dto.setLoanType(entity.getLoanType());
+        dto.setApplicationId(entity.getApplicationId());
+        dto.setLoanAmount(entity.getLoanAmount());
+        dto.setEdiAmount(entity.getEdiAmount());
+        dto.setStartDate(entity.getStartDate());
+        dto.setEdiCount(entity.getEdiCount());
+        dto.setInterestOnlyEdiAmount(entity.getInterestOnlyEdiAmount());
+        dto.setInterestOnlyStartDate(entity.getInterestOnlyStartDate());
+        dto.setInterestOnlyEdiCount(entity.getInterestOnlyEdiCount());
+        dto.setRemainingInterestOnlyEdiCount(entity.getRemainingInterestOnlyEdiCount());
+        dto.setOverdueIntrestRate(entity.getOverdueIntrestRate());
+        dto.setOverdueEdiCount(entity.getOverdueEdiCount());
+        dto.setOverdueAmount(entity.getOverdueAmount());
+        dto.setIncentiveAmount(entity.getIncentiveAmount());
+        dto.setEdiRemainingCount(entity.getEdiRemainingCount());
+        dto.setDueAmount(entity.getDueAmount());
+        dto.setPaidAmount(entity.getPaidAmount());
+        dto.setTotalCashbackAmount(entity.getTotalCashbackAmount());
+        dto.setTotalPenaltyAmount(entity.getTotalPenaltyAmount());
+        dto.setNextEdiDate(entity.getNextEdiDate());
+        dto.setStatus(entity.getStatus());
+        dto.setOffDay(entity.getOffDay());
+        dto.setTotalPayableAmount(entity.getTotalPayableAmount());
+        dto.setMobile(entity.getMobile());
+        dto.setNbfc(entity.getNbfc());
+        dto.setClosingDate(entity.getClosingDate());
+        dto.setTentativeClosingDate(entity.getTentativeClosingDate());
+        dto.setLoanConstruct(entity.getLoanConstruct());
+        dto.setInterest(entity.getInterest());
+        dto.setOtherCharges(entity.getOtherCharges());
+        dto.setDuePrinciple(entity.getDuePrinciple());
+        dto.setDueInterest(entity.getDueInterest());
+        dto.setDueOtherCharges(entity.getDueOtherCharges());
+        dto.setDuePenalty(entity.getDuePenalty());
+        dto.setPaidPrinciple(entity.getPaidPrinciple());
+        dto.setPaidInterest(entity.getPaidInterest());
+        dto.setPaidOtherCharges(entity.getPaidOtherCharges());
+        dto.setPaidPenalty(entity.getPaidPenalty());
+        dto.setDisbursalSettlementId(entity.getDisbursalSettlementId());
+        dto.setCreditLoan(entity.getCreditLoan());
+        dto.setTlDetailsId(entity.getTlDetailsId());
+        dto.setLenderDisbursalNotify(entity.getLenderDisbursalNotify());
+        dto.setAdjustedDueAmount(entity.getAdjustedDueAmount());
+        dto.setAdjustedPaidAmount(entity.getAdjustedPaidAmount());
+        dto.setSettlementStatus(entity.getSettlementStatus());
+        dto.setLmsSource(entity.getLmsSource());
+        dto.setCreatedAt(entity.getCreatedAt());
+        dto.setUpdatedAt(entity.getUpdatedAt());
+        return dto;
+    }
+
     /**
      * Creates DTO from LendingPaymentSchedule entity enriched with Lentra API data (for 1LMS loans)
      */
     public static LendingPaymentScheduleDTO fromEntityWithApiData(LendingPaymentScheduleSlave entity,
+                                                                  LoanDetailsResponse.LoanSummary apiData) {
+        if (entity == null) {
+            return null;
+        }
+
+        LendingPaymentScheduleDTO dto = fromEntity(entity);
+
+        log.info("Populating LendingPaymentScheduleDTO from entity and API data. Entity ID: {}, API Data: {}",
+                entity.getId(), apiData);
+        // Override with API data for 1LMS loans
+        log.info("API Data received: {}", apiData);
+        if (apiData != null) {
+            dto.setPaidAmount(convertBigDecimalToDouble(apiData.getTotalPaidAmount()));
+            dto.setEdiAmount(convertBigDecimalToDouble(apiData.getInstalmentAmount()));
+            dto.setPaidPrinciple(convertBigDecimalToDouble(apiData.getPaidPrincipalAmount()));
+            dto.setPaidInterest(convertBigDecimalToDouble(apiData.getPaidInterestAmount()));
+            dto.setDuePrinciple(convertBigDecimalToDouble(apiData.getOverduePrincipal()));
+            dto.setDueInterest(convertBigDecimalToDouble(apiData.getOverdueInterest()));
+            dto.setDpdSummary(apiData.getDpdSummary());
+            dto.setOverdueAmount(convertBigDecimalToDouble(apiData.getOverdueInstalmentAmount()));
+            // Calculate maxDPD from dpdSummary if available
+            if (apiData.getDpdSummary() != null) {
+                dto.setMaxDPD(calculateMaxDpdFromSummary(apiData.getDpdSummary()));
+            }
+        }
+        return dto;
+    }
+
+
+    public static LendingPaymentScheduleDTO fromEntityWithApiData(LendingPaymentSchedule entity,
                                                                   LoanDetailsResponse.LoanSummary apiData) {
         if (entity == null) {
             return null;

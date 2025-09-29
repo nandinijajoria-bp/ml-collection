@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.entity.LenderMetricsHistory;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
 import com.bharatpe.lending.loanV3.revamp.dto.OfferEvaluationRequestDTO;
 import org.springframework.http.ResponseEntity;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
@@ -102,6 +103,7 @@ import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
 import static com.bharatpe.lending.constant.LendingConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.NEGATIVE_BUSINESS_CATEGORY_REJECTION;
 import static com.bharatpe.lending.enums.Lender.*;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 @Service
 public class LoanEligibleService {
@@ -295,6 +297,8 @@ public class LoanEligibleService {
 
     @Autowired
     LenderAssignService lenderAssignService;
+    @Autowired
+    private LmsLoanDetailsService lmsLoanDetailsService;
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
@@ -355,7 +359,16 @@ public class LoanEligibleService {
 
             BigDecimal prevLoanUnpaidAmountBD;
             try {
-                Double prevAmount = merchantLoansService.getPreviousLoanAmount(lendingPaymentSchedule);
+                Double prevAmount =  0D;
+                if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())) {
+                    String externalLoanId = lendingApplicationDao.getExternalLoanIdById(lendingPaymentSchedule.getApplicationId());
+                    LendingPaymentScheduleDTO lendingPaymentScheduleDTO =
+                            lmsLoanDetailsService.getLendingPaymentScheduleDTOFromOneLms(externalLoanId, lendingPaymentSchedule);
+                    prevAmount = merchantLoansService.getPreviousLoanAmount(lendingPaymentScheduleDTO);
+                    logger.info("1LMSTOPUP : Previous loan amount from ONE_LMS for merchantId: {} is {}", merchantId, prevAmount);
+                } else {
+                    prevAmount = merchantLoansService.getPreviousLoanAmount(lendingPaymentSchedule);
+                }
                 prevLoanUnpaidAmountBD = BigDecimal.valueOf(prevAmount != null ? prevAmount : 0.0);
             } catch (Exception e) {
                 logger.error("Error calculating previous loan amount for merchantId: {}", merchantId, e);

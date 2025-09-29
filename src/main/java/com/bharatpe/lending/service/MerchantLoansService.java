@@ -3010,6 +3010,19 @@ public class MerchantLoansService {
         return prevLoanUnpaidAmount;
     }
 
+    public double getPreviousLoanAmount(LendingPaymentScheduleDTO lendingPaymentSchedule) {
+        double prevLoanUnpaidAmount = 0;
+        double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
+        if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+            prevLoanUnpaidAmount = loanUtil.getForeclosureAmountForLdc(lendingPaymentSchedule);
+        } else {
+            prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple())
+                    + lendingPaymentSchedule.getDueInterest() + penaltyFee;
+        }
+
+        return prevLoanUnpaidAmount;
+    }
+
     public double getPreviousLoanAmount(LendingPaymentSchedule lendingPaymentSchedule) {
         double previousAmount = 0;
         if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
