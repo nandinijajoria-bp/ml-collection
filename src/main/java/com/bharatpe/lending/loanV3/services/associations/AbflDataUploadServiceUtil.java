@@ -535,9 +535,9 @@ public class AbflDataUploadServiceUtil {
             byte[] mergedByteArray = pdfMergerUtil.mergePdfs(Arrays.asList(inputStream1.readAllBytes(),inputStream2.readAllBytes()));
             try (FileOutputStream fos = new FileOutputStream("/data/" + mergedFileName)) {
                 fos.write(mergedByteArray);
-                System.out.println("PDF created successfully with header and footer on all pages.");
+                log.info("PDF created successfully with header and footer on all pages.");
             } catch (Exception e) {
-                System.err.println("Error creating PDF: " + e.getMessage());
+                log.error("Error creating PDF: {}", e.getMessage(), e);
                 throw new RuntimeException("Error creating PDF", e);
             }
         }else {
