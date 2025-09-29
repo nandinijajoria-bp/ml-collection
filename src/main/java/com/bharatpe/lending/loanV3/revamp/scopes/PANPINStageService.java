@@ -14,7 +14,6 @@ import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.lendingplatform.nbfc.enums.RiskSegment;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
@@ -194,13 +193,8 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
             }
             isPlanSelectionFlow = emiUtils.isEligibleForPlanSelectionPage(emiDashboardResponse, lendingRiskVariables);
         }
-        boolean isNotTopupRiskSegment = true;
-        if (scenapticGlobalLimit != null && scenapticGlobalLimit.getData() != null && scenapticGlobalLimit.getData().getRiskSegment() != null) {
-            isNotTopupRiskSegment = !scenapticGlobalLimit.getData().getRiskSegment().equalsIgnoreCase(RiskSegment.TOPUP.name());
-        }
-
         LendingViewStates lendingViewStates;
-        if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null) && isNotTopupRiskSegment) {
+        if (loanUtil.isApplicableForAggregationFlowV2(scopeDataArgs.getMerchant().getId(), null)) {
             // When aggregation flow is applicable, use OFFER_EVALUATION_PAGE instead of OFFER_PAGE
             lendingViewStates = isPlanSelectionFlow ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_EVALUATION_PAGE;
         } else {
