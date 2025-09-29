@@ -80,6 +80,7 @@ import java.util.stream.Collectors;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.LedgerDescriptionTxnType;
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
+import static com.bharatpe.lending.lendingplatform.lms.util.ConversionUtil.safeBigDecimalToDouble;
 
 @Service
 @Slf4j
@@ -1209,7 +1210,7 @@ public class SupportService {
                     lendingLedgerDetail.put("createdAt", formattedDateTime);
 //                    lendingLedgerDetail.put("id", loanDueDetails.getId());
                     lendingLedgerDetail.put("transactionType", "EDI");
-                    lendingLedgerDetail.put("amount", -1 * loanDetailsResponse.getLoanSummary().getInstalmentAmountAsInt());
+                    lendingLedgerDetail.put("amount", -1 * safeBigDecimalToDouble(loanDetailsResponse.getLoanSummary().getInstalmentAmount()));
                     //lendingLedgerDetail.put("dueAmount", loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmountAsInt());
                     lendingLedgerDetail.put("penaltyAmount", 0.0);
                     lendingLedgerDetailList.add(lendingLedgerDetail);
