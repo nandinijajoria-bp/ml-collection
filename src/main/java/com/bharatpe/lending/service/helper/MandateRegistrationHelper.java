@@ -99,26 +99,33 @@ public class MandateRegistrationHelper {
             return false;
         }
 
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(applicationId, Status.ACTIVE.name());
+        LendingApplication lendingApplication = activeApplication.get();
+
+
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(applicationId);
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             log.error("LendingApplicationDetails is null for applicationId: {}", applicationId);
             return false;
         }
 
-        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+        return Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus())
+                && ObjectUtils.isEmpty(autoPayUPI)
+                && loanDpdChecks(lps, lendingApplication);
+    }
+
+
+    public boolean loanDpdChecks(LendingPaymentScheduleSlave lps, LendingApplication lendingApplication) {
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lps.getApplicationId());
         if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
-            log.error("LendingRiskVariablesSnapshot is null for applicationId: {}", applicationId);
+            log.error("LendingRiskVariablesSnapshot is null for applicationId: {}", lps.getApplicationId());
             return false;
         }
-
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(applicationId, Status.ACTIVE.name());
-        LendingApplication lendingApplication = activeApplication.get();
         AutopayUPIConfig autopayUPIConfig = autopayUpiConfigDao.findAutoPayUpiConfigByLenderAndLoanSegment(lendingApplication.getLender(), lendingRiskVariablesSnapshot.getLoanSegment());
         if(ObjectUtils.isEmpty(autopayUPIConfig)) {
             log.error("No entry found in autopay_upi_config for lender: {} & segment: {}", lendingApplication.getLender(), lendingRiskVariablesSnapshot.getLoanSegment());
             return false;
         }
-
         Optional<LoanDpd> loanDpdOptional = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(lps.getId());
         int dpd = 0;
         if (!loanDpdOptional.isPresent()) {
@@ -131,18 +138,16 @@ public class MandateRegistrationHelper {
         Date tentativeClosing = lps.getTentativeClosingDate();
 
         if (cutoffDate == null || tentativeClosing == null) {
-            log.error("Tentative closing date or cut-off date is null for application {}", lendingApplication.getId());
+            log.error("Tentative closing date or cut-off date is null for application {}", lps.getApplicationId());
             return false;
         }
-
         Date calculatedDate = Date.from(tentativeClosing.toInstant().plus(dpd, ChronoUnit.DAYS));
         log.info("tentative closing date: {}, dpd: {}, threshold date: {}", tentativeClosing, dpd, calculatedDate);
-        return Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus())
+        return lendingApplication.getLender().equalsIgnoreCase(autopayUPIConfig.getLender())
                 && LoanStatus.ACTIVE.name().equals(lps.getStatus())
-                && ObjectUtils.isEmpty(autoPayUPI)
-                && lendingApplication.getLender().equalsIgnoreCase(autopayUPIConfig.getLender())
                 && dpd < autoPayUpiDpdThreshold
                 && calculatedDate.compareTo(cutoffDate) >= 0
                 && lendingRiskVariablesSnapshot.getLoanSegment().equalsIgnoreCase(autopayUPIConfig.getLoanSegment());
     }
+
 }
