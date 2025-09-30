@@ -1,24 +1,16 @@
 package com.bharatpe.lending.ai.controller;
 
-import com.bharatpe.common.entities.LendingLedger;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.ai.dto.LendingCollectionExcessDto;
 import com.bharatpe.lending.ai.dto.LendingLedgerDto;
 import com.bharatpe.lending.ai.services.CollectionService;
-import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
-import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 @Slf4j
@@ -35,7 +27,7 @@ public class CollectionDetailsAiController {
     public ResponseEntity<ApiResponse<List<List<LendingLedgerDto>>>> getLendingLedger(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
             @RequestParam(required = false) Long merchantId,
-            @RequestParam(required = false) Long days) {
+            @RequestParam(required = false) String date) {
 
         if (merchant != null) {
             merchantId = merchant.getId();
@@ -46,22 +38,17 @@ public class CollectionDetailsAiController {
             return ResponseEntity.ok(new ApiResponse<>(true, "merchantId is null"));
         }
 
-        List<List<LendingLedgerDto>> ledgerResponse = collectionService.getLendingLedgerByMerchant(merchantId, days);
-
-        if (ledgerResponse.isEmpty()) {
-            log.info("No ledger records found for merchantId: {}", merchantId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "no ledger records found"));
-        }
-
-        log.info("Fetched loan ledger details for merchantId: {}", merchantId);
-        return ResponseEntity.ok(new ApiResponse<>(ledgerResponse));
+        List<List<LendingLedgerDto>> ledgerResponse = collectionService.getLendingLedgerByMerchant(merchantId, date);
+        String message = CollectionUtils.isEmpty(ledgerResponse) ? "no ledger records found" : "success";
+        log.info("Fetched loan ledger details for merchantId: {} ledgerResponse: {}", merchantId, ledgerResponse);
+        return ResponseEntity.ok(new ApiResponse<>(true, ledgerResponse, message));
     }
 
     @GetMapping(value = "/excess",produces = "application/json")
     public ResponseEntity<ApiResponse<List<List<LendingCollectionExcessDto>>>> getExcessDetails(
             @RequestAttribute(required = false) BasicDetailsDto merchant,
             @RequestParam(required = false) Long merchantId,
-            @RequestParam(required = false) Long days) {
+            @RequestParam(required = false) String date) {
 
         if (merchant != null) {
             merchantId = merchant.getId();
@@ -74,15 +61,11 @@ public class CollectionDetailsAiController {
         }
 
         List<List<LendingCollectionExcessDto>> allExcessList =
-                collectionService.getExcessDetailsByMerchant(merchantId, days);
+                collectionService.getExcessDetailsByMerchant(merchantId, date);
 
-        if (allExcessList.isEmpty()) {
-            log.info("No excess details found for merchantId: {}", merchantId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "no excess records found"));
-        }
-
-        log.info("Fetched excess details for merchantId: {}", merchantId);
-        return ResponseEntity.ok(new ApiResponse<>(allExcessList));
+        String message = CollectionUtils.isEmpty(allExcessList) ? "no excess records found" : "success";
+        log.info("Fetched excess details for merchantId: {} allExcessList: {}", merchantId, allExcessList);
+        return ResponseEntity.ok(new ApiResponse<>(true, allExcessList, message));
     }
 
 }

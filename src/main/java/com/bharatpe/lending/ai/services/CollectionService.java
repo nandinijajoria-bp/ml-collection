@@ -8,16 +8,16 @@ import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
 import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -34,12 +34,12 @@ public class CollectionService {
     private  LendingLedgerDao lendingLedgerDao;
 
     @Autowired
-    LendingCollectionExcessDao lendingCollectionExcessDao;
+    private LendingCollectionExcessDao lendingCollectionExcessDao;
 
     @Autowired
-    PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+    private PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
-    public List<List<LendingLedgerDto>> getLendingLedgerByMerchant(Long merchantId, Long days) {
+    public List<List<LendingLedgerDto>> getLendingLedgerByMerchant(Long merchantId, String date) {
         List<LendingPaymentSchedule> lendingPaymentScheduleList =
                 lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId, "ACTIVE");
 
@@ -47,13 +47,28 @@ public class CollectionService {
             log.info("No active loan found for merchantId: {}", merchantId);
             return new ArrayList<>();
         }
-        if (days == null || days <= 0) {
-            days = 7L;
-        }
 
-        LocalDate cutoffLocalDate = LocalDate.now().minusDays(days);
-        Instant cutoffInstant = cutoffLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Date cutoffDate = Date.from(cutoffInstant);
+        Date cutoffDate;
+        boolean filterBySpecificDay = false;
+        LocalDate targetDay = null;
+
+        if (date != null && !date.trim().isEmpty()) {
+            Date parsedDate = DateTimeUtil.parseDate(date, "yyyy-MM-dd");
+            if (parsedDate != null) {
+                cutoffDate = DateTimeUtil.getStartTimeFromDateTime(parsedDate);
+                targetDay = convertToLocalDate(parsedDate);
+                filterBySpecificDay = true;
+                log.info("Filtering ledger records for specific date: {}", date);
+            } else {
+                log.error("Invalid date format provided: {}. Using default 7 days behavior.", date);
+                // Fall back to default behavior if date parsing fails
+                cutoffDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), -7);
+            }
+        } else {
+            // When date is not provided, keep the original behavior (last 7 days)
+            cutoffDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), -7);
+            log.info("No date provided, using default 7 days behavior");
+        }
 
         List<List<LendingLedgerDto>> allLendingLedgerList = new ArrayList<>();
 
@@ -62,28 +77,55 @@ public class CollectionService {
 
 
             List<LendingLedger> lendingLedgerList =
-                    lendingLedgerDao.findByMerchantIdAndDateAfter(merchantId, cutoffDate);
+                    lendingLedgerDao.findByLpsIdAndCreatedAtAfter(lendingPaymentSchedule.getId(), cutoffDate);
 
             if (!lendingLedgerList.isEmpty()) {
+                if (filterBySpecificDay) {
+                    // Filter records from the specific date and for this specific loan
+                    LocalDate finalTargetDay1 = targetDay;
+                    dtoList.addAll(
+                            lendingLedgerList.stream()
+                                    .filter(e -> e.getCreatedAt() != null &&
+                                            convertToLocalDate(e.getCreatedAt()).equals(finalTargetDay1))
+                                    .map(this::mapToDto)
+                                    .collect(Collectors.toList())
+                    );
+                } else {
+                    // Original behavior: records from cutoff date to today, for this specific loan
+                    Date finalCutoffDate1 = cutoffDate;
                 dtoList.addAll(
                         lendingLedgerList.stream()
-                                .filter(e -> e.getCreatedAt() != null && !e.getCreatedAt().before(cutoffDate))
+                                    .filter(e -> e.getCreatedAt() != null && !e.getCreatedAt().before(finalCutoffDate1))
                                 .map(this::mapToDto)
                                 .collect(Collectors.toList())
                 );
             }
-
+            }
 
             List<PenaltyFeeLedger> penaltyList =
                     penaltyFeeLedgerDao.findAllNegativePenaltyEntries(lendingPaymentSchedule.getId());
 
             if (!penaltyList.isEmpty()) {
+                if (filterBySpecificDay) {
+                    // Filter penalty records from the specific date
+                    LocalDate finalTargetDay = targetDay;
+                    dtoList.addAll(
+                            penaltyList.stream()
+                                    .filter(p -> p.getCreatedAt() != null &&
+                                            convertToLocalDate(p.getCreatedAt()).equals(finalTargetDay))
+                                    .map(this::mapPenaltyToLedgerDto)
+                                    .collect(Collectors.toList())
+                    );
+                } else {
+                    // Original behavior: penalty records from cutoff date to today
+                    Date finalCutoffDate = cutoffDate;
                 dtoList.addAll(
                         penaltyList.stream()
-                                .filter(p -> p.getCreatedAt() != null && !p.getCreatedAt().before(cutoffDate))
+                                    .filter(p -> p.getCreatedAt() != null && !p.getCreatedAt().before(finalCutoffDate))
                                 .map(this::mapPenaltyToLedgerDto)
                                 .collect(Collectors.toList())
                 );
+            }
             }
             allLendingLedgerList.add(dtoList);
         }
@@ -116,7 +158,7 @@ public class CollectionService {
     }
 
 
-    public List<List<LendingCollectionExcessDto>> getExcessDetailsByMerchant(Long merchantId, Long days) {
+    public List<List<LendingCollectionExcessDto>> getExcessDetailsByMerchant(Long merchantId, String date) {
         List<LendingPaymentSchedule> lendingPaymentScheduleList =
                 lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId, "ACTIVE");
 
@@ -125,27 +167,54 @@ public class CollectionService {
             return new ArrayList<>();
         }
 
-        if (days == null || days <= 0) {
-            days = 7L;
+        Date cutoffDate;
+        boolean filterBySpecificDay = false;
+        LocalDate targetDay = null;
+
+        if (date != null && !date.trim().isEmpty()) {
+            Date parsedDate = DateTimeUtil.parseDate(date, "yyyy-MM-dd");
+            if (parsedDate != null) {
+                cutoffDate = DateTimeUtil.getStartTimeFromDateTime(parsedDate);
+                targetDay = convertToLocalDate(parsedDate);
+                filterBySpecificDay = true;
+                log.info("Filtering excess records for specific date: {}", date);
+            } else {
+                log.error("Invalid date format provided: {}. Using default 7 days behavior.", date);
+                // Fall back to default behavior if date parsing fails
+                cutoffDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), -7);
+            }
+        } else {
+            // When date is not provided, keep the original behavior (last 7 days)
+            cutoffDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), -7);
+            log.info("No date provided, using default 7 days behavior");
         }
-        LocalDate cutoffLocalDate = LocalDate.now().minusDays(days);
-        Instant cutoffInstant = cutoffLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Date cutoffDate = Date.from(cutoffInstant);
 
         List<List<LendingCollectionExcessDto>> allExcessList = new ArrayList<>();
 
         for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
             List<LendingCollectionExcess> excessList =
-                    lendingCollectionExcessDao.lendingExcessNachLedgerAfterDate(
-                            lendingPaymentSchedule.getId(), cutoffDate);
+                    lendingCollectionExcessDao.lendingExcessNachLedgerAfterDate(lendingPaymentSchedule.getId(), cutoffDate);
 
             if (!excessList.isEmpty()) {
+                if (filterBySpecificDay) {
+                    // Filter records from the specific date
+                    LocalDate finalTargetDay = targetDay;
                 List<LendingCollectionExcessDto> dtoList = excessList.stream()
-                        .filter(e -> e.getCreatedAt() != null && !e.getCreatedAt().before(cutoffDate))
+                            .filter(e -> e.getCreatedAt() != null &&
+                                    convertToLocalDate(e.getCreatedAt()).equals(finalTargetDay))
+                            .map(this::mapToDto)
+                            .collect(Collectors.toList());
+                    allExcessList.add(dtoList);
+                } else {
+                    // Original behavior: records from cutoff date to today
+                    Date finalCutoffDate = cutoffDate;
+                    List<LendingCollectionExcessDto> dtoList = excessList.stream()
+                            .filter(e -> e.getCreatedAt() != null && !e.getCreatedAt().before(finalCutoffDate))
                         .map(this::mapToDto)
                         .collect(Collectors.toList());
                 allExcessList.add(dtoList);
             }
+        }
         }
 
         return allExcessList;
@@ -181,5 +250,9 @@ public class CollectionService {
                 .penalty(penalty.getAmount())
                 .adjustmentMode("AUTO")
                 .build();
+    }
+
+    private LocalDate convertToLocalDate(Date date) {
+        return LocalDate.from(date.toInstant().atZone(ZoneId.systemDefault()));
     }
 }
