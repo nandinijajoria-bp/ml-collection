@@ -38,7 +38,11 @@ public class LoanDetailsAiController {
         if("upi_autopay".equalsIgnoreCase(intent)){
             log.info("Request received for autopay details for merchantId: {}", merchantId);
             Optional<AutoPayUPI> autoPayDetails = autoPayApiService.getAutoPayDetails(merchantId);
-            return autoPayDetails.<ResponseEntity<ApiResponse<Object>>>map(autoPayUpi -> ResponseEntity.ok(new ApiResponse<>(autoPayUpi))).orElseGet(() -> ResponseEntity.ok(new ApiResponse<>(true, "no autopay details found")));
+            if (autoPayDetails.isPresent()) {
+                return ResponseEntity.ok(new ApiResponse<>(autoPayDetails.get()));
+            } else {
+                return ResponseEntity.ok(new ApiResponse<>(true, "no autopay details found"));
+            }
         }
         log.info("Request received to get loan application details for merchantId: {}", merchantId);
         LoanDetailResponse loanDetailResponse = lonaApplicationService.getLoanApplicationDetails(merchantId);
