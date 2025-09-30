@@ -1,9 +1,9 @@
 package com.bharatpe.lending.ai.services;
 
-import com.bharatpe.lending.entity.AutoPayUpi;
+import com.bharatpe.lending.common.entity.AutoPayUPI;
 
 import java.util.Optional;
 
 public interface IAutoPayApiService {
-    Optional<AutoPayUpi> getAutoPayDetails(Long merchantId);
+    Optional<AutoPayUPI> getAutoPayDetails(Long merchantId);
 }
