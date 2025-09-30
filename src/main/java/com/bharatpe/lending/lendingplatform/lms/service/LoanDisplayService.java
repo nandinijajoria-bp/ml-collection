@@ -297,6 +297,8 @@ public class LoanDisplayService {
             LIQUILOANS_P2P.name(),LIQUILOANS_P2P_OF.name(), ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name(), PAYU.name());
     @Value("${payu.topup.rejection.banner.tat:5}")
     Long payuTopupRejectionBannerTat;
+    @Value("#{${topup.v2.flow.lender.rollout.percentage:{}}}")
+    private Map<String,Integer> topupV2FlowLenderRolloutPercentage = new HashMap<>();
 
     private Logger logger = LoggerFactory.getLogger(LoanDisplayService.class);
 
@@ -502,17 +504,11 @@ public class LoanDisplayService {
 
             LendingPaymentScheduleDTO lendingPaymentScheduleDTO = lmsLoanDetailsService.getLendingPaymentScheduleDTOFromOneLms(externalLoanId, lendingPaymentSchedule);
             try {
-//                List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule, false);
-                String topupLender = lendingPaymentSchedule.getNbfc();
-                boolean trillionTopupV2Flow = TRILLIONLOANS.name().equals(topupLender) && rolloutUtil.isEligibleForTopupLoan(merchantId);
-                boolean isTopupV2Flow =
-                        (easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(topupLender))
-                                && trillionTopupV2Flow;
-
-                log.info("Topup flow chosen: {}", isTopupV2Flow ?
-                        (trillionTopupV2Flow ? "TRILLION_TOPUP_V2" : "DEFAULT_TOPUP_V2") : "LEGACY_TOPUP");
                 List<LoanEligibilityDTO> loans = null;
-                if(isTopupV2Flow) {
+                String topupLender = topupLenderMapper(lendingPaymentScheduleDTO.getNbfc());
+                int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
+                boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
+                if(isV2Flow) {
                     log.info("1LMSTOPUP: Calculating TOPUP loan for merchant:{}", merchantId);
                     loans = topupLoanV2(lendingPaymentScheduleDTO, false);
                 }
