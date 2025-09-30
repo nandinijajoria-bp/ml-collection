@@ -2034,6 +2034,13 @@ public class LoanEligibleService {
                     break;
                 }
                 break;
+            case UGRO:
+                if (edi > 0.75 * (riskVariables.getMonthlyTpv()/30)) {
+                    response = "skipping " + lenderEnum.name()+ " for merchant id : " + merchantId + " due to merchant loan edi amount: " + edi + " is greater than 0.75 * dailyTPV " + 0.75 * (riskVariables.getMonthlyTpv()/30);
+                    success = false;
+                    break;
+                }
+                break;
             default:
                 AsyncLoggerUtil.logDebug(logger,"No specific checks found for lender : {} for merchantId : {}", lender, merchantId);
         }
