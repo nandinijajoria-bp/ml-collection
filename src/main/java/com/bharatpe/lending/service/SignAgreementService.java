@@ -63,6 +63,7 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
+import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
 @Service
 public class SignAgreementService {
@@ -180,6 +181,9 @@ public class SignAgreementService {
 	private String topupV2FlowLenders;
 	@Autowired
 	private LmsLoanDetailsService lmsLoanDetailsService;
+
+	@Value("#{${topup.v2.flow.lender.rollout.percentage:{}}}")
+	private Map<String,Integer> topupV2FlowLenderRolloutPercentage = new HashMap<>();
 
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
@@ -1005,7 +1009,10 @@ public class SignAgreementService {
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 		List<LoanEligibilityDTO> loans;
-		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
+		String topupLender = topupLenderMapper(lendingPaymentSchedule.getNbfc());
+		int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
+		boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
+		if(isV2Flow) {
 			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
 		} else {
 			loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
@@ -1021,7 +1028,7 @@ public class SignAgreementService {
 		}
 
 		LoanEligibilityDTO loanEligibilityDTO;
-		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
+		if(isV2Flow) {
 			loanEligibilityDTO = validLoans.stream()
 					.filter(dto -> dto.getTenure().equals(eligibleLoan.getTenure())
 							&& dto.getAmount().compareTo(eligibleLoan.getAmount().intValue()) == 0)

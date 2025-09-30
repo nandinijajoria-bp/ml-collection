@@ -539,7 +539,7 @@ public class MerchantLoansService {
         responseDTO.setRepaymentDetails(loanUtil.getRepaymentDetails(loanPaymentOrderList));
         try {
             List<LoanEligibilityDTO> loans;
-            String topupLender = activeLendingPaymentSchedule.getNbfc();
+            String topupLender = topupLenderMapper(activeLendingPaymentSchedule.getNbfc());
             int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
             boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
             loans = isV2Flow
@@ -704,7 +704,7 @@ public class MerchantLoansService {
                 responseDTO.setRepaymentDetails(loanUtil.getRepaymentDetails(loanPaymentOrderList));
                 try {
                     List<LoanEligibilityDTO> loans;
-                    String topupLender = lendingPaymentSchedule.getNbfc();
+                    String topupLender = topupLenderMapper(lendingPaymentSchedule.getNbfc());
                     int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
                     boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
                     loans = isV2Flow
