@@ -11,6 +11,7 @@ import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
 import com.bharatpe.lending.collection.core.service.impl.LoanPaymentServiceImpl;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
@@ -273,6 +274,9 @@ public class VerifyOTPService {
 
     @Autowired
     private LmsLoanDetailsService lmsLoanDetailsService;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -1063,6 +1067,14 @@ public class VerifyOTPService {
         // send loan closure consent to LDC
         if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
             apiGatewayService.getLdcTopupConsent(previousLendingApplicationOptional.get().getId(), true, previousAmount);
+        }
+
+        // deactivate autopay upi if exists for previous loan
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(applicationId, AutoPayStatusEnum.ACTIVE.name());
+        if(!ObjectUtils.isEmpty(autoPayUPI)) {
+            autoPayUPI.setStatus(AutoPayStatusEnum.INACTIVE);
+            autoPayUPIDao.save(autoPayUPI);
+            logger.info("AutoPay UPI set to INACTIVE for applicationId: {}", applicationId);
         }
 
         finalResponse.put("message", "successfully settled previous loan");
