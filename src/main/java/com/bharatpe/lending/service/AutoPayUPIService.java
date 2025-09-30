@@ -9,6 +9,8 @@ import com.bharatpe.lending.common.dao.LendingPullPaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingPullPayment;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -17,9 +19,11 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
+import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +66,12 @@ public class AutoPayUPIService {
 
     @Autowired
     AutoPayUPIDao autoPayUPIDao;
+
+    @Autowired
+    MandateRegistrationHelper mandateRegistrationHelper;
+
+    @Autowired
+    private LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @Autowired
     LoanUtil loanUtil;
@@ -676,33 +686,38 @@ public class AutoPayUPIService {
 
     public AutoPayRequiredDto isUPIAutoPayRequired(BasicDetailsDto merchant) {
         AutoPayRequiredDto autoPayRequired = new AutoPayRequiredDto();
-        if(merchant == null || merchant.getId() == null){
+        if (merchant == null || merchant.getId() == null) {
             autoPayRequired.setMessage("Merchant id is required");
-            autoPayRequired.setUPIAutoPayRequired(false);
+            autoPayRequired.setUpiAutoPayRequired(false);
             return autoPayRequired;
         }
 
-        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Collections.singletonList("ACTIVE"));
-        if(ObjectUtils.isEmpty(lendingPaymentSchedule) || lendingPaymentSchedule.getApplicationId() == null){
+        LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchant.getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
+        if (ObjectUtils.isEmpty(lendingPaymentSchedule) || lendingPaymentSchedule.getApplicationId() == null) {
             log.info("No active loan found for merchant id {}", merchant.getId());
             autoPayRequired.setMessage("No active loan found");
-            autoPayRequired.setUPIAutoPayRequired(false);
+            autoPayRequired.setUpiAutoPayRequired(false);
             return autoPayRequired;
         }
-        if(!loanUtil.isApplicationEligibleForAutoPayUpi(lendingPaymentSchedule.getNbfc())){
-            return new AutoPayRequiredDto("Lender not eligible for UPI AutoPay", false);
+        Optional<LendingApplication> activeApplication = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId());
+        if (!activeApplication.isPresent()) {
+            log.error("No active application found for applicationId: {}", lendingPaymentSchedule.getApplicationId());
+            autoPayRequired.setMessage("No active loan found");
+            autoPayRequired.setUpiAutoPayRequired(false);
+            return autoPayRequired;
         }
         log.info("Found active loan for merchant id {} and application id {} with lender {}", merchant.getId(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatusAndLender(lendingPaymentSchedule.getApplicationId(), AutoPayStatusEnum.ACTIVE.name(), lendingPaymentSchedule.getNbfc());
-        if(ObjectUtils.isEmpty(autoPayUPI)){
+        boolean dpdCheck = mandateRegistrationHelper.loanDpdChecks(lendingPaymentSchedule, activeApplication.get());
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatusAndLender(lendingPaymentSchedule.getApplicationId(), AutoPayStatusEnum.ACTIVE.name(), activeApplication.get().getLender());
+        if (ObjectUtils.isEmpty(autoPayUPI) && dpdCheck) {
             log.info("No active UPI AutoPay mandate found for merchant id {} and application id {}", merchant.getId(), lendingPaymentSchedule.getApplicationId());
             autoPayRequired.setMessage("No active UPI AutoPay mandate found");
-            autoPayRequired.setUPIAutoPayRequired(true);
+            autoPayRequired.setUpiAutoPayRequired(true);
             return autoPayRequired;
-        }else{
+        } else {
             log.info("Found active UPI AutoPay mandate for merchant id {} and application id {}", merchant.getId(), lendingPaymentSchedule.getApplicationId());
-            autoPayRequired.setMessage("Active UPI AutoPay mandate found");
-            autoPayRequired.setUPIAutoPayRequired(false);
+            autoPayRequired.setMessage("Active UPI AutoPay mandate found OR loan dpd checks failed");
+            autoPayRequired.setUpiAutoPayRequired(false);
             return autoPayRequired;
         }
 

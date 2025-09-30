@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 public class AutoPayRequiredDto {
 
     private String message;
-    private boolean isUPIAutoPayRequired;
+    private boolean upiAutoPayRequired;
 
 }
