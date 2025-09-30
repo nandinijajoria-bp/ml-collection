@@ -629,7 +629,7 @@ public class LoanEligibleService {
 //                // Continue execution despite cache error
 //            }
 
-            AsyncLoggerUtil.logInfo(logger, "Cache miss for merchantId: {}, processing eligibility", merchantId);
+            AsyncLoggerUtil.logInfo(logger, "Processing eligibility for merchantId: {}", merchantId);
             EligibleOffersResponseDTO responseDTO = new EligibleOffersResponseDTO();
 
             // Get global limit
