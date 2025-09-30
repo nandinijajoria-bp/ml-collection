@@ -84,8 +84,8 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
             }
 
-            boolean showShopDetails = loanUtil.showShopDetailsOnBankDisbursementPage(
-                    scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), lendingApplication, new HashMap<>());
+            boolean showShopDetails = (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && loanUtil.showShopDetailsOnBankDisbursementPage(
+                    scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), lendingApplication, new HashMap<>()));
 
             referenceStateDTO.setIsAadhaarAddressVerified(showShopDetails || !ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
             referenceStateDTO.setLoanPurpose(!showShopDetails && lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
