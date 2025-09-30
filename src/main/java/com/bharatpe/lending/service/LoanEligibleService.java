@@ -615,21 +615,21 @@ public class LoanEligibleService {
             }
 
             // Generate cache key and check cache
-            String cacheKey = generateEligibilityCacheKey(merchantId, queryAmount, ediModel);
-            EligibleOffersResponseDTO cachedResponse = null;
+            // String cacheKey = generateEligibilityCacheKey(merchantId, queryAmount, ediModel);
+//            EligibleOffersResponseDTO cachedResponse = null;
+//
+//            try {
+//                cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
+//                if (cachedResponse != null) {
+//                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - Cache hit for merchantId: {}", METHOD, merchantId);
+//                    return ApiResponseUtil.ok(cachedResponse, "Eligibility details fetched successfully from cache");
+//                }
+//            } catch (Exception e) {
+//                AsyncLoggerUtil.logError(logger, "Cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
+//                // Continue execution despite cache error
+//            }
 
-            try {
-                cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
-                if (cachedResponse != null) {
-                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - Cache hit for merchantId: {}", METHOD, merchantId);
-                    return ApiResponseUtil.ok(cachedResponse, "Eligibility details fetched successfully from cache");
-                }
-            } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
-                // Continue execution despite cache error
-            }
-
-            AsyncLoggerUtil.logInfo(logger, "Cache miss for merchantId: {}, processing eligibility", merchantId);
+            AsyncLoggerUtil.logInfo(logger, "Processing eligibility for merchantId: {}", merchantId);
             EligibleOffersResponseDTO responseDTO = new EligibleOffersResponseDTO();
 
             // Get global limit
@@ -715,12 +715,12 @@ public class LoanEligibleService {
             responseDTO.setLoanAmount(effectiveQueryAmount);
 
             // Cache successful response
-            try {
-                cacheEligibilityResponse(cacheKey, responseDTO, merchantId);
-            } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Failed to cache response for key: {} - {}", cacheKey, e.getMessage());
-                // Continue despite cache error
-            }
+//            try {
+//                cacheEligibilityResponse(cacheKey, responseDTO, merchantId);
+//            } catch (Exception e) {
+//                AsyncLoggerUtil.logError(logger, "Failed to cache response for key: {} - {}", cacheKey, e.getMessage());
+//                // Continue despite cache error
+//            }
 
             AsyncLoggerUtil.logInfo(logger, "EXIT {} - Successfully processed eligibility for merchantId: {}, found {} tenures",
                     METHOD, merchantId, tenureWithLenders.size());
@@ -2567,19 +2567,19 @@ public class LoanEligibleService {
                 ediModel != null ? ediModel : 0);
     }
 
-    private void cacheEligibilityResponse(String cacheKey, EligibleOffersResponseDTO response, Long merchantId) {
-        try {
-            AddCacheDto cacheDto = new AddCacheDto();
-            cacheDto.setKey(cacheKey);
-            cacheDto.setValue(response);
-            cacheDto.setTtl(600); // 10 minutes TTL
-            cacheDto.setVersion(String.valueOf(System.currentTimeMillis())); // Version tracking for invalidation
-            lendingCache.add(cacheDto);
-            logger.debug("Cached eligibility response with key: {}", cacheKey);
-        } catch (Exception e) {
-            logger.warn("Failed to cache eligibility response: {}", e.getMessage());
-        }
-    }
+//    private void cacheEligibilityResponse(String cacheKey, EligibleOffersResponseDTO response, Long merchantId) {
+//        try {
+//            AddCacheDto cacheDto = new AddCacheDto();
+//            cacheDto.setKey(cacheKey);
+//            cacheDto.setValue(response);
+//            cacheDto.setTtl(600); // 10 minutes TTL
+//            cacheDto.setVersion(String.valueOf(System.currentTimeMillis())); // Version tracking for invalidation
+//            lendingCache.add(cacheDto);
+//            logger.debug("Cached eligibility response with key: {}", cacheKey);
+//        } catch (Exception e) {
+//            logger.warn("Failed to cache eligibility response: {}", e.getMessage());
+//        }
+//    }
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
             LendingEligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, MaxPricingValuesDTO maxPricingValuesDTO) {
