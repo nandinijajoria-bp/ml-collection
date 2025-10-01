@@ -682,7 +682,19 @@ public class AutoPayUPIService {
     }
 
     public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto, Long merchantId) {
-        return null;
+        if (autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+                getAllowedLenderForUPIAutoPay(autoPayUPIMandatePluginLenders).contains(requestDto.getPayload().getLender()) &&
+                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionMerchantPlugin)) {
+            return UNITY.name();
+        }
+
+        if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+                getAllowedLenderForUPIAutoPay(allowedLendersForDirectCashfree).contains(requestDto.getPayload().getLender()) &&
+                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree) && easyLoanUtil.percentScaleUp(merchantId, autoPayUPIMandateDirectCashfreePercentRollout)) {
+            return DR_CASHFREE.name();
+        }
+
+        return JS_CASHFREE.name();
     }
 
     public AutoPayRequiredDto isUPIAutoPayRequired(BasicDetailsDto merchant) {
