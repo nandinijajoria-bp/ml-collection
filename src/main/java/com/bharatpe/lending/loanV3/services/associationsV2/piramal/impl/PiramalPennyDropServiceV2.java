@@ -99,7 +99,9 @@ public class PiramalPennyDropServiceV2 {
                     nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),
                             lendingApplication.get().getLender(), LenderAssociationStages.PENNY_DROP.name(),
                             LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.PENNY_DROP));
-                } else if(!ObjectUtils.isEmpty(piramalPennyDropResponseDTO) && ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getStatus()) && !ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getErrorDescription())) {
+                } else if((!ObjectUtils.isEmpty(piramalPennyDropResponseDTO)
+                        && ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getStatus()) && !ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getErrorDescription()))
+                        || (!ObjectUtils.isEmpty(piramalPennyDropResponseDTO) && "RETRY001".equalsIgnoreCase(piramalPennyDropResponseDTO.getErrorCode()))) {
                     //reject application
                     log.info("rejecting the application as penny drop failed at lender for {} with reason {}",lendingApplication.get(), piramalPennyDropResponseDTO.getErrorDescription());
                     rejectApplication(lendingApplication, lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
