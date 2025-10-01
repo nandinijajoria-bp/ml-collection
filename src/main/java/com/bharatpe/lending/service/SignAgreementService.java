@@ -33,6 +33,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
+import com.bharatpe.lending.lendingplatform.lms.service.LoanDisplayService;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
@@ -184,6 +185,9 @@ public class SignAgreementService {
 
 	@Value("#{${topup.v2.flow.lender.rollout.percentage:{}}}")
 	private Map<String,Integer> topupV2FlowLenderRolloutPercentage = new HashMap<>();
+
+	@Autowired
+	private LoanDisplayService loanDisplayService;
 
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
@@ -1013,7 +1017,19 @@ public class SignAgreementService {
 		int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
 		boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
 		if(isV2Flow) {
-			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
+			if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())){
+				try {
+					String externalLoanId = lendingApplicationDao.getExternalLoanIdById(lendingPaymentSchedule.getApplicationId());
+					LendingPaymentScheduleDTO lendingPaymentScheduleDTO = lmsLoanDetailsService.getLendingPaymentScheduleDTOFromOneLms(externalLoanId, lendingPaymentSchedule);
+					loans = loanDisplayService.topupLoanV2(lendingPaymentScheduleDTO,false);
+				} catch (Exception e) {
+					logger.error("1LMSTOPUP: Error fetching loan details from 1LMS for topup eligibility check for merchant {}", merchantId, e);
+					return false;
+				}
+
+			} else {
+				loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
+			}
 		} else {
 			loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
 		}
