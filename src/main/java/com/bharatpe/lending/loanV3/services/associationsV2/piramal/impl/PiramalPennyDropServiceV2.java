@@ -115,7 +115,6 @@ public class PiramalPennyDropServiceV2 {
         try {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.get().getId());
             Long ownerId = Boolean.TRUE.equals(lendingApplicationDetails.getIsNachSkip()) ? null : lendingApplication.get().getId();
-            CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
 
             log.info("creating piramal penny drop payload for applicationId {} and ownerId {}", lendingApplication.get().getId(), ownerId);
             MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.get().getMerchantId(), ownerId, lendingApplication.get().getLender());
@@ -152,7 +151,7 @@ public class PiramalPennyDropServiceV2 {
                 }
              }
         } catch (Exception e) {
-            log.info("Exception in fetching kyc data for merchantId {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+            log.error("Exception in fetching kyc data for merchantId {}", merchantId, e);
         }
         return "SAVINGS";
     }
