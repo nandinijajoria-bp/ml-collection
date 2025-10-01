@@ -13,9 +13,11 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,9 @@ public class PiramalPennyDropServiceV2 {
 
     @Autowired
     private LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    private KycUtils kycUtils;
 
     @Async
     @Transactional
@@ -110,9 +115,11 @@ public class PiramalPennyDropServiceV2 {
         try {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.get().getId());
             Long ownerId = Boolean.TRUE.equals(lendingApplicationDetails.getIsNachSkip()) ? null : lendingApplication.get().getId();
+            CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
 
             log.info("creating piramal penny drop payload for applicationId {} and ownerId {}", lendingApplication.get().getId(), ownerId);
             MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.get().getMerchantId(), ownerId, lendingApplication.get().getLender());
+
             NbfcRequestDto nbfcRequestDto = NbfcRequestDto.builder()
                     .applicationId(lendingApplication.get().getId())
                     .lender(lendingApplication.get().getLender())
@@ -122,7 +129,8 @@ public class PiramalPennyDropServiceV2 {
                             .leadId(lendingApplicationLenderDetails.getLeadId())
                             .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
                             .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
-                            .bankAccountType(merchantNachDetailsResponseDTO.getAccountType())
+                            .bankAccountType("CURRENT".equalsIgnoreCase(merchantNachDetailsResponseDTO.getAccountType())
+                                    ? merchantNachDetailsResponseDTO.getAccountType() : getBankAccountType(lendingApplication.get().getMerchantId()))
                             .productId(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "BPETU" : "BRTPE")
                             .build())
                     .build();
@@ -131,6 +139,22 @@ public class PiramalPennyDropServiceV2 {
             log.info("Exception in creating piramal bank details verification payload for applicationId {} {}", lendingApplication.get().getId(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private String getBankAccountType(Long merchantId) {
+        try {
+            CKycResponseDto cKycResponseDto = kycUtils.getKycData(merchantId);
+            if (!ObjectUtils.isEmpty(cKycResponseDto) && !ObjectUtils.isEmpty(cKycResponseDto.getBankBenePanNameMatchPer())) {
+                if (cKycResponseDto.getBankBenePanNameMatchPer() < 0.6) {
+                    return "CURRENT";
+                } else {
+                    return "SAVINGS";
+                }
+             }
+        } catch (Exception e) {
+            log.info("Exception in fetching kyc data for merchantId {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+        }
+        return "SAVINGS";
     }
 
     private void rejectApplication(Optional<LendingApplication> lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String status) {
