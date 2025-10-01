@@ -51,6 +51,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
 import com.bharatpe.lending.loanV3.revamp.enums.PreApprovedLoanEnums;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
 import com.bharatpe.lending.service.MileStoneHelperService;
@@ -92,6 +93,7 @@ public class LoanDashboardService {
 
     @Autowired
     MileStoneHelperService mileStoneHelperService;
+    @Lazy
     @Autowired
     private LoanUtil loanUtil;
 
@@ -1152,11 +1154,11 @@ public class LoanDashboardService {
     }
 
     private void handleDiwaliBanner(BasicDetailsDto merchant, LoanDashboardResponse loanDashboardResponse) {
-        Date diwaliBannerOneRolloutDateParsed = parseDate(diwaliBannerOneRolloutDate);
-        Date diwaliBannerOneEndDateParsed = parseDate(diwaliBannerOneEndDate);
+        Date diwaliBannerOneRolloutDateParsed = DateUtils.parseDate(diwaliBannerOneRolloutDate);
+        Date diwaliBannerOneEndDateParsed = DateUtils.parseDate(diwaliBannerOneEndDate);
 
-        Date diwaliBannerTwoRolloutDateParsed = parseDate(diwaliBannerTwoRolloutDate);
-        Date diwaliBannerTwoEndDateParsed = parseDate(diwaliBannerTwoEndDate);
+        Date diwaliBannerTwoRolloutDateParsed = DateUtils.parseDate(diwaliBannerTwoRolloutDate);
+        Date diwaliBannerTwoEndDateParsed = DateUtils.parseDate(diwaliBannerTwoEndDate);
 
         if (!ObjectUtils.isEmpty(diwaliBannerOneRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerOneEndDateParsed)) {
             if (new Date().after(diwaliBannerOneRolloutDateParsed) && new Date().before(diwaliBannerOneEndDateParsed)) {
@@ -1175,15 +1177,6 @@ public class LoanDashboardService {
         }
     }
 
-    private Date parseDate(String stringDate) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
-            return sdf.parse(stringDate);
-        } catch (Exception e) {
-            log.info("Exception occurred while parsing date for string : {}", stringDate);
-        }
-        return null;
-    }
 
     private void cacheLoanDetailsData(LoanDashboardResponse loanDashboardResponse) {
         //Response should not be cached in case of countdown minutes, so merchant can see updated timer on app restart
