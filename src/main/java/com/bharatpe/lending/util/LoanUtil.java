@@ -838,16 +838,6 @@ public class LoanUtil {
 		return autoPauUpiInternalMerchant.contains(merchantId);
 	}
 
-	public boolean isApplicationEligibleForAutoPayUpi(String lender) {
-
-		if (autoPayUPILendersList.contains(lender))
-		{
-			return true;
-		}
-		return false;
-	}
-
-
 	/*
 	feature-ML-820 : New logic implemented for displaying message based on TAT days
 
