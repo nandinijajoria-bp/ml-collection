@@ -297,9 +297,6 @@ public class LoanUtil {
 	@Value("${payment.bank.change.flow.applicable:false}")
 	boolean isPaymentBankChangeFlowApplicable;
 
-	@Value("${auto.pay.upi.lenders.list:}")
-	String autoPayUPILendersList;
-
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 	List<Long> derogMerchants = new ArrayList();
