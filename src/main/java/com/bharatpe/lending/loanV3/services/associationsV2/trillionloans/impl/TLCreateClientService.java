@@ -1,14 +1,19 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.dao.MerchantAggregateDataDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -66,6 +71,18 @@ public class TLCreateClientService {
 
     @Autowired
     TrillionLoansConfig trillionLoansConfig;
+
+    @Autowired
+    LendingMerchantDetailsDao lendingMerchantDetailsDao;
+
+    @Autowired
+    KycHandler kycHandler;
+
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    MerchantAggregateDataDao merchantAggregateDataDao;
 
     @Transactional
     public boolean invokeCreateClient(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -148,12 +165,41 @@ public class TLCreateClientService {
                             .bankDetails(getBankDetails(lendingApplication, cKycResponseDto))
                             .clientIdentifierDetails(getClientIdentifier(cKycResponseDto))
                             .employmentDetails(getEmploymentDetails())
+                            .additionalDetails(getAdditionalDetails(lendingApplication, cKycResponseDto))
                             .build())
                     .build();
         } catch (Exception e) {
             log.error("Exception in creating payload of Create Client of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private List<TLCreateClientRequestDto.AdditionalDetails> getAdditionalDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
+        log.info("fetching additional details for create client of TrillionLoans for applicationId {}", lendingApplication.getId());
+        List<TLCreateClientRequestDto.AdditionalDetails> additionalDetailList = new ArrayList<>();
+        MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(lendingApplication.getMerchantId());
+        CKycResponseDto gstResponse = kycUtils.getGstData(lendingApplication.getMerchantId());
+        log.info("gst details fetched from kyc service for create client of TrillionLoans for applicationId {} is {}", lendingApplication.getId(), gstResponse);
+        LendingMerchantDetails merchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
+
+        TLCreateClientRequestDto.AdditionalDetails additionalDetail = TLCreateClientRequestDto.AdditionalDetails.builder()
+                .dataTableName("merchant_details")
+                .appTable("m_client")
+                .subIndustry(ObjectUtils.isEmpty(merchantDetails.getBusinessSubCategory()) ? null : merchantDetails.getBusinessSubCategory())
+                .industry(ObjectUtils.isEmpty(merchantDetails.getBusinessCategory()) ? null : merchantDetails.getBusinessCategory())
+                .businessAddress(ObjectUtils.isEmpty(cKycResponseDto.getAddress()) ? null : cKycResponseDto.getAddress())
+                .state(ObjectUtils.isEmpty(cKycResponseDto.getState()) ? null : cKycResponseDto.getState())
+                .city(ObjectUtils.isEmpty(cKycResponseDto.getCity()) ? null : cKycResponseDto.getCity())
+                .country("India")
+                .postalCode(ObjectUtils.isEmpty(lendingApplication.getPincode()) ? null : lendingApplication.getPincode())
+                .gstNumber(ObjectUtils.isEmpty(gstResponse.getGstNumber()) ? null : gstResponse.getGstNumber())
+                .businessDocument(ObjectUtils.isEmpty(gstResponse.getName()) ? null : gstResponse.getName())
+                .legalName(ObjectUtils.isEmpty(merchantDetails.getBusinessName()) ? null : merchantDetails.getBusinessName())
+                .tradeName(ObjectUtils.isEmpty(gstResponse.getTradeName()) ? null : gstResponse.getTradeName())
+                .bankBeneName(ObjectUtils.isEmpty(merchantDetailsDto) || ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail()) || ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail().getBeneficiaryName()) ? null : merchantDetailsDto.getBankDetail().getBeneficiaryName())
+                .build();
+        additionalDetailList.add(additionalDetail);
+        return additionalDetailList;
     }
 
     private TLCreateClientRequestDto.EmploymentDetails getEmploymentDetails() {

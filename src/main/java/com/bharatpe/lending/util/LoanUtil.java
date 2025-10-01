@@ -60,6 +60,7 @@ import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
 import com.bharatpe.lending.service.PaymentBankService;
+import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -170,9 +171,6 @@ public class LoanUtil {
 	@Autowired
 	LendingPincodesDao lendingPincodesDao;
 
-//	@Autowired
-//	MerchantSummaryDao merchantSummaryDao;
-
 	@Autowired
 	MerchantSummarySnapshotDao merchantSummarySnapshotDao;
 
@@ -193,9 +191,6 @@ public class LoanUtil {
 
 	@Autowired
 	LaunchLabsHandler launchLabsHandler;
-
-//	@Autowired
-//	MerchantScoreDao merchantScoreDao;
 
 	@Autowired
 	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
@@ -496,6 +491,12 @@ public class LoanUtil {
 
 	@Autowired
 	private LmsLoanDetailsService lmsLoanDetailsService;
+
+	@Value("#{${digio.upi.lender.wise.rollout.percentage:{}}}")
+	private Map<String,Integer> digioUpiLenderWiseRolloutPercentage = new HashMap<>();
+
+	@Autowired
+	private MandateRegistrationHelper mandateRegistrationHelper;
 
 	@PostConstruct
 	public void init(){
@@ -1587,6 +1588,16 @@ public class LoanUtil {
 		return lendingNachBank != null;
 	}
 
+	public boolean isEnachBank(Long merchantId, String mode) {
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
+		if (merchantBankDetail == null) return true;
+		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfscAndMode(merchantBankDetail.getIfsc().substring(0, 4), mode);
+		return lendingNachBank != null;
+	}
+
 	public LendingNachBankResponseDTO getEnachBankMode(Long merchantId) {
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
@@ -1758,6 +1769,35 @@ public class LoanUtil {
 		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
 	}
 
+	public BigDecimal getForeclosureAmountBD(LendingPaymentScheduleDTO lendingPaymentSchedule) {
+		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+			return BigDecimal.ZERO;
+		}
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		BigDecimal advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ?
+				BigDecimal.valueOf(lendingPrepayment.getAdvanceEdiAmount()) : BigDecimal.ZERO;
+
+		BigDecimal excessCollectionBalance = new BigDecimal(excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId()).toString());
+		BigDecimal extraInterestofPerpetualDpdLoan = BigDecimal.valueOf(fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId()));
+
+		BigDecimal loanAmount = BigDecimal.valueOf(lendingPaymentSchedule.getLoanAmount());
+
+		BigDecimal paidPrinciple = lendingPaymentSchedule.getPaidPrinciple() != null ?
+				BigDecimal.valueOf(lendingPaymentSchedule.getPaidPrinciple()) : BigDecimal.ZERO;
+
+		BigDecimal dueInterest = lendingPaymentSchedule.getDueInterest() != null ?
+				BigDecimal.valueOf(lendingPaymentSchedule.getDueInterest()) : BigDecimal.ZERO;
+
+
+		BigDecimal foreclosureAmount = loanAmount.subtract(paidPrinciple)
+				.add(dueInterest)
+				.subtract(advanceEdiAmount)
+				.subtract(excessCollectionBalance)
+				.subtract(extraInterestofPerpetualDpdLoan);
+
+		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
+	}
+
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
 
 		double prevLoanUnpaidAmount = 0;
@@ -1906,6 +1946,11 @@ public class LoanUtil {
 
 	//This method returns the PF value in Big Decimal
 	public BigDecimal getIoHalfPFBD(LendingPaymentSchedule lendingPaymentSchedule) {
+		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
+		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
+	}
+
+	public BigDecimal getIoHalfPFBD(LendingPaymentScheduleDTO lendingPaymentSchedule) {
 		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
 		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
 	}
@@ -2268,6 +2313,11 @@ public class LoanUtil {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
+
+		if(mandateRegistrationHelper.isDigioUpiCase(lendingApplication)){
+			return false;
+		}
+
 		BankAccountDetails accountDetails = getAccountDetails(lendingApplication.getMerchantId());
 		if (accountDetails == null) {
 			logger.error("Account details are null for merchant {}", lendingApplication.getMerchantId());
@@ -3670,14 +3720,20 @@ public class LoanUtil {
 
 	public boolean isEligibleForUpiAutopayDedicatedScreen(LendingApplication lendingApplication){
 		logger.info("Checking if UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
-		return enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
-				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && isUpiDedicatedScreenEligible(lendingApplication);
+		return enableAutopayUPIRegistration
+				&& isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
+				&& !checkIfUpiAutoPayNotRequired(lendingApplication)
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)
+				&& isUpiDedicatedScreenEligible(lendingApplication);
 	}
 
 	public boolean isEligibleForUpiAutopayTopupDedicatedScreen(LendingApplication lendingApplication){
-		logger.info("Checking if UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
-		return enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
-				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
+		logger.info("Checking if UPI Autopay dedicated screen is applicable for topup applicationId: {}", lendingApplication.getId());
+		return enableAutopayUPIRegistration
+				&& isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
+				&& !checkIfUpiAutoPayNotRequired(lendingApplication)
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
 	}
 
 	public LendingViewStates getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(LendingApplication lendingApplication){
@@ -3689,12 +3745,12 @@ public class LoanUtil {
 		return LendingViewStates.ENACH_PAGE;
 	}
 
-	public LendingViewStates getNextLendingViewStateForTopup(LendingApplicationDetails lendingApplicationDetails, LendingApplication lendingApplication) {
+	public LendingViewStates getNextLendingViewStateForTopup(LendingApplicationDetails lendingApplicationDetails, LendingApplication lendingApplication, boolean isIos) {
 		logger.info("Deciding next lending view state for topup for applicationId: {} with lendingApplication Details: {}", lendingApplication.getId(), lendingApplicationDetails);
 		if(isMandateSwitchEnabled(lendingApplication)) {
 			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
 
-			updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
+			updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount(), isIos);
 			logger.info("Updated LendingApplicationDetails for applicationId: {}: {}", lendingApplication.getId(), lendingApplicationDetails);
 
 			LendingViewStates nextLendingViewStateForTopup;
@@ -3722,10 +3778,6 @@ public class LoanUtil {
 			return nextLendingViewStateForTopup;
 		}
 		else	return getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
-	}
-
-	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount) {
-		return getMandatesRequiredForApplication(lender, loanAmount, null);
 	}
 
 	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount, String loanSegment) {
@@ -3824,7 +3876,7 @@ public class LoanUtil {
 		return false; // If mandateEligibilityConfig is null, return false
 	}
 
-	public void updateMandateColumnsInLAD(LendingApplicationDetails lendingApplicationDetails, String lender, Double loanAmount) {
+	public void updateMandateColumnsInLAD(LendingApplicationDetails lendingApplicationDetails, String lender, Double loanAmount, boolean isIos) {
 		try {
 			logger.info("Updating mandate columns in LendingApplicationDetails");
 			if ( StringUtils.isEmpty(lender) || Objects.isNull(loanAmount) || loanAmount <= 0
@@ -3849,24 +3901,33 @@ public class LoanUtil {
 				logger.info("Using forced mandatesInJourney: {} for applicationId: {}, lender: {}, loanAmount: {}",
 						mandatesInJourney, lendingApplicationDetails.getApplicationId(), lender, loanAmount);
 			}
-			Map<String, Object> metaData = lendingApplicationDetails.getMetaData();
-			if(Objects.isNull(metaData)){
-				metaData=new HashMap<>();
-			}
 			if (NACH_UPIAUTOPAY.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(true);
 				lendingApplicationDetails.setNachEligible(true);
-				metaData.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.BOTH);
+				lendingApplicationDetails.setMandateType(MandateType.BOTH);
 			} else if (UPIAUTOPAY.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(true);
 				lendingApplicationDetails.setNachEligible(false);
-				metaData.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.UPIAUTOPAY);
+				lendingApplicationDetails.setMandateType(MandateType.UPIAUTOPAY);
 			} else if (NACH.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(false);
 				lendingApplicationDetails.setNachEligible(true);
-				metaData.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.ENACH);
+				lendingApplicationDetails.setMandateType(MandateType.ENACH);
 			}
-			lendingApplicationDetails.setMetaData(metaData);
+			if (!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)
+					&& !isIos && (NACH_UPIAUTOPAY.equals(mandatesInJourney) || UPIAUTOPAY.equals(mandatesInJourney))
+						&& easyLoanUtil.percentScaleUp(lendingRiskVariablesSnapshot.getMerchantId(), digioUpiLenderWiseRolloutPercentage.getOrDefault(lender, 0))) {
+				boolean isMerchantBankNachable = mandateRegistrationHelper.isMerchantNachableForMode(lendingRiskVariablesSnapshot.getMerchantId(), "UPI");
+				if (isMerchantBankNachable) {
+					logger.info("Setting mandate type to DIGIO_UPI for merchantId: {}, applicationId: {} as merchant is NACHable for UPI mode",
+							lendingRiskVariablesSnapshot.getMerchantId(), lendingApplicationDetails.getApplicationId());
+					lendingApplicationDetails.setNachEligible(true);
+					lendingApplicationDetails.setAutoPayUpiEligible(false);
+					lendingApplicationDetails.setIsNachSkip(false);
+					lendingApplicationDetails.setMandateType(MandateType.DIGIO_UPI);
+				}
+			}
+
 			lendingApplicationDetails.setMandateFlagsToggledOn(new Date());
 			logger.info("Mandate flags toggled on for applicationId: {}, setting autoPayUpiEligible: {}, nachEligible: {}",
 					lendingApplicationDetails.getApplicationId(), lendingApplicationDetails.isAutoPayUpiEligible(), lendingApplicationDetails.isNachEligible());
@@ -3907,7 +3968,8 @@ public class LoanUtil {
 	}
 
 	public boolean isMandateSwitchEnabled(LendingApplication lendingApplication){
-		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent);
+		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication)
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent);
 	}
 
 	/**

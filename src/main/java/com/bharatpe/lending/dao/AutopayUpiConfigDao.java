@@ -7,5 +7,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AutopayUpiConfigDao extends JpaRepository<AutopayUPIConfig, Long> {
 
-    AutopayUPIConfig findAutoPayUpiConfigByLenderAndLoanSegment(String lender, String loanSegment);
+    AutopayUPIConfig findAutoPayUpiConfigByLenderAndLoanSegmentAndStatus(String lender, String loanSegment, String status);
 }

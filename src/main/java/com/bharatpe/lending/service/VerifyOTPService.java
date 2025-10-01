@@ -1100,7 +1100,7 @@ public class VerifyOTPService {
         int foreClosureAmount=0;
         try {
             logger.info("1LMS Topup: fethcing foreclosure amount for 1LMS loanId : {}" , previousLoan.getId());
-            foreClosureAmount = foreclosureService.getForeclosureAmount(previousLoan);
+            foreClosureAmount = foreclosureService.getForeclosureAmount(previousLoan.getApplicationId(), previousLoan.getMerchantId());
         }
         catch (Exception e){
             logger.error("1LMS Topup: Error in fetching foreclosure amount for 1LMS loanId : {}" , previousLoan.getId());

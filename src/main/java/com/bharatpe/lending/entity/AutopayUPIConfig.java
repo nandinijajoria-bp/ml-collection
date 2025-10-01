@@ -21,4 +21,7 @@ public class AutopayUPIConfig extends BaseEntity {
     @Column(name = "loan_segment")
     private String loanSegment;
 
+    @Column(name = "status")
+    private String status;
+
 }

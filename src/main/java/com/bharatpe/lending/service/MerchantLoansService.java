@@ -314,6 +314,9 @@ public class MerchantLoansService {
     @Value("${topup.v2.flow.lenders:PIRAMAL}")
     private String topupV2FlowLenders;
 
+    @Value("#{${topup.v2.flow.lender.rollout.percentage:{}}}")
+    private Map<String,Integer> topupV2FlowLenderRolloutPercentage = new HashMap<>();
+
     private static final List<String> TOPUP_REJECTION_ENABLED_LENDERS = Arrays.asList(
             LIQUILOANS_P2P.name(),LIQUILOANS_P2P_OF.name(), ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name(), PAYU.name());
 
@@ -536,18 +539,21 @@ public class MerchantLoansService {
         responseDTO.setRepaymentDetails(loanUtil.getRepaymentDetails(loanPaymentOrderList));
         try {
             List<LoanEligibilityDTO> loans;
-            String topupLender = activeLendingPaymentSchedule.getNbfc();
-            if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(topupLender)) {
-                loans = topupLoanV2(activeLendingPaymentSchedule, false);
-            } else{
-                loans = topupLoan(activeLendingPaymentSchedule, false);
-            }
+            String topupLender = topupLenderMapper(activeLendingPaymentSchedule.getNbfc());
+            int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
+            boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
+            loans = isV2Flow
+                    ? topupLoanV2(activeLendingPaymentSchedule, false)
+                    : topupLoan(activeLendingPaymentSchedule, false);
+
             log.info("calculated topup_loan eligibility: {}", loans);
-            if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(topupLender)) {
+
+            if (isV2Flow) {
                 setTopupDetailsV2(merchantId, loans, responseDTO, activeLendingPaymentSchedule);
             } else {
                 setTopupDetails(merchantId, loans, responseDTO, activeLendingPaymentSchedule);
             }
+
             if(TOPUP_REJECTION_ENABLED_LENDERS.contains(activeLendingPaymentSchedule.getNbfc())) {
                 responseDTO.setTopupRejected(checkForTopupRejection(activeLendingPaymentSchedule.getMerchantId(), activeLendingPaymentSchedule.getNbfc()));
             }
@@ -698,17 +704,19 @@ public class MerchantLoansService {
                 responseDTO.setRepaymentDetails(loanUtil.getRepaymentDetails(loanPaymentOrderList));
                 try {
                     List<LoanEligibilityDTO> loans;
-                    String topupLender = lendingPaymentSchedule.getNbfc();
-                    if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(topupLender)) {
-                        loans = topupLoanV2(lendingPaymentSchedule, false);
-                    } else {
-                        loans = topupLoan(lendingPaymentSchedule, false);
-                    }
+                    String topupLender = topupLenderMapper(lendingPaymentSchedule.getNbfc());
+                    int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
+                    boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
+                    loans = isV2Flow
+                            ? topupLoanV2(lendingPaymentSchedule, false)
+                            : topupLoan(lendingPaymentSchedule, false);
+
                     log.info("calculated topup_loan eligibility: {}", loans);
-                    if(easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled) && topupV2FlowLenders.contains(topupLender)) {
-                        setTopupDetailsV2(merchantId, topupLoanV2(lendingPaymentSchedule, false), responseDTO, lendingPaymentSchedule);
+
+                    if (isV2Flow) {
+                        setTopupDetailsV2(merchantId, loans, responseDTO, lendingPaymentSchedule);
                     } else {
-                        setTopupDetails(merchantId, topupLoan(lendingPaymentSchedule, false), responseDTO, lendingPaymentSchedule);
+                        setTopupDetails(merchantId, loans, responseDTO, lendingPaymentSchedule);
                     }
                     if(TOPUP_REJECTION_ENABLED_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
                         responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc()));
@@ -2998,6 +3006,19 @@ public class MerchantLoansService {
 //    }
 
     public double getPreviousLoanAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
+        double prevLoanUnpaidAmount = 0;
+        double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
+        if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+            prevLoanUnpaidAmount = loanUtil.getForeclosureAmountForLdc(lendingPaymentSchedule);
+        } else {
+            prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple())
+                    + lendingPaymentSchedule.getDueInterest() + penaltyFee;
+        }
+
+        return prevLoanUnpaidAmount;
+    }
+
+    public double getPreviousLoanAmount(LendingPaymentScheduleDTO lendingPaymentSchedule) {
         double prevLoanUnpaidAmount = 0;
         double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
         if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {

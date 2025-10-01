@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.entity.LenderMetricsHistory;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
 import com.bharatpe.lending.loanV3.revamp.dto.OfferEvaluationRequestDTO;
 import org.springframework.http.ResponseEntity;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
@@ -102,6 +103,7 @@ import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
 import static com.bharatpe.lending.constant.LendingConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.NEGATIVE_BUSINESS_CATEGORY_REJECTION;
 import static com.bharatpe.lending.enums.Lender.*;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 @Service
 public class LoanEligibleService {
@@ -295,6 +297,8 @@ public class LoanEligibleService {
 
     @Autowired
     LenderAssignService lenderAssignService;
+    @Autowired
+    private LmsLoanDetailsService lmsLoanDetailsService;
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
@@ -355,7 +359,16 @@ public class LoanEligibleService {
 
             BigDecimal prevLoanUnpaidAmountBD;
             try {
-                Double prevAmount = merchantLoansService.getPreviousLoanAmount(lendingPaymentSchedule);
+                Double prevAmount =  0D;
+                if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())) {
+                    String externalLoanId = lendingApplicationDao.getExternalLoanIdById(lendingPaymentSchedule.getApplicationId());
+                    LendingPaymentScheduleDTO lendingPaymentScheduleDTO =
+                            lmsLoanDetailsService.getLendingPaymentScheduleDTOFromOneLms(externalLoanId, lendingPaymentSchedule);
+                    prevAmount = merchantLoansService.getPreviousLoanAmount(lendingPaymentScheduleDTO);
+                    logger.info("1LMSTOPUP : Previous loan amount from ONE_LMS for merchantId: {} is {}", merchantId, prevAmount);
+                } else {
+                    prevAmount = merchantLoansService.getPreviousLoanAmount(lendingPaymentSchedule);
+                }
                 prevLoanUnpaidAmountBD = BigDecimal.valueOf(prevAmount != null ? prevAmount : 0.0);
             } catch (Exception e) {
                 logger.error("Error calculating previous loan amount for merchantId: {}", merchantId, e);
@@ -602,21 +615,21 @@ public class LoanEligibleService {
             }
 
             // Generate cache key and check cache
-            String cacheKey = generateEligibilityCacheKey(merchantId, queryAmount, ediModel);
-            EligibleOffersResponseDTO cachedResponse = null;
+            // String cacheKey = generateEligibilityCacheKey(merchantId, queryAmount, ediModel);
+//            EligibleOffersResponseDTO cachedResponse = null;
+//
+//            try {
+//                cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
+//                if (cachedResponse != null) {
+//                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - Cache hit for merchantId: {}", METHOD, merchantId);
+//                    return ApiResponseUtil.ok(cachedResponse, "Eligibility details fetched successfully from cache");
+//                }
+//            } catch (Exception e) {
+//                AsyncLoggerUtil.logError(logger, "Cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
+//                // Continue execution despite cache error
+//            }
 
-            try {
-                cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
-                if (cachedResponse != null) {
-                    AsyncLoggerUtil.logInfo(logger, "EXIT {} - Cache hit for merchantId: {}", METHOD, merchantId);
-                    return ApiResponseUtil.ok(cachedResponse, "Eligibility details fetched successfully from cache");
-                }
-            } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Cache retrieval failed for key: {} - {}", cacheKey, e.getMessage());
-                // Continue execution despite cache error
-            }
-
-            AsyncLoggerUtil.logInfo(logger, "Cache miss for merchantId: {}, processing eligibility", merchantId);
+            AsyncLoggerUtil.logInfo(logger, "Processing eligibility for merchantId: {}", merchantId);
             EligibleOffersResponseDTO responseDTO = new EligibleOffersResponseDTO();
 
             // Get global limit
@@ -702,12 +715,12 @@ public class LoanEligibleService {
             responseDTO.setLoanAmount(effectiveQueryAmount);
 
             // Cache successful response
-            try {
-                cacheEligibilityResponse(cacheKey, responseDTO, merchantId);
-            } catch (Exception e) {
-                AsyncLoggerUtil.logError(logger, "Failed to cache response for key: {} - {}", cacheKey, e.getMessage());
-                // Continue despite cache error
-            }
+//            try {
+//                cacheEligibilityResponse(cacheKey, responseDTO, merchantId);
+//            } catch (Exception e) {
+//                AsyncLoggerUtil.logError(logger, "Failed to cache response for key: {} - {}", cacheKey, e.getMessage());
+//                // Continue despite cache error
+//            }
 
             AsyncLoggerUtil.logInfo(logger, "EXIT {} - Successfully processed eligibility for merchantId: {}, found {} tenures",
                     METHOD, merchantId, tenureWithLenders.size());
@@ -2021,6 +2034,13 @@ public class LoanEligibleService {
                     break;
                 }
                 break;
+            case UGRO:
+                if (edi > 0.75 * (riskVariables.getMonthlyTpv()/30)) {
+                    response = "skipping " + lenderEnum.name()+ " for merchant id : " + merchantId + " due to merchant loan edi amount: " + edi + " is greater than 0.75 * dailyTPV " + 0.75 * (riskVariables.getMonthlyTpv()/30);
+                    success = false;
+                    break;
+                }
+                break;
             default:
                 AsyncLoggerUtil.logDebug(logger,"No specific checks found for lender : {} for merchantId : {}", lender, merchantId);
         }
@@ -2547,19 +2567,19 @@ public class LoanEligibleService {
                 ediModel != null ? ediModel : 0);
     }
 
-    private void cacheEligibilityResponse(String cacheKey, EligibleOffersResponseDTO response, Long merchantId) {
-        try {
-            AddCacheDto cacheDto = new AddCacheDto();
-            cacheDto.setKey(cacheKey);
-            cacheDto.setValue(response);
-            cacheDto.setTtl(600); // 10 minutes TTL
-            cacheDto.setVersion(String.valueOf(System.currentTimeMillis())); // Version tracking for invalidation
-            lendingCache.add(cacheDto);
-            logger.debug("Cached eligibility response with key: {}", cacheKey);
-        } catch (Exception e) {
-            logger.warn("Failed to cache eligibility response: {}", e.getMessage());
-        }
-    }
+//    private void cacheEligibilityResponse(String cacheKey, EligibleOffersResponseDTO response, Long merchantId) {
+//        try {
+//            AddCacheDto cacheDto = new AddCacheDto();
+//            cacheDto.setKey(cacheKey);
+//            cacheDto.setValue(response);
+//            cacheDto.setTtl(600); // 10 minutes TTL
+//            cacheDto.setVersion(String.valueOf(System.currentTimeMillis())); // Version tracking for invalidation
+//            lendingCache.add(cacheDto);
+//            logger.debug("Cached eligibility response with key: {}", cacheKey);
+//        } catch (Exception e) {
+//            logger.warn("Failed to cache eligibility response: {}", e.getMessage());
+//        }
+//    }
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
             LendingEligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, MaxPricingValuesDTO maxPricingValuesDTO) {

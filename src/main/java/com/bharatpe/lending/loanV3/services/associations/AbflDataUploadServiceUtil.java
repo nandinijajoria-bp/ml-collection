@@ -29,6 +29,7 @@ import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.FileUtil;
+import com.bharatpe.util.pdf.PdfMergerUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.pdf.PdfReader;
@@ -43,9 +44,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLConnection;
@@ -138,6 +137,12 @@ public class AbflDataUploadServiceUtil {
 
     @Value("${lender.doc.generate.topup.enabled.lenders:}")
     String lenderDocGenerateTopUpEnabledLenders;
+
+    @Value("${new.pdf.generation.method.lenders:-}")
+    String newPdfGenerationMethodLenders;
+
+    @Autowired
+    PdfMergerUtil pdfMergerUtil;
 
     private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
@@ -515,31 +520,42 @@ public class AbflDataUploadServiceUtil {
 
         String mergedFileName = "KFS_SANCTION_AGREEMENT_MERGED_"+ lendingApplication.getId() + ".pdf";
 
-
         // Download the first PDF file
         URL url1 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName,bucket));
         URLConnection connection1 = url1.openConnection();
         InputStream inputStream1 = connection1.getInputStream();
-        PdfReader reader1 = new PdfReader(inputStream1);
 
         // Download the second PDF file
         URL url2 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docSanctionName,bucket));
         URLConnection connection2 = url2.openConnection();
         InputStream inputStream2 = connection2.getInputStream();
-        PdfReader reader2 = new PdfReader(inputStream2);
 
-        // Create the output file
-        Document document = new Document();
-        PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
-        copy.setCompressionLevel(9);
-        document.open();
+        if(newPdfGenerationMethodLenders.contains(lendingApplication.getLender())){
+            log.info("Using new pdf generation method for application {}", lendingApplication.getId());
+            byte[] mergedByteArray = pdfMergerUtil.mergePdfs(Arrays.asList(inputStream1.readAllBytes(),inputStream2.readAllBytes()));
+            try (FileOutputStream fos = new FileOutputStream("/data/" + mergedFileName)) {
+                fos.write(mergedByteArray);
+                log.info("PDF created successfully with header and footer on all pages.");
+            } catch (Exception e) {
+                log.error("Error creating PDF: {}", e.getMessage(), e);
+                throw new RuntimeException("Error creating PDF", e);
+            }
+        }else {
+            PdfReader reader1 = new PdfReader(inputStream1);
+            PdfReader reader2 = new PdfReader(inputStream2);
+            // Create the output file
+            Document document = new Document();
+            PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
+            copy.setCompressionLevel(9);
+            document.open();
 
-        // Merge the PDF files
-        copy.addDocument(reader1);
-        copy.addDocument(reader2);
+            // Merge the PDF files
+            copy.addDocument(reader1);
+            copy.addDocument(reader2);
 
-        // Close the document
-        document.close();
+            // Close the document
+            document.close();
+        }
 
         File mergedFile = new File("/data/" + mergedFileName);
         s3BucketHandler.uploadFileToS3(mergedFile,"loan-document",mergedFileName);

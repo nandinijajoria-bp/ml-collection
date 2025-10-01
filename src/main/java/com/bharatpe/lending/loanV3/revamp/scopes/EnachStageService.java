@@ -8,8 +8,10 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.MandateType;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.FunnelService;
@@ -172,9 +174,14 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
 
         if(loanUtil.isInternalMerchant(openApplication.getMerchantId()) || easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), aadharNachRolloutPercentV3)){
             String lender = openApplication.getLender();
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationServiceV3.getLendingApplicationDetailsByApplicationId(openApplication.getId());
+
             if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
                     Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
                 enachStateDTO.setEnachModes(Arrays.asList(new EnachModeDTO(EnachMode.NB_DC.name(), true, null)));
+            } else if (!ObjectUtils.isEmpty(lendingApplicationDetails) && MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType())) {
+                enachStateDTO.setEnachModes(Collections.singletonList(new EnachModeDTO(EnachMode.UPI.name(), true, null)));
+                enachStateDTO.setNativeMandateRequired(true);
             }
             else{
                 List<EnachModeDTO> enachModes = getAvailableEnachMode(openApplication, scopeDataArgs.getLoanDetailsV3Request().getAppVersion());
@@ -254,11 +261,14 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
 
         if(loanUtil.isInternalMerchant(lendingApplication.getMerchantId()) || easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), aadharNachRolloutPercentV3)){
             String lender = lendingApplication.getLender();
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationServiceV3.getLendingApplicationDetailsByApplicationId(applicationId);
             if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
               Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
                 enachStateDTO.setEnachModes(Arrays.asList(new EnachModeDTO(EnachMode.NB_DC.name(), true, null)));
-            }
-            else {
+            }else if (!ObjectUtils.isEmpty(lendingApplicationDetails) && MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType())) {
+                enachStateDTO.setEnachModes(Collections.singletonList(new EnachModeDTO(EnachMode.UPI.name(), true, null)));
+                enachStateDTO.setNativeMandateRequired(true);
+            } else {
                 List<EnachModeDTO> enachModes = getAvailableEnachMode(lendingApplication, scopeDataArgs.getLoanDetailsV3Request().getAppVersion());
                 enachStateDTO.setEnachModes(enachModes);
             }
@@ -357,6 +367,8 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
         return null;
     }
+
+
 
     private List<EnachModeDTO> getAvailableEnachMode(LendingApplication lendingApplication, Integer appVersion) {
 
