@@ -155,11 +155,6 @@ public class InvokeAdditionalDocUploadWrapperService {
     }
 
     private void checkAndPostConsent(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
-        if(LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())) {
-            LendingApplication parentApplication = loanUtil.fetchParentApplication(lenderAssociationDetailsRequestDto.getLendingApplication().getId());
-            if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(parentApplication.getLender())) {
-                associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto);
-            }
-        }
+        associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto);
     }
 }
