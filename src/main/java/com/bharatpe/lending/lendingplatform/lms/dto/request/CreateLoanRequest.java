@@ -23,6 +23,8 @@ public class CreateLoanRequest {
     @NotBlank
     private String bpLoanId;
 
+    private String applicationId;
+
     @NotNull
     @Valid
     private LoanDetails loanDetails;

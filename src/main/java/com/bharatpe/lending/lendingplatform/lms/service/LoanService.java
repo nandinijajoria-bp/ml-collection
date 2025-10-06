@@ -441,7 +441,7 @@ private void executeSmsAndPaymentLink(LendingApplication application, LendingPay
     }
 
     private static final List<String> EXCLUDED_LENDERS = Arrays.asList(
-            Lender.TRILLIONLOANS.name(), Lender.UGRO.name()
+            Lender.TRILLIONLOANS.name(), Lender.UGRO.name(), Lender.OXYZO.name()
     );
 
     private LendingPaymentSchedule createLendingPaymentSchedule(LendingApplication lendingApplication, BasicDetailsDto basicDetailsDto) {
