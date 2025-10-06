@@ -15,11 +15,14 @@ public class QrStatusApiService {
 
     private final RestTemplate restTemplate;
     private final String qrStatusBaseUrl;
+    private final String underwritingApiKey;
 
     public QrStatusApiService(RestTemplate restTemplate,
-                              @Value("${qrstatus.api.base-url}") String qrStatusBaseUrl) {
+                              @Value("${qrstatus.api.base-url}") String qrStatusBaseUrl,
+                              @Value("${x.api.key.underwriting.service}") String underwritingApiKey) {
         this.restTemplate = restTemplate;
         this.qrStatusBaseUrl = qrStatusBaseUrl;
+        this.underwritingApiKey = underwritingApiKey;
     }
 
     //status,data,errorMessage
@@ -27,15 +30,16 @@ public class QrStatusApiService {
         log.info("Starting QR status event processing for merchant: {}, eventType: {}",
                 eventDTO.getMerchantId(), eventDTO.getEventType());
 
-        String url = qrStatusBaseUrl + "/api/qr-status/event";
+        String url = qrStatusBaseUrl + "/api/v1/qr/webhook";
         log.debug("Making API call to QR status service URL: {}", url);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-API-KEY", underwritingApiKey);
         eventDTO.setClientIdentifier("Lending");
         HttpEntity<QrStatusEventDTO> request = new HttpEntity<>(eventDTO, headers);
 
-        log.debug("Request payload prepared for merchant: {}, clientIdentifier: {}",
+        log.debug("Request payload prepared for merchant: {}, clientIdentifier: {}, API Key added to headers",
                 eventDTO.getMerchantId(), eventDTO.getClientIdentifier());
 
         try {
