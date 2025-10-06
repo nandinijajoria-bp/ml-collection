@@ -6,4 +6,5 @@ import lombok.Data;
 public class QrStatusEventDTO {
     private String merchantId;
     private String eventType;
+    private String clientIdentifier;
 }

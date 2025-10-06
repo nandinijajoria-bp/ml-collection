@@ -23,12 +23,18 @@ public class QrStatusApiService {
         String url = qrStatusBaseUrl + "/api/qr-status/event";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        eventDTO.setClientIdentifier("Lending");
         HttpEntity<QrStatusEventDTO> request = new HttpEntity<>(eventDTO, headers);
         ResponseEntity<GlobalLimitResponse> response = restTemplate.postForEntity(url, request, GlobalLimitResponse.class);
         if (response != null && response.getBody() != null) {
-            return "Your request has been successfully ";
+            return "Your request has been successfully processed";
         } else {
-            return "Failed to process your request";
+            if("QR_UNBLOCKED".equalsIgnoreCase(eventDTO.getEventType())) {
+                return "Failed to process your request either technical issue or merchant was not blocked for QR reason";
+            }
+            else{
+                return "Your request failed due to technical issue";
+            }
         }
     }
 }
