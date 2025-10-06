@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
 import org.springframework.util.StringUtils;
 
+import javax.validation.constraints.NotNull;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -683,5 +684,37 @@ public class AutoPayUPIService {
         }
 
         return JS_CASHFREE.name();
+    }
+
+    public AutoPayUPI registerDigioUpi(LendingApplication lendingApplication, @NotNull ENachIntitiationResponseDTO.Data enachData){
+        log.info("handling register call for digio upi for merchant: {} and application: {}",
+                lendingApplication.getMerchantId(), lendingApplication.getId());
+        AutoPayUPI autoPayUPI = new AutoPayUPI();
+        autoPayUPI.setAmount(1D);
+        autoPayUPI.setMerchantId(lendingApplication.getMerchantId());
+        autoPayUPI.setLender(lendingApplication.getLender());
+        autoPayUPI.setApplicationId(lendingApplication.getId());
+        autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
+        autoPayUPI.setGateway("DIGIO");
+        autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
+        autoPayUPI.setMandateId(enachData.getMandate_id());
+        autoPayUPI.setMandateEndDate(enachData.getMandateEndDate());
+        autoPayUPI.setStatus(AutoPayStatusEnum.PENDING);
+        autoPayUPIDao.save(autoPayUPI);
+        return autoPayUPI;
+    }
+
+    public AutoPayUPI submitDigioUpi(@NotNull LendingApplication lendingApplication,@NotNull ENachIntitiationResponseDTO.Data data){
+        log.info("handling submit call for digio upi for merchant: {} and application: {}",
+                lendingApplication.getMerchantId(), lendingApplication.getId());
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndMandateId(lendingApplication.getId(), data.getMandate_id());
+        if(Objects.isNull(autoPayUPI)){
+            log.warn("autopayupi entry not found while submit call for merchant: {} and application: {}",
+                    lendingApplication.getMerchantId(), lendingApplication.getId());
+            autoPayUPI = registerDigioUpi(lendingApplication, data);
+        }
+        autoPayUPI.setStatus(AutoPayStatusEnum.ACTIVE);
+        autoPayUPIDao.save(autoPayUPI);
+        return autoPayUPI;
     }
 }

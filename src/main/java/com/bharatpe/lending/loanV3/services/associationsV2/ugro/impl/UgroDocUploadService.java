@@ -20,7 +20,6 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.text.DocumentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -180,7 +179,7 @@ public class UgroDocUploadService {
     }
 
     private String getFileBlob(Long applicationId, DocType fileBlob, CKycResponseDto cKycResponseDto, LendingKfs lendingKfs)
-            throws DocumentException, IOException {
+            throws IOException {
         String key = null;
         switch (fileBlob) {
             case SELFIE:

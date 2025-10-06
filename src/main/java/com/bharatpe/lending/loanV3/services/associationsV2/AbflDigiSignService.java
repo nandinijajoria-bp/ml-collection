@@ -19,10 +19,6 @@ import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.FileUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.pdf.PdfCopy;
-import com.itextpdf.text.pdf.PdfReader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -171,6 +167,8 @@ public class AbflDigiSignService {
         return false;
     }
 
+    //Method is unused, hence commenting to remove itextpdf dependency
+    /**
     public String mergedKFSAndSanctionLetterUrl(Long applicationId,
                                             String docKfsName, String docSanctionName) throws IOException, DocumentException {
 
@@ -210,5 +208,6 @@ public class AbflDigiSignService {
         return mergeDocumentPresignedUrl;
 
     }
+     **/
 
 }

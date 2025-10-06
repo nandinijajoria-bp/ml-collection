@@ -213,8 +213,8 @@ public class UpdateLeadService {
         try {
             JsonNode rootNode = objectMapper.valueToTree(lendingRiskVariablesSnapshot.getMetaData());
             JsonNode bureauNode = rootNode.path("BUREAU");
-            monthlyIncome = BigDecimal.valueOf(bureauNode.path("DEBT").asDouble()).setScale(2, RoundingMode.HALF_UP).doubleValue();
-            monthlyObligations = BigDecimal.valueOf(bureauNode.path("INCOME").asDouble()).setScale(2, RoundingMode.HALF_UP).doubleValue();
+            monthlyIncome = BigDecimal.valueOf(bureauNode.path("INCOME").asDouble()).setScale(2, RoundingMode.HALF_UP).doubleValue();
+            monthlyObligations = BigDecimal.valueOf(bureauNode.path("DEBT").asDouble()).setScale(2, RoundingMode.HALF_UP).doubleValue();
         } catch (Exception e) {
             log.error("Exception fetch monthly income and monthly Obligations for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
         }

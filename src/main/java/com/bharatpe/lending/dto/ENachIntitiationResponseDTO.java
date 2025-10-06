@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.Date;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -77,6 +81,9 @@ public class ENachIntitiationResponseDTO {
 
         private String accessTokenExpiryDate;
 
+        @Getter @Setter
+        private Date mandateEndDate;
+
         public Data(String transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode, String mid, String lender, EnachProvider enachProvider) {
             this.transactionIdentifier = transactionIdentifier;
             this.transactionReferenceNumber = transactionReferenceNumber;
@@ -92,6 +99,8 @@ public class ENachIntitiationResponseDTO {
             this.enachProvider = enachProvider;
 
         }
+
+
 
         public String getAccountType() {
             return accountType;

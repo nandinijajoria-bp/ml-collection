@@ -1,6 +1,7 @@
 package com.bharatpe.lending.lendingplatform.lms.service;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
@@ -98,6 +99,21 @@ public class LmsLoanDetailsService {
     }
 
     public LendingPaymentScheduleDTO getLendingPaymentScheduleDTOFromOneLms(String bpLoanId, LendingPaymentScheduleSlave lps) {
+
+        try {
+            LoanDetailsResponse loanDetailsResponse = getLoanSummaryFromOneLms(bpLoanId);
+            if(loanDetailsResponse == null || loanDetailsResponse.getLoanSummary() == null) {
+                log.info("No loan details found from 1LMS for applicationId: {}, merchantId: {}", lps.getApplicationId(), lps.getMerchantId());
+                throw new RuntimeException("No loan details found from 1LMS for applicationId: " + lps.getApplicationId() + ", merchantId: " + lps.getMerchantId());
+            }
+            return LendingPaymentScheduleDTO.fromEntityWithApiData(lps, loanDetailsResponse.getLoanSummary());
+        } catch (Exception e) {
+            log.error("HTTP error while parsing lms loan details schedule for bpLoanId: {}, merchantsId: {}", bpLoanId, lps.getMerchantId(), e);
+            throw new RuntimeException("Error fetching payment schedule", e);
+        }
+    }
+
+    public LendingPaymentScheduleDTO getLendingPaymentScheduleDTOFromOneLms(String bpLoanId, LendingPaymentSchedule lps) {
 
         try {
             LoanDetailsResponse loanDetailsResponse = getLoanSummaryFromOneLms(bpLoanId);

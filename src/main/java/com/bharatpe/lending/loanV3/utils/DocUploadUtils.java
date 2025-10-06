@@ -11,10 +11,7 @@ import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.service.APIGatewayService;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.pdf.PdfCopy;
-import com.itextpdf.text.pdf.PdfReader;
+import com.bharatpe.util.pdf.PdfMergerUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,8 +26,6 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -58,6 +53,9 @@ public class DocUploadUtils {
     @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    PdfMergerUtil pdfMergerUtil;
 
     public void saveESignedDocs(Long applicationId, byte[] signedKFSBytes, byte[] signedSanctionBytes) {
         try {
@@ -150,111 +148,125 @@ public class DocUploadUtils {
     }
 
     public String mergeUnsignedDocs(Long applicationId, String kfsDocKey, String sanctionDocKey)
-            throws IOException, DocumentException {
+            throws IOException {
         /*
             1. downloads files from bucket to local storage
-            2. merge both file in new merged file using ipdf
+            2. merge both file in new merged file using PdfMergerUtil
             3. set base64 payload to payload object
             4. delete file from local storage
          */
 
-        log.info("Initiating downloading of the docs for application id : {}", applicationId);
+        log.info("Starting PDF merge process using PdfMergerUtil for application id: {}, kfsDocKey: {}, sanctionDocKey: {}", 
+                applicationId, kfsDocKey, sanctionDocKey);
 
         String mergedFileName = "KFS_SANCTION_AGREEMENT_MERGED_" + applicationId + ".pdf";
 
         try {
             // Download the first PDF file
-            log.info("Downloading KFS document from S3 for application id: {}", applicationId);
+            log.info("Downloading KFS document from S3 for application id: {} using key: {}", applicationId, kfsDocKey);
             URL url1 = new URL(getS3PresignedUrlFromKey(kfsDocKey));
             URLConnection connection1 = url1.openConnection();
-            InputStream inputStream1 = connection1.getInputStream();
-            PdfReader reader1 = new PdfReader(inputStream1);
+            byte[] pdf1Bytes = org.apache.commons.io.IOUtils.toByteArray(connection1.getInputStream());
+            log.info("Successfully downloaded KFS document - application id: {}, size: {} bytes", applicationId, pdf1Bytes.length);
 
             // Download the second PDF file
-            log.info("Downloading sanction document from S3 for application id: {}", applicationId);
+            log.info("Downloading sanction document from S3 for application id: {} using key: {}", applicationId, sanctionDocKey);
             URL url2 = new URL(getS3PresignedUrlFromKey(sanctionDocKey));
             URLConnection connection2 = url2.openConnection();
-            InputStream inputStream2 = connection2.getInputStream();
-            PdfReader reader2 = new PdfReader(inputStream2);
+            byte[] pdf2Bytes = org.apache.commons.io.IOUtils.toByteArray(connection2.getInputStream());
+            log.info("Successfully downloaded sanction document - application id: {}, size: {} bytes", applicationId, pdf2Bytes.length);
 
-            log.info("Merging docs for application id: {}, reader1 : {}, reader2: {}", applicationId, reader1, reader2);
+            log.info("Starting PDF merge using PdfMergerUtil for application id: {} - merging {} bytes + {} bytes", 
+                    applicationId, pdf1Bytes.length, pdf2Bytes.length);
 
-            // Create the output file
-            Document document = new Document();
-            PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/"+mergedFileName)));
-            copy.setCompressionLevel(9);
-            document.open();
+            // Merge the PDF files using PdfMergerUtil
+            byte[] mergedPdfBytes = pdfMergerUtil.mergePdfs(Arrays.asList(pdf1Bytes, pdf2Bytes));
+            log.info("Successfully merged PDFs using PdfMergerUtil - application id: {}, merged size: {} bytes", 
+                    applicationId, mergedPdfBytes.length);
 
-            // Merge the PDF files
-            copy.addDocument(reader1);
-            copy.addDocument(reader2);
+            // Write merged PDF to file
+            log.info("Writing merged PDF to local file for application id: {}, fileName: {}", applicationId, mergedFileName);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream("/data/" + mergedFileName)) {
+                fos.write(mergedPdfBytes);
+            }
+            log.info("Successfully wrote merged PDF to local file - application id: {}", applicationId);
 
-            // Close the document
-            document.close();
-
-            log.info("Uploading merged KFS and sanction letter for application id: {}", applicationId);
+            log.info("Uploading merged KFS and sanction letter to S3 for application id: {}", applicationId);
 
             File mergedFile = new File("/data/"+mergedFileName);
             s3BucketHandler.uploadFileToS3(mergedFile, bucket, mergedFileName);
+            log.info("Successfully uploaded merged document to S3 - application id: {}, bucket: {}, fileName: {}", 
+                    applicationId, bucket, mergedFileName);
+            
             String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
-
-            log.info("Pre-signed URL for merged doc for application id: {} - {}", applicationId, mergeDocumentPresignedUrl);
+            log.info("Generated pre-signed URL for merged document - application id: {}, url: {}", applicationId, mergeDocumentPresignedUrl);
 
             return mergeDocumentPresignedUrl;
-        } catch (IOException | DocumentException e) {
-            log.error("Error merging or uploading documents for application id: {}", applicationId, e);
+        } catch (IOException e) {
+            log.error("Error merging or uploading documents for application id: {} - kfsDocKey: {}, sanctionDocKey: {}", 
+                    applicationId, kfsDocKey, sanctionDocKey, e);
             throw e; // Rethrow the exception to handle it in the caller method
         }
     }
 
     public String mergeUnsignedDocs(Long applicationId, List<String> docKeyList)
-            throws IOException, DocumentException {
+            throws IOException {
         /*
             1. downloads files from bucket to local storage
-            2. merge list of files in new merged file using ipdf
+            2. merge list of files in new merged file using PdfMergerUtil
             3. set base64 payload to payload object
             4. delete file from local storage
          */
 
-        log.info("Initiating downloading of the docs: {} for application id : {}", docKeyList, applicationId);
+        log.info("Starting PDF merge process using PdfMergerUtil for application id: {} with {} documents: {}", 
+                applicationId, docKeyList.size(), docKeyList);
 
         String mergedFileName = "LOAN_DOCUMENTS_MERGED_" + applicationId + ".pdf";
         try {
-            List<PdfReader> pdfReaderList = new ArrayList<>();
-            for(String docKey : docKeyList) {
-                log.info("Downloading {} document from S3 for application id: {}", docKey, applicationId);
+            List<byte[]> pdfBytesList = new ArrayList<>();
+            int totalBytes = 0;
+            
+            for(int i = 0; i < docKeyList.size(); i++) {
+                String docKey = docKeyList.get(i);
+                log.info("Downloading document {}/{} from S3 for application id: {} using key: {}", 
+                        i+1, docKeyList.size(), applicationId, docKey);
                 URL url = new URL(getS3PresignedUrlFromKey(docKey));
-                URLConnection connection1 = url.openConnection();
-                InputStream inputStream1 = connection1.getInputStream();
-                pdfReaderList.add(new PdfReader(inputStream1));
+                URLConnection connection = url.openConnection();
+                byte[] pdfBytes = org.apache.commons.io.IOUtils.toByteArray(connection.getInputStream());
+                pdfBytesList.add(pdfBytes);
+                totalBytes += pdfBytes.length;
+                log.info("Successfully downloaded document {}/{} - application id: {}, size: {} bytes, total so far: {} bytes", 
+                        i+1, docKeyList.size(), applicationId, pdfBytes.length, totalBytes);
             }
 
-            log.info("Merging docs for application id: {}, readers: {}", applicationId, pdfReaderList);
+            log.info("Starting PDF merge using PdfMergerUtil for application id: {} - merging {} documents, total size: {} bytes", 
+                    applicationId, pdfBytesList.size(), totalBytes);
 
-            // Create the output file
-            Document document = new Document();
-            PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/"+mergedFileName)));
-            copy.setCompressionLevel(9);
-            document.open();
+            // Merge the PDF files using PdfMergerUtil
+            byte[] mergedPdfBytes = pdfMergerUtil.mergePdfs(pdfBytesList);
+            log.info("Successfully merged {} PDFs using PdfMergerUtil - application id: {}, merged size: {} bytes", 
+                    pdfBytesList.size(), applicationId, mergedPdfBytes.length);
 
-            for (PdfReader pdfReader : pdfReaderList) {
-                copy.addDocument(pdfReader);
+            // Write merged PDF to file
+            log.info("Writing merged PDF to local file for application id: {}, fileName: {}", applicationId, mergedFileName);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream("/data/" + mergedFileName)) {
+                fos.write(mergedPdfBytes);
             }
+            log.info("Successfully wrote merged PDF to local file - application id: {}", applicationId);
 
-            // Close the document
-            document.close();
-
-            log.info("Uploading merged document for application id: {}", applicationId);
+            log.info("Uploading merged document to S3 for application id: {}", applicationId);
 
             File mergedFile = new File("/data/"+mergedFileName);
             s3BucketHandler.uploadFileToS3(mergedFile, bucket, mergedFileName);
+            log.info("Successfully uploaded merged document to S3 - application id: {}, bucket: {}, fileName: {}", 
+                    applicationId, bucket, mergedFileName);
+            
             String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
-
-            log.info("Pre-signed URL for merged document for application id: {} - {}", applicationId, mergeDocumentPresignedUrl);
+            log.info("Generated pre-signed URL for merged document - application id: {}, url: {}", applicationId, mergeDocumentPresignedUrl);
 
             return mergeDocumentPresignedUrl;
-        } catch (IOException | DocumentException e) {
-            log.error("Error merging or uploading documents for application id: {}", applicationId, e);
+        } catch (IOException e) {
+            log.error("Error merging or uploading documents for application id: {} - docKeyList: {}", applicationId, docKeyList, e);
             throw e; // Rethrow the exception to handle it in the caller method
         }
     }
@@ -400,39 +412,48 @@ public class DocUploadUtils {
     }
 
     public String mergeDocs(Long applicationId, InputStream inputStream1, InputStream inputStream2, String mergedFileName)
-            throws IOException, DocumentException {
+            throws IOException {
         /*
-            1. merge both file in new merged file using ipdf
+            1. merge both file in new merged file using PdfMergerUtil
             3. delete file from local storage
          */
 
-        log.info("Initiating merging of the inputStream for application id : {}", applicationId);
+        log.info("Starting PDF merge process using PdfMergerUtil for application id: {} with fileName: {}", 
+                applicationId, mergedFileName);
         try {
-            // first PDF file
-            PdfReader reader1 = new PdfReader(inputStream1);
-            // second PDF file
-            PdfReader reader2 = new PdfReader(inputStream2);
+            // Read PDF bytes from input streams
+            log.info("Reading PDF bytes from input streams for application id: {}", applicationId);
+            byte[] pdf1Bytes = org.apache.commons.io.IOUtils.toByteArray(inputStream1);
+            byte[] pdf2Bytes = org.apache.commons.io.IOUtils.toByteArray(inputStream2);
+            log.info("Successfully read PDF bytes from input streams - application id: {}, stream1 size: {} bytes, stream2 size: {} bytes", 
+                    applicationId, pdf1Bytes.length, pdf2Bytes.length);
 
-            log.info("Merging docs for application id: {}, reader1 : {}, reader2: {}", applicationId, reader1, reader2);
-            // Create the output file
-            Document document = new Document();
-            PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
-            copy.setCompressionLevel(9);
-            document.open();
+            log.info("Starting PDF merge using PdfMergerUtil for application id: {} - merging {} bytes + {} bytes", 
+                    applicationId, pdf1Bytes.length, pdf2Bytes.length);
+            
+            // Merge the PDF files using PdfMergerUtil
+            byte[] mergedPdfBytes = pdfMergerUtil.mergePdfs(Arrays.asList(pdf1Bytes, pdf2Bytes));
+            log.info("Successfully merged PDFs using PdfMergerUtil - application id: {}, merged size: {} bytes", 
+                    applicationId, mergedPdfBytes.length);
 
-            // Merge the PDF files
-            copy.addDocument(reader1);
-            copy.addDocument(reader2);
-
-            // Close the document
-            document.close();
+            // Write merged PDF to file
+            log.info("Writing merged PDF to local file for application id: {}, fileName: {}", applicationId, mergedFileName);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream("/data/" + mergedFileName)) {
+                fos.write(mergedPdfBytes);
+            }
+            log.info("Successfully wrote merged PDF to local file - application id: {}", applicationId);
+            
+            log.info("Uploading merged document to S3 for application id: {}", applicationId);
             File mergedFile = new File("/data/" + mergedFileName);
             s3BucketHandler.uploadFileToS3(mergedFile, bucket, mergedFileName);
+            log.info("Successfully uploaded merged document to S3 - application id: {}, bucket: {}, fileName: {}", 
+                    applicationId, bucket, mergedFileName);
+            
             String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
-            log.info("preSigned Url for merged docs of applicationId {} {}", applicationId, mergeDocumentPresignedUrl);
+            log.info("Generated pre-signed URL for merged document - application id: {}, url: {}", applicationId, mergeDocumentPresignedUrl);
             return mergeDocumentPresignedUrl;
-        } catch (IOException | DocumentException e) {
-            log.error("Error merging documents for application id: {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        } catch (IOException e) {
+            log.error("Error merging documents for application id: {} - fileName: {}", applicationId, mergedFileName, e);
             throw e; // Rethrow the exception to handle it in the caller method
         }
     }

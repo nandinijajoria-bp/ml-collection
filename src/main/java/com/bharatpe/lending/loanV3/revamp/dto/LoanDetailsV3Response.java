@@ -132,6 +132,7 @@ public class LoanDetailsV3Response {
     private AddressDetails addressDetails;
     private LendingApplication lendingApplication;
     private String lenderAggregationScreen;
+    private Boolean isNativeMandateRequired;
 
     @Data
     @ToString

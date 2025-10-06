@@ -3029,7 +3029,7 @@ public class LoanDetailsServiceV2 {
         return Pair.of(true,"");
     }
 
-    public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId) {
+    public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId, String version) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
             if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -3050,7 +3050,7 @@ public class LoanDetailsServiceV2 {
                     .applicationId(lendingApplication.getId())
                     .build();
             List<AdditionalLoanDetailsDTO.Input> inputs = new ArrayList<>();
-            List<String> requiredInputs = getInputsByLender(lendingApplication.getLender());
+            List<String> requiredInputs = getInputsByLender(lendingApplication.getLender(), version);
             if (requiredInputs.contains("FATHER_NAME") && ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName())) {
                 inputs.add(AdditionalLoanDetailsDTO.Input.builder()
                         .inputType("FATHER_NAME")
@@ -3084,12 +3084,16 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(false, "something went wrong while getting additional loan details");
     }
 
-    private List<String> getInputsByLender(String lender) {
+    private List<String> getInputsByLender(String lender, String version) {
         switch (lender) {
             case "IIFL":
                 return Arrays.asList("FATHER_NAME");
             case "SMFG":
                 return Arrays.asList("FATHER_NAME", "EMAIL", "MFI_DECLARATION");
+            case "ABFL":
+                if ("v2".equalsIgnoreCase(version)) {
+                    return Arrays.asList("MFI_DECLARATION");
+                }
         }
         return new ArrayList<>();
     }

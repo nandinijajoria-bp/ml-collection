@@ -180,6 +180,7 @@ public class SmfgBreService {
         }
         PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(lendingApplication.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
+        Double pennyDropNameMatchPer = Optional.ofNullable(cKycResponseDto.getBankBenePanNameMatchPer()).map(val -> val >= 1.1 ? val / 100 : val).orElse(cKycResponseDto.getBankBenePanNameMatchPer());
         try {
             SmfgAppPushRequest smfgAppPushRequest = SmfgAppPushRequest.builder()
                     .partnerapplicationid(lendingApplication.getExternalLoanId())
@@ -231,7 +232,7 @@ public class SmfgBreService {
                             .isaadharmatched("YES")
                             .livelinessscore(cKycResponseDto.getSelfieLivelinessScore())
                             .selfiematchscore(!ObjectUtils.isEmpty(cKycResponseDto.getSelfieAadhaarFaceMatchPer()) ? cKycResponseDto.getSelfieAadhaarFaceMatchPer() / 100 : null)
-                            .pennydropnamematchper(cKycResponseDto.getBankBenePanNameMatchPer())
+                            .pennydropnamematchper(pennyDropNameMatchPer)
                             .nfi(Optional.ofNullable(lendingRiskVariablesSnapshot.getMonthlyNfi()).filter(nfiVal -> nfiVal > 0).map(Double::intValue).orElse(0))
                             .riskgroup(lendingRiskVariablesSnapshot.getRiskGroup())
                             .monthlyadjtpv(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? lendingRiskVariablesSnapshot.getMonthlyTpv().intValue() : null)

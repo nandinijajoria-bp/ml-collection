@@ -4,7 +4,7 @@ import com.bharatpe.lending.ai.dto.LoanDetailResponse;
 import com.bharatpe.lending.ai.services.IAutoPayApiService;
 import com.bharatpe.lending.ai.services.ILonaApplicationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.entity.AutoPayUpi;
+import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +37,12 @@ public class LoanDetailsAiController {
         log.info("request received with intent: {}", intent);
         if("upi_autopay".equalsIgnoreCase(intent)){
             log.info("Request received for autopay details for merchantId: {}", merchantId);
-            Optional<AutoPayUpi> autoPayDetails = autoPayApiService.getAutoPayDetails(merchantId);
-            return autoPayDetails.<ResponseEntity<ApiResponse<Object>>>map(autoPayUpi -> ResponseEntity.ok(new ApiResponse<>(autoPayUpi))).orElseGet(() -> ResponseEntity.ok(new ApiResponse<>(true, "no autopay details found")));
+            Optional<AutoPayUPI> autoPayDetails = autoPayApiService.getAutoPayDetails(merchantId);
+            if (autoPayDetails.isPresent()) {
+                return ResponseEntity.ok(new ApiResponse<>(autoPayDetails.get()));
+            } else {
+                return ResponseEntity.ok(new ApiResponse<>(true, "no autopay details found"));
+            }
         }
         log.info("Request received to get loan application details for merchantId: {}", merchantId);
         LoanDetailResponse loanDetailResponse = lonaApplicationService.getLoanApplicationDetails(merchantId);

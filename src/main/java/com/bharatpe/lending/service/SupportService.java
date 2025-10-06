@@ -38,10 +38,14 @@ import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.util.pdf.PdfGeneratorUtilV2;
+import com.bharatpe.util.pdf.dto.PdfGenerationRequest;
+import com.bharatpe.util.pdf.dto.PdfGenerationResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.opencsv.CSVWriter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,8 +80,10 @@ import java.util.stream.Collectors;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.LedgerDescriptionTxnType;
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
+import static com.bharatpe.lending.lendingplatform.lms.util.ConversionUtil.safeBigDecimalToDouble;
 
 @Service
+@Slf4j
 public class SupportService {
     private final Logger logger = LoggerFactory.getLogger(SupportService.class);
 
@@ -239,7 +245,14 @@ public class SupportService {
     @Autowired
     InsuranceService insuranceService;
 
-	@Value("${aws.s3.bucket:loan-document}")
+  @Value("${new.pdf.generation.method.lenders:-}")
+  String newPdfGenerationMethodLenders;
+
+  @Autowired
+  PdfGeneratorUtilV2 pdfGeneratorUtil;
+
+
+  @Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
     @Value("${aws.s3.bucket.agreement:bharatpe-agreement}")
@@ -1197,7 +1210,7 @@ public class SupportService {
                     lendingLedgerDetail.put("createdAt", formattedDateTime);
 //                    lendingLedgerDetail.put("id", loanDueDetails.getId());
                     lendingLedgerDetail.put("transactionType", "EDI");
-                    lendingLedgerDetail.put("amount", -1 * loanDetailsResponse.getLoanSummary().getInstalmentAmountAsInt());
+                    lendingLedgerDetail.put("amount", -1 * safeBigDecimalToDouble(loanDetailsResponse.getLoanSummary().getInstalmentAmount()));
                     //lendingLedgerDetail.put("dueAmount", loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmountAsInt());
                     lendingLedgerDetail.put("penaltyAmount", 0.0);
                     lendingLedgerDetailList.add(lendingLedgerDetail);
@@ -1677,7 +1690,8 @@ public class SupportService {
         return data;
     }
 
-    public String getAgreement(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto) throws IOException {
+    public String getAgreement(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto)
+        throws Exception {
         Map<String, Object> data = getData(lendingApplication, lender, basicDetailsDto);
         String html = getAgreementHtml(data,lender);
         String shortUrl = storeAgreement(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
@@ -1686,7 +1700,8 @@ public class SupportService {
         return shortUrl;
     }
 
-    public InputStream getAgreementForPdf(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto) throws IOException {
+    public InputStream getAgreementForPdf(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto)
+        throws Exception {
         Map<String, Object> data = getData(lendingApplication, lender, basicDetailsDto);
         String html = getAgreementHtml(data,lender);
         InputStream file = storeAgreementAsPdf(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
@@ -1735,17 +1750,34 @@ public class SupportService {
         return data;
     }
 
-    public InputStream storeAgreementAsPdf(LendingApplication lendingApplication, String html, String type, String fileName) throws IOException {
+    public InputStream storeAgreementAsPdf(LendingApplication lendingApplication, String html, String type, String fileName)
+        throws Exception {
         storeAgreementHelper(lendingApplication, html, type, fileName, agreementBucket);
         return s3BucketHandler.getObject(fileName, agreementBucket);
     }
 
 
-    private void storeAgreementHelper(LendingApplication lendingApplication, String html, String type, String fileName, String s3Bucket) throws IOException {
+    private void storeAgreementHelper(LendingApplication lendingApplication, String html, String type, String fileName, String s3Bucket)
+        throws Exception {
+      ByteArrayInputStream inStream;
+      if (newPdfGenerationMethodLenders.contains(lendingApplication.getLender())) {
+        logger.info("Agreement Doc getting generated for applicationId: "+lendingApplication.getId());
+        PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+            .html(html);
+        PdfGenerationRequest request = requestBuilder.build();
+        PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+        if (response.getSuccess()) {
+          byte[] pdfByteArray = response.getPdfAsBytes();
+          inStream = new ByteArrayInputStream(pdfByteArray);
+        } else {
+          log.error("Failed to generate PDF for applicationId: {}", lendingApplication.getId());
+          throw new Exception("Unable to generate Agreement Doc for applicationID" + lendingApplication.getId());
+        }
+      }else{
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         HtmlConverter.convertToPdf(html, outStream);
-        ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-
+        inStream = new ByteArrayInputStream(outStream.toByteArray());
+      }
         s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
         LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(), type);
         if (loanAgreement == null) {
@@ -1809,7 +1841,8 @@ public class SupportService {
         return new ResponseDTO(false, "Internal Server Error");
     }
 
-    public String storeAgreement(LendingApplication lendingApplication, String html, String type, String fileName) throws IOException {
+    public String storeAgreement(LendingApplication lendingApplication, String html, String type, String fileName)
+        throws Exception {
         storeAgreementHelper(lendingApplication, html, type, fileName, "bharatpe-agreement");
         LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(), type);
         String shortUrl = "";

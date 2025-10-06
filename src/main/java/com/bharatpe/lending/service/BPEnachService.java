@@ -20,6 +20,7 @@ import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.EnachInitiateRequestDTO;
 import com.bharatpe.lending.enums.EnachMode;
+import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -88,6 +90,12 @@ public class BPEnachService {
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    private AutoPayUPIService autoPayUPIService;
+
+    @Autowired
+    private MandateRegistrationHelper mandateHelper;
+
     @Value("${upi.nach.amount:15000}")
     Double upiNachAmount;
 
@@ -144,9 +152,14 @@ public class BPEnachService {
             String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
             String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 
-            return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
+            ENachIntitiationResponseDTO eNachIntitiationResponse = apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
                     String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode, lendingApplication.getTenureInMonths()),
                     lendingApplication.getLoanType());
+            if(Objects.nonNull(eNachIntitiationResponse) && Objects.nonNull(eNachIntitiationResponse.getData())
+                    && EnachMode.UPI.name().equalsIgnoreCase(nachMode) && mandateHelper.isDigioUpiCase(lendingApplication)){
+                autoPayUPIService.registerDigioUpi(lendingApplication, eNachIntitiationResponse.getData());
+            }
+            return eNachIntitiationResponse;
 
         } else {
             final double LOAN_AMOUNT = Double.parseDouble(amt); ;
