@@ -202,6 +202,7 @@ public class LmsLoanCreationService {
 
         return CreateLoanRequest.builder()
                 .bpLoanId(lendingApplication.getExternalLoanId())
+                .applicationId(lendingApplication.getId().toString())
                 .productName(lendingApplication.getLender())
                 .loanDetails(loanDetails)
                 .customerDetails(customerDetails)
