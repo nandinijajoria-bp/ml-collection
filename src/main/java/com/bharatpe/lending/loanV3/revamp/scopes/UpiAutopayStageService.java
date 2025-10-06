@@ -301,6 +301,8 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
                 log.info("UPI Autopay mandate is SUCCESS for application: {}, and Nach is ineligible, invoking doc upload workflow", lendingApplication.getId());
                 upiAutoPayStageHelper.invokeDocUploadFlow(lendingApplication);
                 lendingApplication.setNachStatus(NachStatus.APPROVED.name());
+                lendingApplication.setNachType("ENACH");
+                lendingApplicationDao.save(lendingApplication);
             }
         }
 
