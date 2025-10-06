@@ -14,14 +14,14 @@ import org.springframework.web.client.RestTemplate;
 public class QrStatusApiService {
 
     private final RestTemplate restTemplate;
-    private final String qrStatusBaseUrl;
+    private final String underwritingServiceBaseUrl;
     private final String underwritingApiKey;
 
     public QrStatusApiService(RestTemplate restTemplate,
-                              @Value("${qrstatus.api.base-url}") String qrStatusBaseUrl,
+                              @Value("${underwriting.service.base.url}") String underwritingServiceBaseUrl,
                               @Value("${x.api.key.underwriting.service}") String underwritingApiKey) {
         this.restTemplate = restTemplate;
-        this.qrStatusBaseUrl = qrStatusBaseUrl;
+        this.underwritingServiceBaseUrl = underwritingServiceBaseUrl;
         this.underwritingApiKey = underwritingApiKey;
     }
 
@@ -30,8 +30,8 @@ public class QrStatusApiService {
         log.info("Starting QR status event processing for merchant: {}, eventType: {}",
                 eventDTO.getMerchantId(), eventDTO.getEventType());
 
-        String url = qrStatusBaseUrl + "/api/v1/qr/webhook";
-        log.debug("Making API call to QR status service URL: {}", url);
+        String url = underwritingServiceBaseUrl + "/api/v1/qr/webhook";
+        log.debug("Making API call to underwriting service URL: {}", url);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
