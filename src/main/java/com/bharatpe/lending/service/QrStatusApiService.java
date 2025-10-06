@@ -106,7 +106,7 @@ public class QrStatusApiService {
                 return apiResponse;
 
             }
-            else{
+            else {
                 log.info("Unknown Event type provided");
                 return apiResponse;
             }
