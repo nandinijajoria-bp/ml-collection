@@ -1540,23 +1540,23 @@ public class LoanEligibleService {
         // Fetch applicable lender assignment rules
         List<LenderAssignmentRules> ruleList = fetchApplicableRules(merchantId, loan, lendingRiskVariables, loanRiskVariables);
 
+        List<String> eligibleLenders = new ArrayList<>();
+
         if (CollectionUtils.isEmpty(ruleList)) {
             AsyncLoggerUtil.logInfo(logger, "{} - No applicable rules found for merchantId: {}, tenure: {}",
                     METHOD, merchantId, loan.getTenureInMonths());
-            loan.setEligibleLenders(Collections.emptyList());
-            return loan;
-        }
-
-        // Get initial list of eligible lenders based on rules
-        List<String> eligibleLenders = getLenderList(
-                ruleList,
-                EdiModel.SEVEN_DAY_MODEL,
-                null,
-                merchantId,
-                openApplication);
-
-        if (!eligibleLenders.contains("TRILLIONLOANS")) {
             eligibleLenders.add("TRILLIONLOANS");
+        } else {
+            eligibleLenders = getLenderList(
+                    ruleList,
+                    EdiModel.SEVEN_DAY_MODEL,
+                    null,
+                    merchantId,
+                    openApplication);
+
+            if (!eligibleLenders.contains("TRILLIONLOANS")) {
+                eligibleLenders.add("TRILLIONLOANS");
+            }
         }
 
         createAndSaveLendingAuditTrial(
