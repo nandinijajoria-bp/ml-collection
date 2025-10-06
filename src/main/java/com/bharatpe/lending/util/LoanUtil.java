@@ -835,6 +835,7 @@ public class LoanUtil {
 		return autoPauUpiInternalMerchant.contains(merchantId);
 	}
 
+
 	/*
 	feature-ML-820 : New logic implemented for displaying message based on TAT days
 
