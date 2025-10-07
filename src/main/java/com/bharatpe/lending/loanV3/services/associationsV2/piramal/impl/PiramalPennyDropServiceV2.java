@@ -143,12 +143,15 @@ public class PiramalPennyDropServiceV2 {
     }
 
     private String getBankAccountType(Long merchantId) {
+        log.info("fetching kyc data for bene name match percentage for merchantId {}", merchantId);
         try {
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(merchantId);
             if (!ObjectUtils.isEmpty(cKycResponseDto) && !ObjectUtils.isEmpty(cKycResponseDto.getBankBenePanNameMatchPer())) {
                 if (cKycResponseDto.getBankBenePanNameMatchPer() < 0.6) {
+                    log.info("bene name match percentage is less than 60% for merchantId {} bene name {}", merchantId, cKycResponseDto.getBankBenePanNameMatchPer());
                     return "CURRENT";
                 } else {
+                    log.info("bene name match percentage is greater than 60% for merchantId {} bene name {}", merchantId, cKycResponseDto.getBankBenePanNameMatchPer());
                     return "SAVINGS";
                 }
              }
