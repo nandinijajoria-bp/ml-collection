@@ -4019,25 +4019,21 @@ public class LendingApplicationServiceV2 {
         try{
             /**
              * New Library is being used to generate PDF for selected lenders
+             * if reverting back to iText, set the condition to false
              */
-            if (newPdfGenerationMethodLenders.contains(lendingApplication.getLender())) {
+            if (true) {
                 log.info("Using new PDF generation method for applicationId: {} and lender: {}", lendingApplication.getId(), lendingApplication.getLender());
                 
                 String headerImageUrl = null;
                 String footerImageUrl = null;
                 boolean footerOnAllPages = false;
 
-                if (!getLenderLogo(lendingApplication.getLender(), applicationDocType).isEmpty()) {
-                    headerImageUrl = getLenderLogo(lendingApplication.getLender(), applicationDocType);
-                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
-                        log.info("Add header and footer in loan doc for applicationId:" + lendingApplication.getId());
-                        footerImageUrl = getLenderLogo(lendingApplication.getLender(),
-                                ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender())));
-                        footerOnAllPages = true;
-                    } else {
-                        log.info("Add header in loan doc for applicationId:" + lendingApplication.getId());
-                    }
-                }
+              if (!getLenderLogo(lendingApplication.getLender(), applicationDocType).isEmpty()) {
+                headerImageUrl = getLenderLogo(lendingApplication.getLender(), applicationDocType);
+                log.info("Add header and footer in loan doc for applicationId:" + lendingApplication.getId());
+                footerImageUrl = getLenderLogo(lendingApplication.getLender(),ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender())));
+                footerOnAllPages = true;
+              }
 
                 log.info("Starting PDF generation for KFS document using PdfGeneratorUtilV2 - applicationId: {}, lender: {}, headerImageUrl: {}, footerImageUrl: {}", 
                         lendingApplication.getId(), lendingApplication.getLender(), 
