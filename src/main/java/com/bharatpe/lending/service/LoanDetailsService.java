@@ -45,6 +45,8 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 //import com.bharatpe.lending.entity.LendingBlockedPancard;
+import com.bharatpe.lending.entity.CreditScoreVideo;
+import com.bharatpe.lending.service.CreditScoreVideoService;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.ApplicationStatus;
@@ -259,6 +261,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	InsuranceService insuranceService;
+
+	@Autowired
+	private CreditScoreVideoService creditScoreVideoService;
 
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp,
 												   String token) {
@@ -1216,6 +1221,19 @@ public class LoanDetailsService {
 			Experian experian = experianDao.getByMerchantId(merchantBasicDetails.getId());
 			String key = "bharatpe.in/creditscore";
 
+			try {
+				logger.info("Credit Score request received for merchant id: {}, pan: {}, pincode: {}", merchantBasicDetails.getId(), pancard, creditScoreRequestDto.getPinCode());
+				// --- START: Add CreditScoreVideo media logic ---
+				Map<String, Object> media = getCreditScoreVideoMedia(String.valueOf(merchantBasicDetails.getId()));
+				responseDTO.setMedia(media);
+				logger.info("Credit Score media for merchant id: {}, media: {}", merchantBasicDetails.getId(), media);
+				logger.info("Credit Score media for merchant id: {}, media: {}", merchantBasicDetails.getId(), responseDTO.getMedia());
+			} catch(Exception ex) {
+				logger.info("Exception while fetching Credit Score media for merchant id: {}, exception: {}", merchantBasicDetails.getId(), ex);
+
+			}
+			// --- END: Add CreditScoreVideo media logic ---
+
 			if (requestDTO.getPayload().getPanNumber() == null && experian == null) {
 				creditScoreResponseDto.setPanNumber("null");
 				creditScoreResponseDto.setPinCode(0);
@@ -1412,6 +1430,42 @@ public class LoanDetailsService {
 			logger.error("Error occured while checking credit score for merchantId : {} {}", merchantBasicDetails.getId(), ex);
 		}
 		return new ResponseDTO(Boolean.FALSE, "Something went wrong!");
+	}
+
+
+	private Map<String, Object> getCreditScoreVideoMedia(String merchantId) {
+		Map<String, Object> media = new HashMap<>();
+		Map<String, Object> video = new HashMap<>();
+		logger.info("Fetching CreditScoreVideo media for merchantId: {}", merchantId);
+		Optional<CreditScoreVideo> validVideoOpt = creditScoreVideoService.findValidByMerchantId(merchantId);
+		if (validVideoOpt.isPresent()) {
+			CreditScoreVideo validVideo = validVideoOpt.get();
+			video.put("video_link", validVideo.getVideoLink());
+			video.put("category", validVideo.getCategory());
+			video.put("valid", validVideo.getIsValid());
+			video.put("valid_till", validVideo.getValidTill());
+			video.put("date_of_video_generation", validVideo.getVideoGeneratedDate());
+			video.put("message", "Valid video found");
+		} else {
+			CreditScoreVideo newVideo = CreditScoreVideo.builder()
+					.merchantId(merchantId)
+					.videoLink("www.youtube.com")
+					.category(CreditScoreVideo.ScoreCategory.BAD_SCORE)
+					.isValid(true)
+					.videoGeneratedDate(LocalDate.now())
+					.validTill(LocalDate.now().plusDays(30))
+					.build();
+			creditScoreVideoService.saveVideo(newVideo);
+			video.put("message", "No valid video found. New video entry created.");
+			video.put("video_link", null);
+			video.put("category", null);
+			video.put("valid", false);
+			video.put("valid_till", null);
+			video.put("date_of_video_generation", LocalDate.now());
+		}
+		media.put("video", video);
+		logger.info("Sending CreditScoreVideo media for merchantId: {}", merchantId);
+		return media;
 	}
 
 //	private void sendSms(String messageForSms, Merchant merchant) {
