@@ -914,7 +914,10 @@ public class LoanDisplayService {
             if(responseDTOFromOneLms.getTopup()) {
                 log.info("1LMSTOPUP: Updating topup details for merchant: {}", merchantId);
                 if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getEligibility())) {
-                    responseDTO.setEligibility(responseDTOFromOneLms.getEligibility());
+                    if (responseDTO.getEligibility() == null) {
+                        responseDTO.setEligibility(new ArrayList<>());
+                    }
+                    responseDTO.getEligibility().addAll(responseDTOFromOneLms.getEligibility());
                 }
 
                 if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getTopup())) {
@@ -936,6 +939,19 @@ public class LoanDisplayService {
                 if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getTimeBasedTopupDisabled())) {
                     responseDTO.setTimeBasedTopupDisabled(responseDTOFromOneLms.getTimeBasedTopupDisabled());
                 }
+
+                if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getMinimumAllowedAmount())) {
+                    responseDTO.setMinimumAllowedAmount(responseDTOFromOneLms.getMinimumAllowedAmount());
+                }
+
+                if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getMaximumAllowedAmount())) {
+                    responseDTO.setMaximumAllowedAmount(responseDTOFromOneLms.getMaximumAllowedAmount());
+                }
+
+                if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getTenures())) {
+                    responseDTO.setTenures(responseDTOFromOneLms.getTenures());
+                }
+                responseDTO.setTopupV2FlowEnabled(true);
             }
         }
     }

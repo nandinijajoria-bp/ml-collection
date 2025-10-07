@@ -106,6 +106,9 @@ public class RolloutUtil {
     private int oneLmsTopupRolloutPercent;
 
 
+    @Value("${oxyzo.lending.platform.lms.application.limit:2}")
+    private int oxyzoLendingPlatformLmsApplicationLimit;
+
     private final LmsLoanStatusDao lmsLoanStatusDao;
     private final LendingApplicationLenderDetailsDao laldDao;
     private final LendingApplicationDao lendingApplicationDao;
@@ -198,6 +201,7 @@ public class RolloutUtil {
         LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(bpLoanId);
         LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLoanByBpLoanIdAndStatus(lendingApplication.getExternalLoanId(), "FAILED");
         Long lmsLoanStatusCount = lmsLoanStatusDao.countAllLoanStatusRecords();
+        Long oxyzoLmsLoanStatusCount = lendingPaymentScheduleDao.countOxyzoLoansOn1LMS();
 
         AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),
                 lendingApplication.getLender(), Arrays.asList(AutoPayStatusEnum.ACTIVE.name()));
@@ -234,9 +238,23 @@ public class RolloutUtil {
             return false;
         }
 
-        if(lendingPlatformLmsApplicationLimit!=-1 && lmsLoanStatusCount>=lendingPlatformLmsApplicationLimit){
-            log.info("New flow for bpLoanId:{} is not eligible due to application limit", bpLoanId);
-            return false;
+        if("TRILLIONLOANS".equalsIgnoreCase(lendingApplication.getLender())) {
+            if(lendingPlatformLmsApplicationLimit!=-1 && lmsLoanStatusCount>=lendingPlatformLmsApplicationLimit){
+                log.info("New flow for bpLoanId:{} is not eligible due to application limit for TL", bpLoanId);
+                return false;
+            }
+        }
+        if("UGRO".equalsIgnoreCase(lendingApplication.getLender())) {
+            if(lendingPlatformLmsApplicationLimit!=-1 && lmsLoanStatusCount>=lendingPlatformLmsApplicationLimit){
+                log.info("New flow for bpLoanId:{} is not eligible due to application limit for UGRO", bpLoanId);
+                return false;
+            }
+        }
+        if("OXYZO".equalsIgnoreCase(lendingApplication.getLender())) {
+            if(oxyzoLendingPlatformLmsApplicationLimit!=-1 && oxyzoLmsLoanStatusCount>=oxyzoLendingPlatformLmsApplicationLimit){
+                log.info("New flow for bpLoanId:{} is not eligible due to application limit for OXYZO", bpLoanId);
+                return false;
+            }
         }
 
         log.info("New flow applicable for LMS");
