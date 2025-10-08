@@ -254,7 +254,6 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         lendingApplication.setRejectionReason("Max lender selection attempts reached");
         lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name().toLowerCase());
         lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
-        lendingApplication.setLender("NONE_ELIGIBLE_LENDER");
         lendingApplicationDao.save(lendingApplication);
 
         funnelService.submitEventV3(Long.valueOf(merchantId),null, lendingApplication.getId(), FunnelEnums.StageId.OFFER_EVALUATION_PAGE,
