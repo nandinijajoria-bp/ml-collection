@@ -24,7 +24,6 @@ import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
 import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
 import com.bharatpe.lending.lendingplatform.lms.service.LoanDisplayService;
@@ -40,6 +39,7 @@ import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.PayUKycService;
 import com.bharatpe.lending.service.helper.MerchantLoanServiceHelper;
 import com.bharatpe.lending.service.impl.LenderAssignService;
+import com.bharatpe.lending.util.BQPublisherUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -344,6 +344,9 @@ public class MerchantLoansService {
 
     @Autowired
     private LmsPaymentDetailsDao lmsPaymentDetailsDao;
+
+    @Autowired
+    BQPublisherUtil bqPublisherUtil;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -806,6 +809,7 @@ public class MerchantLoansService {
                 responseDTO.setIsRejected(true);
                 responseDTO.setRejectionReason("Top-up loan not available as the eligible amount is less than minimum allowed amount");
                 responseDTO.setTopup(Boolean.FALSE);
+                populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown", "false", "Top-up loan not available as the eligible amount is less than minimum allowed amount");
                 return;
             }
             List<String> tenures = topUpLoans.stream()
@@ -2082,6 +2086,7 @@ public class MerchantLoansService {
 
         if (lendingApplication == null) {
             log.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchantId());
+            populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Lending Application not found");
             return eligiblity;
         }
 
@@ -2090,6 +2095,7 @@ public class MerchantLoansService {
             if (PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), payuTopUpRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 addRejectionReason(eligiblity, "PAYU Topup not enabled for this merchant");
                 log.info("Payu Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Payu Topup not enabled for this merchant");
                 return eligiblity;
             }
 
@@ -2104,6 +2110,7 @@ public class MerchantLoansService {
                     if (!payUKycService.invokeKycValidity(lendingApplication.getId(), lendingApplicationLenderDetails.getLeadId())) {
                         addRejectionReason(eligiblity, "Payu parent application kyc is not valid for this merchant");
                         log.info("Payu parent application kyc is not valid for this merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                        populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Payu parent application kyc is not valid");
                         return eligiblity;
                     }
                 }
@@ -2119,6 +2126,7 @@ public class MerchantLoansService {
                         logger.info("Edi paid days is less than {} for tenure {} for merchant: {} and lender: {}", 120,
                                 lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId(),
                                 lendingApplication.getLender());
+                        populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Edi paid days is less than 120");
                         return eligiblity;
                     }
                 }
@@ -2136,6 +2144,7 @@ public class MerchantLoansService {
                         addRejectionReason(eligiblity, "Paid ratio requirement not met for tenure < 12 months");
                         log.info("Paid ratio {} not in range (0.5-0.95) for tenure {} months, merchantId: {}",
                                 paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
+                        populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Paid ratio requirement not met for tenure < 12 months");
                         return eligiblity;
                     }
                 }
@@ -2148,6 +2157,7 @@ public class MerchantLoansService {
                         addRejectionReason(eligiblity, "Paid ratio requirement not met for tenure >= 12 months");
                         log.info("Paid ratio {} not in range (0.75-0.95) and lender is not TRILLIONLOANS for tenure {} months, merchantId: {}",
                                 paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
+                        populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Paid ratio requirement not met for tenure >= 12 months");
                         return eligiblity;
                     }
                 }
@@ -2160,6 +2170,21 @@ public class MerchantLoansService {
         }
         return eligiblity;
     }
+
+    private void populateTopupBannerAudit(LendingPaymentScheduleSlave lendingPaymentSchedule, String identifier, String topupBannerShown, String reasonNotShown) {
+        MerchantConfigInfo topupBannerVisibility = new MerchantConfigInfo();
+        topupBannerVisibility.setMerchantId(lendingPaymentSchedule.getMerchantId());
+        topupBannerVisibility.setLender(lendingPaymentSchedule.getNbfc());
+        topupBannerVisibility.setIdentifier(identifier);
+        topupBannerVisibility.setState(topupBannerShown);
+        topupBannerVisibility.setComment(reasonNotShown);
+        topupBannerVisibility.setApplicationId(lendingPaymentSchedule.getApplicationId());
+        log.info("Publishing data to BQ for topup banner for merchant id {}",
+                lendingPaymentSchedule.getMerchantId());
+        bqPublisherUtil.publish("Lending", "merchant_config_info",
+                topupBannerVisibility);
+    }
+
 
     private List<LoanEligibilityDTO> AdditionalTopupRuleEngineV3(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck) {
         return processTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, true);
@@ -2229,12 +2254,14 @@ public class MerchantLoansService {
                 if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId()) && globalLimitResponse.getData().getRejectReason() != null) {
                     addRejectionReason(eligibility, globalLimitResponse.getData().getRejectReason());
                     log.info("No topup eligibility found for merchant:{} , reason:{}", lendingPaymentSchedule.getMerchantId(), globalLimitResponse.getData().getRejectReason() );
+                    populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", globalLimitResponse.getData().getRejectReason());
                     return eligibility;
                 }
 
                 if ( eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId()) && globalLimitResponse.getData().getRejectReason() == null) {
                     addRejectionReason(eligibility, "No topup eligibility found as eligibleAmount is 0");
                     log.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "No topup eligibility found as eligibleAmount is 0");
                     return eligibility;
                 }
 
@@ -2243,6 +2270,7 @@ public class MerchantLoansService {
                     if (eligibleAmount - foreclosureAmount < 10000) {
                         addRejectionReason(eligibility, "Outstanding amount less than 10k");
                         log.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                        populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Outstanding amount less than 10k");
                         return eligibility;
                     }
                 }
@@ -2324,6 +2352,8 @@ public class MerchantLoansService {
                 eligibleLoanDao.flush();
                 log.info("Saved {} eligible loans for merchant {}", eligibleLoansToSave.size(),
                         lendingPaymentSchedule.getMerchantId());
+            } else {
+                populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "No eligible loans to save. APR/IRR checks failed");
             }
 
             // Update pilot identifier only for additional topup

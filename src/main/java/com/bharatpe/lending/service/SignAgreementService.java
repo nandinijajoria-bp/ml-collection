@@ -163,6 +163,9 @@ public class SignAgreementService {
 	@Autowired
 	FunnelService funnelService;
 
+	@Autowired
+	LendingRiskVariablesDao lendingRiskVariablesDao;
+
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @Lazy
@@ -702,6 +705,15 @@ public class SignAgreementService {
 				response.put("message", "Eligible loan id is null");
 				return response;
 			}
+
+			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+
+			if(!"TOPUP".equals(lendingRiskVariables.getRiskSegment()) || Objects.nonNull(lendingRiskVariables.getRiskRejection()) || Objects.isNull(lendingRiskVariables.getFinalOffer())){
+				logger.info("Topup offer expired for merchant id : {}", merchant.getId());
+				response.put("message", "Topup offer expired. Pls try again later");
+				return response;
+			}
+
 			List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
 					LoanType.IO_TOPUP.name());
 			List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
