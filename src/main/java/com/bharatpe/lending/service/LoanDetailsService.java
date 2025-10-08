@@ -1221,9 +1221,9 @@ public class LoanDetailsService {
 			Experian experian = experianDao.getByMerchantId(merchantBasicDetails.getId());
 			String key = "bharatpe.in/creditscore";
 
+			// --- START: Add CreditScoreVideo media logic ---
 			try {
 				logger.info("Credit Score request received for merchant id: {}, pan: {}, pincode: {}", merchantBasicDetails.getId(), pancard, creditScoreRequestDto.getPinCode());
-				// --- START: Add CreditScoreVideo media logic ---
 				Map<String, Object> media = getCreditScoreVideoMedia(String.valueOf(merchantBasicDetails.getId()));
 				responseDTO.setMedia(media);
 				logger.info("Credit Score media for merchant id: {}, media: {}", merchantBasicDetails.getId(), media);
@@ -1446,23 +1446,24 @@ public class LoanDetailsService {
 			video.put("valid_till", validVideo.getValidTill());
 			video.put("date_of_video_generation", validVideo.getVideoGeneratedDate());
 			video.put("message", "Valid video found");
-		} else {
-			CreditScoreVideo newVideo = CreditScoreVideo.builder()
-					.merchantId(merchantId)
-					.videoLink("www.youtube.com")
-					.category(CreditScoreVideo.ScoreCategory.BAD_SCORE)
-					.isValid(true)
-					.videoGeneratedDate(LocalDate.now())
-					.validTill(LocalDate.now().plusDays(30))
-					.build();
-			creditScoreVideoService.saveVideo(newVideo);
-			video.put("message", "No valid video found. New video entry created.");
-			video.put("video_link", null);
-			video.put("category", null);
-			video.put("valid", false);
-			video.put("valid_till", null);
-			video.put("date_of_video_generation", LocalDate.now());
 		}
+//		else {
+//			CreditScoreVideo newVideo = CreditScoreVideo.builder()
+//					.merchantId(merchantId)
+//					.videoLink("www.youtube.com")
+//					.category(CreditScoreVideo.ScoreCategory.BAD_SCORE)
+//					.isValid(true)
+//					.videoGeneratedDate(LocalDate.now())
+//					.validTill(LocalDate.now().plusDays(30))
+//					.build();
+//			creditScoreVideoService.saveVideo(newVideo);
+//			video.put("message", "No valid video found. New video entry created.");
+//			video.put("video_link", null);
+//			video.put("category", null);
+//			video.put("valid", false);
+//			video.put("valid_till", null);
+//			video.put("date_of_video_generation", LocalDate.now());
+//		}
 		media.put("video", video);
 		logger.info("Sending CreditScoreVideo media for merchantId: {}", merchantId);
 		return media;
