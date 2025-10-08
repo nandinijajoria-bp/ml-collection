@@ -75,6 +75,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -1223,15 +1224,21 @@ public class LoanDetailsService {
 
 			// --- START: Add CreditScoreVideo media logic ---
 			try {
-				logger.info("Credit Score request received for merchant id: {}, pan: {}, pincode: {}", merchantBasicDetails.getId(), pancard, creditScoreRequestDto.getPinCode());
-				Map<String, Object> media = getCreditScoreVideoMedia(String.valueOf(merchantBasicDetails.getId()));
-				responseDTO.setMedia(media);
-				logger.info("Credit Score media for merchant id: {}, media: {}", merchantBasicDetails.getId(), media);
-				logger.info("Credit Score media for merchant id: {}, media: {}", merchantBasicDetails.getId(), responseDTO.getMedia());
-			} catch(Exception ex) {
-				logger.info("Exception while fetching Credit Score media for merchant id: {}, exception: {}", merchantBasicDetails.getId(), ex);
+				logger.info("Credit Score request received for merchant id: {}, pan: {}, pincode: {}",
+						merchantBasicDetails.getId(), pancard, creditScoreRequestDto.getPinCode());
 
+				Optional<Map<String, Object>> mediaOpt = getCreditScoreVideoMedia(String.valueOf(merchantBasicDetails.getId()));
+				if (mediaOpt.isPresent()) {
+					responseDTO.setMedia(mediaOpt.get());
+					logger.info("Valid Credit Score media found for merchant id: {}", merchantBasicDetails.getId());
+				} else {
+					logger.info("No valid Credit Score media found for merchant id: {}", merchantBasicDetails.getId());
+				}
+			} catch (Exception ex) {
+				logger.error("Exception while fetching Credit Score media for merchant id: {}, exception: {}",
+						merchantBasicDetails.getId(), ex);
 			}
+
 			// --- END: Add CreditScoreVideo media logic ---
 
 			if (requestDTO.getPayload().getPanNumber() == null && experian == null) {
@@ -1433,41 +1440,29 @@ public class LoanDetailsService {
 	}
 
 
-	private Map<String, Object> getCreditScoreVideoMedia(String merchantId) {
-		Map<String, Object> media = new HashMap<>();
-		Map<String, Object> video = new HashMap<>();
+	private Optional<Map<String, Object>> getCreditScoreVideoMedia(String merchantId) {
 		logger.info("Fetching CreditScoreVideo media for merchantId: {}", merchantId);
 		Optional<CreditScoreVideo> validVideoOpt = creditScoreVideoService.findValidByMerchantId(merchantId);
+
 		if (validVideoOpt.isPresent()) {
 			CreditScoreVideo validVideo = validVideoOpt.get();
+			Map<String, Object> media = new HashMap<>();
+			Map<String, Object> video = new HashMap<>();
 			video.put("video_link", validVideo.getVideoLink());
 			video.put("category", validVideo.getCategory());
 			video.put("valid", validVideo.getIsValid());
 			video.put("valid_till", validVideo.getValidTill());
 			video.put("date_of_video_generation", validVideo.getVideoGeneratedDate());
 			video.put("message", "Valid video found");
+			media.put("video", video);
+			logger.info("Valid CreditScoreVideo found for merchantId: {}", merchantId);
+			return Optional.of(media);
 		}
-//		else {
-//			CreditScoreVideo newVideo = CreditScoreVideo.builder()
-//					.merchantId(merchantId)
-//					.videoLink("www.youtube.com")
-//					.category(CreditScoreVideo.ScoreCategory.BAD_SCORE)
-//					.isValid(true)
-//					.videoGeneratedDate(LocalDate.now())
-//					.validTill(LocalDate.now().plusDays(30))
-//					.build();
-//			creditScoreVideoService.saveVideo(newVideo);
-//			video.put("message", "No valid video found. New video entry created.");
-//			video.put("video_link", null);
-//			video.put("category", null);
-//			video.put("valid", false);
-//			video.put("valid_till", null);
-//			video.put("date_of_video_generation", LocalDate.now());
-//		}
-		media.put("video", video);
-		logger.info("Sending CreditScoreVideo media for merchantId: {}", merchantId);
-		return media;
+
+		logger.info("No valid CreditScoreVideo found for merchantId: {}", merchantId);
+		return Optional.empty();
 	}
+
 
 //	private void sendSms(String messageForSms, Merchant merchant) {
 //		List<String> mobiles=new LinkedList<>();
