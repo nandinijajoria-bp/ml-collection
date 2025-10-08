@@ -919,7 +919,7 @@ public class LendingApplicationServiceV2 {
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
 
             LendingAuditTrial lendingAuditTrialInitial =
-                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "INITIAL_LENDERS",lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(merchant.getId(),lendingApplication.getLoanAmount(), "INITIAL_LENDERS",lendingApplication.getTenureInMonths());
             if (lendingAuditTrialInitial != null) {
                 log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
                 lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
@@ -931,7 +931,7 @@ public class LendingApplicationServiceV2 {
 
 
             LendingAuditTrial lendingAuditTrialFallback =
-                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "FALLBACK_LENDERS", lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(merchant.getId(),lendingApplication.getLoanAmount(), "FALLBACK_LENDERS", lendingApplication.getTenureInMonths());
             if (lendingAuditTrialFallback != null) {
                 log.info("Fallback lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
                 lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
@@ -942,7 +942,7 @@ public class LendingApplicationServiceV2 {
             }
 
             LendingAuditTrial lendingEligibleLenders =
-                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "ELIGIBLE_LENDERS", lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(merchant.getId(),lendingApplication.getLoanAmount(), "ELIGIBLE_LENDERS", lendingApplication.getTenureInMonths());
             if (lendingEligibleLenders != null) {
                 log.info("Eligible lenders audit trail found for evaluationId: {} : {}", lendingEligibleLenders, lendingEligibleLenders.getId());
                 lendingEligibleLenders.setApplicationId(lendingApplication.getId());

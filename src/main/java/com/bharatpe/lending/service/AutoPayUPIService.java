@@ -26,6 +26,7 @@ import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -51,6 +52,8 @@ public class AutoPayUPIService {
     private static final Double MANDATE_ORDER_AMOUNT = 1D;
     private static final String PAYMENT_MODE_TEXT = "Select Payment Mode";
     private static final int DEFAULT_FREQUENCY = 2;
+    public static List<String> AUTO_PAY_UPI_APPLICABLE_LOAN_TYPES = Arrays.asList(LoanType.REGULAR.name(), LoanType.TOPUP.name());
+
 
     private static final int DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS = 1;
     @Autowired
@@ -121,6 +124,9 @@ public class AutoPayUPIService {
 
     @Value("${auto.pay.upi.mandate.direct.cashfree.percent.rollout:10}")
     private int autoPayUPIMandateDirectCashfreePercentRollout;
+
+    @Value("${minimum.autoPayUpi.expiry.months:42}")
+    private int minimumAutoPayUpiExpiryMonths;
 
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
@@ -318,6 +324,7 @@ public class AutoPayUPIService {
     }
 
 
+    @Deprecated
     public UPIRegisterResponseDto registerUPI(BasicDetailsDto merchantBasicDetails, RequestDTO<UPIRegisterRequestDto> requestDto) {
         log.info("Received initiate UPI Register request  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
         Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndIdAndStatus(merchantBasicDetails.getId(), requestDto.getPayload().getLoanId(), "ACTIVE");
@@ -430,14 +437,8 @@ public class AutoPayUPIService {
             }
 
             if (merchantBasicDetails.getId().equals(lendingApplication.getMerchantId())) {
-                AutoPayUPI autoPayUPI = new AutoPayUPI();
-                autoPayUPI.setAmount(1D);
-                autoPayUPI.setMerchantId(merchantBasicDetails.getId());
-                autoPayUPI.setLender(lendingApplication.getLender());
-                autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
-                autoPayUPI.setApplicationId(lendingApplication.getId());
-                autoPayUPI.setGateway(DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? DR_CASHFREE.name() : "JS_CASHFREE");
-                autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
+                String gateWay = DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? DR_CASHFREE.name() : JS_CASHFREE.name();
+                AutoPayUPI autoPayUPI = createAutoPayUPIEntity(lendingApplication, DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS, gateWay, merchantBankDetail.get());
 
                 //Doing only for Cashfree as per the requirement
                 autoPayUPI.setIsAutoPayUpiDeduction(Constants.DISBURSED_LOAN.equals(lendingApplication.getLoanDisbursalStatus())
@@ -537,14 +538,7 @@ public class AutoPayUPIService {
         }
 
         if (merchantBasicDetails.getId().equals(lendingApplication.getMerchantId())) {
-            AutoPayUPI autoPayUPI = new AutoPayUPI();
-            autoPayUPI.setAmount(1D);
-            autoPayUPI.setMerchantId(merchantBasicDetails.getId());
-            autoPayUPI.setLender(lendingApplication.getLender());
-            autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
-            autoPayUPI.setApplicationId(lendingApplication.getId());
-            autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
-            autoPayUPI.setGateway("UNITY");
+            AutoPayUPI autoPayUPI = createAutoPayUPIEntity(lendingApplication, DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS, UNITY.name(), merchantBankDetail.get());
             autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
             autoPayUPI = autoPayUPIDao.save(autoPayUPI);
             autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
@@ -765,6 +759,67 @@ public class AutoPayUPIService {
         }
         autoPayUPI.setStatus(AutoPayStatusEnum.ACTIVE);
         autoPayUPIDao.save(autoPayUPI);
+        return autoPayUPI;
+    }
+
+    public AutoPayUPI cloneAutoPayUpiEntityForNewApplication(AutoPayUPI autoPayUpi, Long applicationId) {
+        if(ObjectUtils.isEmpty(autoPayUpi) || Objects.equals(autoPayUpi.getApplicationId(), applicationId)) {
+            return autoPayUpi;
+        }
+        AutoPayUPI clonedAutoPayUpi = new AutoPayUPI();
+        BeanUtils.copyProperties(autoPayUpi, clonedAutoPayUpi, "id", "createdAt", "updatedAt");
+        clonedAutoPayUpi.setApplicationId(applicationId);
+        clonedAutoPayUpi.setReuseApplicationId(Optional.ofNullable(autoPayUpi.getReuseApplicationId()).orElse(autoPayUpi.getApplicationId()));
+        return autoPayUPIDao.save(clonedAutoPayUpi);
+    }
+
+    public boolean isEligibleForUpiAutoPaySkip(LendingApplication lendingApplication, AutoPayUPI existingAutoPay) {
+        log.info("Checking eligibility for UPI Autopay skip for application id: {}", lendingApplication.getId());
+        if (ObjectUtils.isEmpty(existingAutoPay) || ObjectUtils.isEmpty(existingAutoPay.getMandateEndDate())) {
+            log.info("Not eligible: No existing autopay or mandate end date.");
+            return false;
+        }
+
+        if (ObjectUtils.isEmpty(existingAutoPay.getAccountNumber())) {
+            log.info("Not eligible: Existing autopay entity does not have account number for application id: {}", lendingApplication.getId());
+            return false;
+        }
+
+        Optional<BankDetailsDto> merchantBankDetailOpt = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
+        if (!merchantBankDetailOpt.isPresent() || ObjectUtils.isEmpty(merchantBankDetailOpt.get().getAccountNumber())) {
+            log.info("Not eligible: No merchant bank details or account number for application id: {}", lendingApplication.getId());
+            return false;
+        }
+
+        boolean isSameLender = lendingApplication.getLender().equalsIgnoreCase(existingAutoPay.getLender());
+        boolean isSameBankAccount = merchantBankDetailOpt.get().getAccountNumber().equalsIgnoreCase(existingAutoPay.getAccountNumber());
+        long differenceInMonths = (existingAutoPay.getMandateEndDate().getTime() - System.currentTimeMillis()) / (1000L * 60 * 60 * 24 * 30);
+
+        if (differenceInMonths > minimumAutoPayUpiExpiryMonths && isSameLender && isSameBankAccount) {
+            log.info("Eligible for UPI Autopay skip for application id {}", lendingApplication.getId());
+            return true;
+        }
+        log.info("Not eligible for UPI Autopay skip for application id {}", lendingApplication.getId());
+        return false;
+    }
+
+    private AutoPayUPI createAutoPayUPIEntity(LendingApplication application, int frequency, String gateway, BankDetailsDto merchantBankDetail) {
+        AutoPayUPI autoPayUPI = AutoPayUPI.builder()
+                .amount(MANDATE_ORDER_AMOUNT)
+                .merchantId(application.getMerchantId())
+                .lender(application.getLender())
+                .status(AutoPayStatusEnum.INIT)
+                .applicationId(application.getId())
+                .frequency(frequency)
+                .gateway(gateway)
+                .build();
+        if (!ObjectUtils.isEmpty(merchantBankDetail)) {
+            autoPayUPI.setBankName(merchantBankDetail.getBankName());
+            autoPayUPI.setBeneficiaryName(merchantBankDetail.getBeneficiaryName());
+            autoPayUPI.setAccountNumber(merchantBankDetail.getAccountNumber());
+            autoPayUPI.setIfscCode(merchantBankDetail.getIfsc());
+            autoPayUPI.setAccountType(merchantBankDetail.getAccountType());
+        }
         return autoPayUPI;
     }
 }
