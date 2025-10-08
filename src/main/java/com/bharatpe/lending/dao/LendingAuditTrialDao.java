@@ -31,6 +31,9 @@ public interface LendingAuditTrialDao extends CrudRepository<LendingAuditTrial, 
 	LendingAuditTrial findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(
 			Double loanAmount, String type, Integer tenure);
 
+	LendingAuditTrial findTopByMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(
+			Long merchantId, Double loanAmount, String type, Integer tenure);
+
 	LendingAuditTrial findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(
 			Long applicationId, Long merchantId, Double loanAmount, Integer tenure, String type);
 
