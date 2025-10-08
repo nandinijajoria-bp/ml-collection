@@ -40,11 +40,12 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
+import static com.bharatpe.lending.service.AutoPayUPIService.AUTO_PAY_UPI_APPLICABLE_LOAN_TYPES;
+
 @Service
 @Slf4j
 public class UpiAutopayStageService implements IStageDataService<UpiAutopayStateDTO>{
 
-    public static final String REGULAR = "REGULAR";
     @Autowired
     private LendingApplicationServiceV3 lendingApplicationServiceV3;
 
@@ -107,7 +108,6 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
-
 
     @Override
     public LendingStateDTO<UpiAutopayStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -240,26 +240,24 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
         upiAutopayStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
 
-        AutoPayUPI existingAutoPayUpiWithMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),"ACTIVE");
+        AutoPayUPI existingAutoPayUpiWithMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),AutoPayStatusEnum.ACTIVE.name());
         log.info("Existing AutoPay UPI for Merchant ID {}: {}", lendingApplication.getMerchantId(), existingAutoPayUpiWithMerchantId);
 
-        boolean autoPayEligible= nonRegularMandateRegistrationChecks(lendingApplication, existingAutoPayUpiWithMerchantId);
-        log.info("AutoPay eligibility for Merchant ID {}: {}", lendingApplication.getMerchantId(), autoPayEligible);
-
-        if(Arrays.asList(REGULAR, "TOPUP").contains(lendingApplication.getLoanType()) && !autoPayEligible && existingAutoPayUpiWithMerchantId != null){
-            existingAutoPayUpiWithMerchantId.setApplicationId(lendingApplication.getId());
-            autoPayUPIDao.save(existingAutoPayUpiWithMerchantId);
-            log.info("AutoPay UPI updated with new application ID: {}", lendingApplication.getId());
+        boolean autoPayUpiSkipped= autoPayUPIService.isEligibleForUpiAutoPaySkip(lendingApplication, existingAutoPayUpiWithMerchantId);
+        AutoPayUPI existingAutoPayUPI = null;
+        if(AUTO_PAY_UPI_APPLICABLE_LOAN_TYPES.contains(lendingApplication.getLoanType()) && autoPayUpiSkipped){
+            existingAutoPayUPI = autoPayUPIService.cloneAutoPayUpiEntityForNewApplication(existingAutoPayUpiWithMerchantId, lendingApplication.getId());
+            log.info("AutoPay UPI skipped for merchantId : {}", lendingApplication.getMerchantId());
             lendingApplication.setUpiAutopayStatus("APPROVED");
             lendingApplicationDao.save(lendingApplication);
             log.info("Lending application updated with UPI Autopay status: APPROVED for topup application ID: {}", lendingApplication.getId());
         }
-        if(REGULAR.equalsIgnoreCase(lendingApplication.getLoanType()) && existingAutoPayUpiWithMerchantId != null && autoPayEligible){
+        if(LoanType.REGULAR.name().equalsIgnoreCase(lendingApplication.getLoanType()) && !ObjectUtils.isEmpty(existingAutoPayUpiWithMerchantId) && Boolean.FALSE.equals(autoPayUpiSkipped)){
             // revoke previous mandate
             autoPayUPIService.revokeMandate(lendingApplication, existingAutoPayUpiWithMerchantId);
         }
 
-        AutoPayUPI existingAutoPayUPI = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+        existingAutoPayUPI = Optional.ofNullable(existingAutoPayUPI).orElse(autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId()));
         log.info("Autopay Upi Mandate found for Application Id: {} : {}", lendingApplication.getId(), existingAutoPayUPI);
 
         // If the existing AutoPay UPI is not null, check its status and set the mandate status accordingly
@@ -341,30 +339,6 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         upiAutopayStateDTO.setRetrySuggested(PaymentConstants.UPI_AUTOPAY_ERROR_CODE_TO_RETRY_ELIGIBLE_MAP.getOrDefault(existingAutoPayUPI.getErrorCode(), true));
     }
 
-    private boolean nonRegularMandateRegistrationChecks(LendingApplication lendingApplication, AutoPayUPI autoPayUPIExistingEntityMerchantId) {
-        log.info("Performing non-regular mandate registration checks for application id: {}", lendingApplication.getId());
-        if(lendingApplication.getLender()==null) {
-            log.info("lender is null in lending application for application id {}", lendingApplication.getId());
-            return true;
-        }
-
-        if (autoPayUPIExistingEntityMerchantId != null && autoPayUPIExistingEntityMerchantId.getMandateEndDate() != null) {
-            log.info("mandate end date is not null for application id {}", lendingApplication.getId());
-            long mandateEndDateInMillis = autoPayUPIExistingEntityMerchantId.getMandateEndDate().getTime();
-            long currentDateInMillis = System.currentTimeMillis();
-            long differenceInMonths = (mandateEndDateInMillis - currentDateInMillis) / (1000L * 60 * 60 * 24 * 30);
-            log.info("mandateEndDateInMillis {} currentDateInMillis {} differenceInMonths {}", mandateEndDateInMillis, currentDateInMillis, differenceInMonths);
-            log.info("difference in months for application id {} is {}", lendingApplication.getId(), differenceInMonths);
-            if ( (differenceInMonths < 36 ) || !lendingApplication.getLender().equalsIgnoreCase(autoPayUPIExistingEntityMerchantId.getLender())) {
-                log.info("returning true for autopay setup");
-                return true;
-            }
-            log.info("returning false for autopay setup");
-            return false;
-        }
-        log.info("returning true for autopay setup");
-        return true;
-    }
 
     public LoanApplicationDetailsV3 setApplicationDetails(LendingApplication openApplication, boolean isActiveApplicationFlow) {
         log.info("Setting application details for open application: {}", openApplication.getId());
