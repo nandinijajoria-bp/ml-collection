@@ -350,8 +350,9 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
             log.info("bank not nachable for {}", openApplication.getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.NON_NACHABLE_BANK.getErrorCode(),LoanDetailExceptionEnum.NON_NACHABLE_BANK.getErrorMessage());
         }
-        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true)) {
+        boolean isEligibleForNachSkip = loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true);
+        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || isEligibleForNachSkip
+                ||loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId())) {
             if(ObjectUtils.isEmpty(openApplication.getNachStatus())){
                 loanDashboardService.deleteLoanDashboardCache(openApplication.getMerchantId());
             }
@@ -363,7 +364,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
             }
         }
-        applicationDetails.setSkipEnach(loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true));
+        applicationDetails.setSkipEnach(isEligibleForNachSkip);
         if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
         }
