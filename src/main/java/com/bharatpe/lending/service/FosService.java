@@ -13,12 +13,9 @@ import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.LoanAttribution;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
-import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
-import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -33,10 +30,6 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
-import com.bharatpe.lending.exception.BureauCallMaskedApiException;
-import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV2.dto.UnderwritingDocEligibilityDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
@@ -45,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -155,11 +149,17 @@ public class FosService {
     @Autowired
     LoanDashboardService loanDashboardService;
 
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
+
     @Value("${nach.eligible.default.flag:true}")
     boolean merchantNachEligibleFlag;
 
     @Value("${autopay.upi.eligible.default.flag:false}")
     boolean merchantAutoPayEligibleFlag;
+
+    @Value("${upi.auto.pay.time.threshold:30}")
+    Integer upiAutopayTimeThreshold;
 
     @Autowired
     LendingConfigsDao lendingConfigsDao;
@@ -1670,5 +1670,89 @@ public class FosService {
         responseDTO.setSuccess(Boolean.TRUE);
         logger.info("Returning response DTO for merchantId {}: {}", merchantId, responseDTO);
         return responseDTO;
+    }
+
+    public UPIAutoPayResponseDto getAutoPayUPIStatus(Long merchantId, Long visitTimestamp, String loanId) {
+        UPIAutoPayResponseDto upiAutoPayResponseDto = new UPIAutoPayResponseDto();
+        if(merchantId != null && loanId != null){
+            logger.info("getAutoPayUpiStatus for merchantId: {} and loanId: {}", merchantId, loanId);
+            LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIAndExternalLoanId(merchantId, loanId);
+            if(ObjectUtils.isEmpty(lendingApplication)){
+                logger.info("No application found for merchantId: {} and loanId: {}", merchantId, loanId);
+                upiAutoPayResponseDto.setSuccess(false);
+                upiAutoPayResponseDto.setMessage("No application found");
+                return upiAutoPayResponseDto;
+            }
+            else{
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchantId, lendingApplication.getId());
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
+                    logger.info("No active loan found for merchantId: {} and applicationId: {}", merchantId, lendingApplication.getId());
+                    upiAutoPayResponseDto.setSuccess(false);
+                    upiAutoPayResponseDto.setMessage("No active loan for this merchant");
+                    return upiAutoPayResponseDto;
+                }
+                else{
+                    if(lendingPaymentSchedule.getStatus().equalsIgnoreCase("ACTIVE")){
+                        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(lendingPaymentSchedule.getApplicationId(), "ACTIVE");
+                        if(ObjectUtils.isEmpty(autoPayUPI)) {
+                            logger.info("No active UPI auto pay mandate found for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                            upiAutoPayResponseDto.setSuccess(true);
+                            upiAutoPayResponseDto.setMessage("UPI autopay required");
+                            return upiAutoPayResponseDto;
+                        }else{
+                            logger.info("Active UPI auto pay mandate found for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                            upiAutoPayResponseDto.setSuccess(false);
+                            upiAutoPayResponseDto.setMessage("UPI autopay already done");
+                            return upiAutoPayResponseDto;
+                        }
+
+                    }else{
+                        logger.info("No active loan found for merchantId: {} and applicationId: {}", merchantId, lendingApplication.getId());
+                        upiAutoPayResponseDto.setSuccess(false);
+                        upiAutoPayResponseDto.setMessage("No active loan for this merchant");
+                        return upiAutoPayResponseDto;
+                    }
+                }
+            }
+
+        }else{
+            logger.info("getAutoPayUpiStatus for merchantId: {} taskStartTimeEpoch: {}", merchantId, visitTimestamp);
+
+            Date taskStartTime = new Date(visitTimestamp * 1000);
+
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
+            if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
+                logger.info("No active loan found for merchantId: {}", merchantId);
+                upiAutoPayResponseDto.setSuccess(false);
+                upiAutoPayResponseDto.setMessage("No active loan for this merchant");
+                return upiAutoPayResponseDto;
+            }
+            logger.info("Found active loan for merchantId: {} with applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+
+            AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatusAndLender(lendingPaymentSchedule.getApplicationId(), "ACTIVE", lendingPaymentSchedule.getNbfc());
+            if(ObjectUtils.isEmpty(autoPayUPI)){
+                logger.info("No active UPI auto pay mandate found for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                upiAutoPayResponseDto.setSuccess(false);
+                upiAutoPayResponseDto.setMessage("UPI autopay not completed");
+                return upiAutoPayResponseDto;
+            }
+            else {
+                Date updatedAt = autoPayUPI.getUpdatedAt();
+                long diffInMillis = Math.abs(taskStartTime.getTime() - updatedAt.getTime());
+                long diffInMinutes = diffInMillis / (1000 * 60);
+                logger.info("diffInMinutes: {}", diffInMinutes);
+                if (diffInMinutes <= upiAutopayTimeThreshold) {
+                    logger.info("UPI autopay completed for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                    upiAutoPayResponseDto.setSuccess(true);
+                    upiAutoPayResponseDto.setMessage("UPI autopay completed");
+                    return upiAutoPayResponseDto;
+                } else {
+                    logger.info("UPI autopay Not completed for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                    upiAutoPayResponseDto.setSuccess(false);
+                    upiAutoPayResponseDto.setMessage("UPI autopay not completed");
+                    return upiAutoPayResponseDto;
+                }
+            }
+        }
     }
 }
