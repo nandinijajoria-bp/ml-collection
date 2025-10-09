@@ -948,7 +948,7 @@ public class PaymentService {
             return "OK";
         }
         if (request.getEvent() != null && request.getMandate() !=null) {
-            if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
+            if ("MANDATE".equalsIgnoreCase(request.getEvent()) || (request.getOrderId()!=null && request.getOrderId().startsWith("Auto-UPI"))) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
                 return autoPayUPIService.handleMandatePgCallback(request, null);
             } else if ("transaction".equalsIgnoreCase(request.getEvent()) && !request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
