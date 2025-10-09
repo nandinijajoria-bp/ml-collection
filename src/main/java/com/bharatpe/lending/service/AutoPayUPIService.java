@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.PaymentConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
@@ -186,8 +187,8 @@ public class AutoPayUPIService {
                 log.error("No order for order id {}", request.getOrderId());
                 return "OK";
             }
-            if (AutoPayStatusEnum.PENDING == autoPayUPI.getStatus()) {
-                log.info("Mandate for merchant id {} and order id {} is already processed", autoPayUPI.getMerchantId(), request.getOrderId());
+            if (PaymentConstants.UPI_AUTOPAY_TERMINAL_STATES.contains(autoPayUPI.getStatus())) {
+                log.info("Mandate for merchant id {} and order id {} has already reached terminal state", autoPayUPI.getMerchantId(), request.getOrderId());
                 return "OK";
             }
             if (request.getPaymentStatus() != null) {
@@ -197,11 +198,11 @@ public class AutoPayUPIService {
                         autoPayUPI.setErrorMessage(request.getMandate().getErrorDescription());
                         autoPayUPI.setErrorCode(request.getMandate().getErrorCode());
 
-                        if(request.getPayments() != null && !request.getPayments().isEmpty() && request.getPayments().get(0).getInternalErrorCode() != null){
-                            autoPayUPI.setErrorCode(request.getPayments().get(0).getInternalErrorCode());
+                        if(request.getInternalErrorCode() != null){
+                            autoPayUPI.setErrorCode(request.getInternalErrorCode());
                         }
-                        if(request.getPayments() != null && !request.getPayments().isEmpty() && request.getPayments().get(0).getInternalErrorMessage() != null){
-                            autoPayUPI.setErrorMessage(request.getPayments().get(0).getInternalErrorMessage());
+                        if(request.getInternalErrorMessage() != null){
+                            autoPayUPI.setErrorMessage(request.getInternalErrorMessage());
                         }
                     }
                 } else {
@@ -275,6 +276,14 @@ public class AutoPayUPIService {
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf("FAILED"));
                 mandateApplication.setErrorMessage(response.getData().getMandate().getErrorDescription() == null ? response.getData().getErrorDescription() : response.getData().getMandate().getErrorDescription() );
                 mandateApplication.setErrorCode(response.getData().getMandate().getErrorCode() == null ? response.getData().getErrorCode() : response.getData().getMandate().getErrorCode());
+
+                if(response.getData().getInternalErrorCode() != null){
+                    mandateApplication.setErrorCode(response.getData().getInternalErrorCode());
+                }
+                if(response.getData().getInternalErrorMessage() != null){
+                    mandateApplication.setErrorMessage(response.getData().getInternalErrorMessage());
+                }
+
                 log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
                 autoPayUPIDao.save(mandateApplication);
             }

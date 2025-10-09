@@ -249,7 +249,6 @@ public class LoanService {
             logger.info("nbfcStatusApiResponseDTO for applicationId : {} {}", application.getId(), nbfcStatus);
             if (!ObjectUtils.isEmpty(nbfcStatus) && nbfcStatus.getSuccess() && "SUCCESS".equalsIgnoreCase(nbfcStatus.getStatus())) {
                 application.setNbfcId(nbfcStatus.getLoanId());
-                application.setLoanDisbursalStatus(disbursalStage);
                 application.setSendToNbfc("YES");
 
                 if (ObjectUtils.isEmpty(application.getNbfcSendDate())) {
