@@ -172,6 +172,7 @@ public abstract class LendingApplicationServiceV3Base {
             if(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))) {
                 log.info("Lender aggregation flow in progress for applicationId {}", currentDraftApplication.getId());
                 lendingApplicationDetails.setApplicationViewState(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
             }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
