@@ -414,15 +414,13 @@ public class APIGatewayService {
             headers.set("hash", hash);
             headers.set("mid", getPgMid(pgCreateTransactionRequestDTO.getLender(), pgMidConfig, merchantId));
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
-
-            logger.info("Create pg mandate internal request: {}", mapper.writeValueAsString(request));
+            String pgUrl = PG_URL + LendingConstants.CREATE_PG_TXN_V2;
+            logger.info("Create pg mandate internal request for merchantId: {}. url: {}, header: {}, and body: {}", merchantId, pgUrl, headers, requestParams);
             int retryCount = 0;
             while (retryCount < autoPayUpiMandatePluginFailure) {
                 try {
-                    String pgCreateTxnURL = LendingConstants.CREATE_PG_TXN_V2;
-                    logger.info("pg create url: {}", pgCreateTxnURL);
-                    AutoPayRegisterPgResponseDto response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, AutoPayRegisterPgResponseDto.class);
-                    logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
+                    AutoPayRegisterPgResponseDto response = restTemplate.postForObject(pgUrl, request, AutoPayRegisterPgResponseDto.class);
+                    logger.info("Response received from Create Mandate pg transaction API  for merchantId: {}, {}",merchantId,  response);
                     return response;
                 } catch (Exception e) {
                     logger.error("Exception in creation of mandate for the merchantId {} and exception e {} is {}", merchantId, Arrays.asList(e.getStackTrace()),e.getMessage());

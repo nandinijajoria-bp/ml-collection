@@ -18,6 +18,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.Client;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -86,6 +87,9 @@ public class AutoPayUPIService {
     @Value(("${pg.android.version.direct.cashfree:7.1.9}"))
     String androidVersionDirectCashfree;
 
+    @Value("${pg.ios.version.direct.cashfree:310}")
+    private String iosVersionDirectCashfree;
+
     @Value("${upi.autopay.tat.exceeded.wait.time:14}")
     Long upiAutopayTatExceededWaitTime;
 
@@ -120,13 +124,16 @@ public class AutoPayUPIService {
     private boolean autoPayUPIMandateDirectCashfreeEnabled;
 
     @Value("${allowed.lenders.for.direct.cashfree:false}")
-    private String allowedLendersForDirectCashfree;
+    private List<String> allowedLendersForDirectCashfree;
 
     @Value("${auto.pay.upi.mandate.direct.cashfree.percent.rollout:10}")
     private int autoPayUPIMandateDirectCashfreePercentRollout;
 
     @Value("${minimum.autoPayUpi.expiry.months:42}")
     private int minimumAutoPayUpiExpiryMonths;
+
+    @Value("${auto.pay.upi.mandate.direct.cashfree.percent.rollout.ios:10}")
+    private int autoPayUPIMandateDirectCashfreePercentRolloutIos;
 
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
@@ -676,15 +683,22 @@ public class AutoPayUPIService {
     }
 
     public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto, Long merchantId) {
-        if (autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+        if (autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && Client.ANDROID.name().equalsIgnoreCase(requestDto.getMeta().getClient()) &&
                 getAllowedLenderForUPIAutoPay(autoPayUPIMandatePluginLenders).contains(requestDto.getPayload().getLender()) &&
                 isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionMerchantPlugin)) {
             return UNITY.name();
         }
 
-        if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
-                getAllowedLenderForUPIAutoPay(allowedLendersForDirectCashfree).contains(requestDto.getPayload().getLender()) &&
+        if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && Client.ANDROID.name().equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+                allowedLendersForDirectCashfree.contains(requestDto.getPayload().getLender()) &&
                 isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree) && easyLoanUtil.percentScaleUp(merchantId, autoPayUPIMandateDirectCashfreePercentRollout)) {
+            return DR_CASHFREE.name();
+        }
+
+        if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && Client.IOS.name().equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+                allowedLendersForDirectCashfree.contains(requestDto.getPayload().getLender()) &&
+                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), iosVersionDirectCashfree) && easyLoanUtil.percentScaleUp(merchantId, autoPayUPIMandateDirectCashfreePercentRolloutIos)) {
+            log.info("cashfree is selected as checkout type for ios client and merchantId {}", merchantId);
             return DR_CASHFREE.name();
         }
 
