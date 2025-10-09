@@ -28,6 +28,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.handlers.EmiHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
 import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
@@ -279,6 +280,12 @@ public class SupportService {
     @Autowired
     LmsPaymentDetailsDao lmsPaymentDetailsDao;
 
+    @Autowired
+    EmiHandler emiHandler;
+
+    @Value("${emi.crm.loan.details.rollout.percent:0}")
+    Integer emiCrmLoanDetailsRolloutPercent;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
@@ -286,14 +293,48 @@ public class SupportService {
         if (ObjectUtils.isEmpty(basicDetailsDto)) {
             return responseDTO;
         }
-
         try {
-            SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
-            supportLoanResponseDTO.setCreditLineAccount(Boolean.FALSE);
+
+                SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
+                supportLoanResponseDTO.setCreditLineAccount(Boolean.FALSE);
 //            CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
 //            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
-            Experian experian = experianDao.getByMerchantId(merchantId);
-            LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+                Experian experian = experianDao.getByMerchantId(merchantId);
+                LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+                try {
+                    if(easyLoanUtil.percentScaleUp(merchantId,emiCrmLoanDetailsRolloutPercent)) {
+                        SupportEmiResponseDTO emiSupportLoanDetails = getEmiSupportLoanDetails(merchantId);
+                        if (emiSupportLoanDetails.isSuccess()) {
+                            logger.info("response recived from emi repo {}", emiSupportLoanDetails);
+                            if (supportLoanResponseDTO.getApplicationHistory() == null) {
+                                supportLoanResponseDTO.setApplicationHistory(new ArrayList<>());
+                            }
+
+                            if (emiSupportLoanDetails.getData() != null && emiSupportLoanDetails.getData().getResult() != null
+                                    && emiSupportLoanDetails.getData().getResult().getData() != null
+                                    && emiSupportLoanDetails.getData().getResult().getData().getApplicationHistory() != null) {
+
+                                supportLoanResponseDTO.getApplicationHistory()
+                                        .addAll(emiSupportLoanDetails.getData().getResult().getData().getApplicationHistory());
+                            }
+
+                            if (supportLoanResponseDTO.getLoanDetailsList() == null) {
+                                supportLoanResponseDTO.setLoanDetailsList(new ArrayList<>());
+                            }
+
+                            if (emiSupportLoanDetails.getData() != null && emiSupportLoanDetails.getData().getResult() != null
+                                    && emiSupportLoanDetails.getData().getResult().getData() != null
+                                    && emiSupportLoanDetails.getData().getResult().getData().getLoanDetailsList() != null) {
+
+                                supportLoanResponseDTO.getLoanDetailsList()
+                                        .addAll(emiSupportLoanDetails.getData().getResult().getData().getLoanDetailsList());
+                            }
+
+                        }
+                    }
+                } catch (Exception ex) {
+                    logger.info("exception occured while fetching buisness loan details for crm {}", Arrays.asList(ex.getStackTrace()));
+                }
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdAndStatusNotOrderByIdDesc(merchantId, "deleted");
             List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
             List<NachableBanksDTO> nachableBanks = enachHandler.getEnachBankList();
@@ -665,6 +706,10 @@ public class SupportService {
             responseDTO.setData(supportLoanResponseDTO);
             return responseDTO;
         }
+    }
+
+    private SupportEmiResponseDTO getEmiSupportLoanDetails(Long merchantId) {
+        return emiHandler.handleSupportLoanEmiDetails(merchantId);
     }
 
     private String getStageCommunication(SupportApiResponseDto supportApiResponseDto){
@@ -1180,8 +1225,10 @@ public class SupportService {
                 }
                 applicationHistoryList.add(application1);
             }
-            supportLoanResponseDTO.setLoanDetailsList(loanHistoryList);
-            supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
+            if(supportLoanResponseDTO.getLoanDetailsList() == null) supportLoanResponseDTO.setLoanDetailsList(new ArrayList<>());
+            supportLoanResponseDTO.getLoanDetailsList().addAll(loanHistoryList);
+            if(supportLoanResponseDTO.getApplicationHistory() == null) supportLoanResponseDTO.setApplicationHistory(new ArrayList<>());
+                supportLoanResponseDTO.getApplicationHistory().addAll(applicationHistoryList);
         }
         return supportLoanResponseDTO;
     }
