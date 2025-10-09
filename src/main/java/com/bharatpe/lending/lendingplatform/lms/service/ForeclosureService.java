@@ -92,6 +92,7 @@ public class ForeclosureService {
         data.setLenderPrincipalDueAmount(netForeclosureAtLender);
         data.setForeClosureAmountAtLender(netForeclosureAtLender);
         data.setForeClosureAmount(Double.valueOf(finalForeclosureAmount));
+        data.setForeClosureAmountAtBp(Double.valueOf(lmsForeclosureAmount));
         //getting foreclosure charges and checking cool off period
         data.setForeClosureDetail(calculateForeClosureCharges(activeLoan,data,loanDetailsResponse));
         log.info("fore closure charges {} for loanId {}",data.getForeClosureDetail(),activeLoan.getId());
