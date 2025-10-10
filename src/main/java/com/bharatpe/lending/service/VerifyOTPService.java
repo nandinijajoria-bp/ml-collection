@@ -85,6 +85,8 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
+
 
 @Service
 public class VerifyOTPService {
@@ -1056,8 +1058,8 @@ public class VerifyOTPService {
                                 - lendingApplicationOptional.get().getProcessingFee();
 
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplicationOptional.get().getId(), lendingApplicationOptional.get().getLender());
-        if( !ObjectUtils.isEmpty(lendingApplicationLenderDetails) && lendingApplicationLenderDetails.getRearchFlow() ){
-            logger.info("1LMS Topup: Settling previous 1LMS loan with loanId : {}" , previousLoan.getId());
+        if( !ObjectUtils.isEmpty(previousLoan) &&  ONE_LMS.equalsIgnoreCase(previousLoan.getLmsSource())){
+            logger.info("1LMS Topup: Settling previous 1LMS loanwith loanId : {}" , previousLoan.getId());
             lmsAdjustmentForTopUp(previousLoan, previousAmount, lendingApplicationOptional.get(), previousLendingApplicationOptional.get());
         }
         else {
