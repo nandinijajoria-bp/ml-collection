@@ -16,6 +16,6 @@ public class PiramalPennyDropRequestDTO {
     private String leadId;
     private String ifsc;
     private String accountNumber;
-    private String bankAccountType;
+    private String accountType;
     private String productId;
 }
