@@ -130,7 +130,7 @@ public class PiramalPennyDropServiceV2 {
                             .leadId(lendingApplicationLenderDetails.getLeadId())
                             .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
                             .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
-                            .bankAccountType("CURRENT".equalsIgnoreCase(merchantNachDetailsResponseDTO.getAccountType())
+                            .accountType("CURRENT".equalsIgnoreCase(merchantNachDetailsResponseDTO.getAccountType())
                                     ? merchantNachDetailsResponseDTO.getAccountType() : getBankAccountType(lendingApplication.get().getMerchantId()))
                             .productId(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "BPETU" : "BRTPE")
                             .build())
