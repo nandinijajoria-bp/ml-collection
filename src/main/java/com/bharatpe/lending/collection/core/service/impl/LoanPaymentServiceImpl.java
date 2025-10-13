@@ -860,7 +860,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         log.info("Creating Lending Collection Audit for Payin for loanId: {}, payinDetailsId: {}, amount: {}, txnId: {}, mode: {}, transferType: {}",
                 lendingPaymentSchedule.getId(), lendingPayinDetails.getId(), orderAmount, txnId, mode, transferType);
 
-        Date ledgerDate = new Date();
+        Date ledgerDate = DateTimeUtil.getCurrentDayStartTime();
 
         LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                 .merchantId(lendingPaymentSchedule.getMerchantId())
