@@ -203,8 +203,9 @@ public class RolloutUtil {
         Long lmsLoanStatusCount = lmsLoanStatusDao.countAllLoanStatusRecords();
         Long oxyzoLmsLoanStatusCount = lendingPaymentScheduleDao.countOxyzoLoansOn1LMS();
 
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),
-                lendingApplication.getLender(), Arrays.asList(AutoPayStatusEnum.ACTIVE.name()));
+         // Commenting at the moment as it might be required later.
+//        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),
+//                lendingApplication.getLender(), Arrays.asList(AutoPayStatusEnum.ACTIVE.name()));
 
         if (ObjectUtils.isEmpty(lendingApplication)) {
             return false;
@@ -228,9 +229,11 @@ public class RolloutUtil {
         if (!oneLmsFlowEnable) {
             return false;
         }
-        if(!ObjectUtils.isEmpty(autoPayUPI)){
-            return autoPayEligibleForOneLmsFlow(autoPayUPI, lendingApplication);
-        }
+
+        // Commenting at the moment as it might be required later.
+//       if(!ObjectUtils.isEmpty(autoPayUPI)){
+//            return autoPayEligibleForOneLmsFlow(autoPayUPI, lendingApplication);
+//       }
 
         int merchantIdPercentage = lendingApplication.getMerchantId().intValue() % 100;
         if (merchantIdPercentage > eligibleLendingPlatformLmsMerchantRollout) {
