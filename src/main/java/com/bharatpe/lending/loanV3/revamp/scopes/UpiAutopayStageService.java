@@ -349,7 +349,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         PushDataToHomepageCarouselDto pushDataToHomepageCarouselDto = new PushDataToHomepageCarouselDto();
         pushDataToHomepageCarouselDto.setEvent_id("LENDING_HOMEPAGE_CAROUSEL_" + merchantId);
         pushDataToHomepageCarouselDto.setMerchant_id(BigInteger.valueOf(merchantId));
-        pushDataToHomepageCarouselDto.setEventType("remove");
+        pushDataToHomepageCarouselDto.setEvent_type("remove");
         pushDataToHomepageCarouselDto.setClient("LENDING");
 
         confluentKafkaProducer.sendMessage(pushDataToHomePageCarouselTopic, pushDataToHomepageCarouselDto);
