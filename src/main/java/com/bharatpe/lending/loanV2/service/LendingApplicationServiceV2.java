@@ -1145,6 +1145,10 @@ public class LendingApplicationServiceV2 {
             }
         });
         loanUtil.createLendingAuditTrailDTO(lendingApplication);
+        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
+        if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
+            lenderAssignService.updateLenderLimits(lendingLenderQuota, lendingApplication);
+        }
         return lendingApplication;
     }
 
