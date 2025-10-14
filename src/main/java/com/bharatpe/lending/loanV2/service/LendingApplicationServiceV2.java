@@ -408,6 +408,9 @@ public class LendingApplicationServiceV2 {
     @Value("${new.pdf.generation.method.lenders:-}")
     String newPdfGenerationMethodLenders;
 
+    @Value("${topup.enabled.lenders:}")
+    private String topUpEnabledLenders;
+
     private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -3184,7 +3187,7 @@ public class LendingApplicationServiceV2 {
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
 
             String language = "";
-            Boolean enableKFSVernacLang = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent);
+            Boolean enableKFSVernacLang = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent) && !(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
 
             if(ObjectUtils.isEmpty(lendingKfs)){
                 log.info("KFS details not present for Id: {} for merchant : {}", applicationId, merchant.getId());
@@ -3437,7 +3440,7 @@ public class LendingApplicationServiceV2 {
                     .selectedLanguage(language)
                     .build();
 
-            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(topUpEnabledLenders.contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
                 if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
                     log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
@@ -4141,7 +4144,7 @@ public class LendingApplicationServiceV2 {
             String language = "";
 
 
-            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent)){
+            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent) && !(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                 language = ObjectUtils.isEmpty(kfsDto.getSelectedLanguage()) ? languageService.getOrSetLanguageMappingByLenderAndLang(lender, lendingApplication.getId(), lang) : "_" + kfsDto.getSelectedLanguage();
                 log.info("language of selection: {}", language);
             } else {
@@ -4170,6 +4173,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
+            } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                filePath = "/templates/" + "KFS_NONP2P_MUTHOOT_TOPUP.html";
             } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + language + ".html";
             } else if(lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -4270,7 +4275,7 @@ public class LendingApplicationServiceV2 {
             String language = "";
 
 
-            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent)){
+            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent) && !(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))){
                 language = ObjectUtils.isEmpty(kfsDto.getSelectedLanguage()) ? languageService.getOrSetLanguageMappingByLenderAndLang(lender, lendingApplication.getId(), lang) : "_" + kfsDto.getSelectedLanguage();
 
                 log.info("language of selection: {}", language);
@@ -4301,6 +4306,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
+            } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT_TOPUP.html";
             } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -4760,7 +4767,7 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(kfsDto.getLender())) {
+        if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name(), Lender.MUTHOOT.name()).contains(kfsDto.getLender())) {
             LendingApplication parentLendingApplication = lendingApplicationDao.findByExternalLoanId(kfsDto.getParentLoanBplId());
             if (kfsDto.isTopUpLoan()) {
                 data.put("parent_loan_amount", parentLendingApplication.getLoanAmount());
