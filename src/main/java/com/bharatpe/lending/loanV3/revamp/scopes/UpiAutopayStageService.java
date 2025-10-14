@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.common.Kafka.Producer.ConfluentKafkaProducer;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
@@ -11,7 +12,9 @@ import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.PaymentConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.BottomSheetEvent;
 import com.bharatpe.lending.dto.MandateUPIStatusResponse;
+import com.bharatpe.lending.dto.PushDataToHomepageCarouselDto;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -38,6 +41,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.math.BigInteger;
 import java.util.*;
 
 import static com.bharatpe.lending.service.AutoPayUPIService.AUTO_PAY_UPI_APPLICABLE_LOAN_TYPES;
@@ -105,9 +109,17 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
     @Autowired
     private LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+    @Autowired
+    ConfluentKafkaProducer confluentKafkaProducer;
 
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
+
+    @Value("${bottom.sheet.topic:max_home_page_upi_mandate}")
+    private String bottomSheetTopic;
+
+    @Value("${push_data.homepage.carousel.topic:max_home_page_merchant_carousel}")
+    private String pushDataToHomePageCarouselTopic;
 
     @Override
     public LendingStateDTO<UpiAutopayStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -270,6 +282,9 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
                 upiAutopayStateDTO.setMandateStatus(PaymentConstants.UPI_AUTOPAY_MANDATE_STATUS_MAP.getOrDefault(existingAutoPayUPI.getStatus(), existingAutoPayUPI.getStatus().name()));
             } else {
                 upiAutopayStateDTO.setMandateStatus(PaymentConstants.UPI_AUTOPAY_MANDATE_STATUS_MAP.getOrDefault(existingAutoPayUPI.getStatus(), existingAutoPayUPI.getStatus().name()));
+                if(PaymentConstants.SUCCESS.equals(upiAutopayStateDTO.getMandateStatus()) && existingAutoPayUPI.isStandaloneAutopaySetup()) {
+                    pushRemoveEvent(scopeDataArgs.getMerchant().getId());
+                }
             }
             upiAutopayStateDTO.setCreatedAt(existingAutoPayUPI.getCreatedAt().getTime());
             upiAutopayStateDTO.setRetryCount(0);
@@ -328,6 +343,26 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
         log.info("Upi Autopay Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), upiAutopayStateDTO);
         return new LendingStateDTO<>(upiAutopayStateDTO , LendingViewStates.UPI_AUTOPAY_PAGE, LendingViewStates.UPI_AUTOPAY_PAGE);
+    }
+
+    private void pushRemoveEvent(Long merchantId) {
+        PushDataToHomepageCarouselDto pushDataToHomepageCarouselDto = new PushDataToHomepageCarouselDto();
+        pushDataToHomepageCarouselDto.setEvent_id("LENDING_HOMEPAGE_CAROUSEL_" + merchantId);
+        pushDataToHomepageCarouselDto.setMerchant_id(BigInteger.valueOf(merchantId));
+        pushDataToHomepageCarouselDto.setEventType("remove");
+        pushDataToHomepageCarouselDto.setClient("LENDING");
+
+        confluentKafkaProducer.sendMessage(pushDataToHomePageCarouselTopic, pushDataToHomepageCarouselDto);
+        log.info("Sent remove event of cic banner for merchant {}", merchantId);
+
+        BottomSheetEvent bottomSheetEvent = new BottomSheetEvent();
+        bottomSheetEvent.setEventId("Lending_Auto_Pay_" + merchantId);
+        bottomSheetEvent.setMerchantId(BigInteger.valueOf(merchantId)));
+        bottomSheetEvent.setEventType("remove");
+        bottomSheetEvent.setClient("LENDING");
+
+        confluentKafkaProducer.sendMessage(bottomSheetTopic, bottomSheetEvent);
+        log.info("Sent remove event of bottom sheet for merchant {}", merchantId);
     }
 
     private void updateErrorDetails(UpiAutopayStateDTO upiAutopayStateDTO, AutoPayUPI existingAutoPayUPI) {
