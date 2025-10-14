@@ -117,7 +117,7 @@ public class EmiHandler
             headers.add(LendingConstants.HEADER_X_API_KEY, apiToken);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
-            final String url = pgCallbackEmiBaseUrl + "/api/v1/collection/details" + "?merchantId=" + merchantId;
+            final String url = emiBaseUrl + "/api/v1/collection/details" + "?merchantId=" + merchantId;
             log.info("crm emi loan details api url : {} and request : {}", url, request);
 
             ResponseEntity<EmiServiceResponse> responseEntity = restTemplate.exchange(
