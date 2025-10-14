@@ -1205,6 +1205,8 @@ public class LenderAssignService implements ILenderAssignService {
 
         if(PAYU.name().equalsIgnoreCase(prevLender)) return PAYU.name();
 
+        if(MUTHOOT.name().equalsIgnoreCase(prevLender)) return MUTHOOT.name();
+
         return null;
     }
 

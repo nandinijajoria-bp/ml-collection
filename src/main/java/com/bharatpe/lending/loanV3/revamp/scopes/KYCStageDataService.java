@@ -158,7 +158,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
                 initiateKycResponse.setTopup(true);
                 log.info("setting topup {} for {} {}", initiateKycResponse.isTopup(), scopeDataArgs.getMerchant().getId(), lendingApplication.getId());
-                if (!Arrays.asList(Lender.LIQUILOANS_NBFC.name(), Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
+                if (!Arrays.asList(Lender.LIQUILOANS_NBFC.name(), Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {
                     log.info("Sending kyc approved for merchant Id:{} for lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
                     if (!KycStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getCkycStatus())) {
                         log.info("Updating ckyc status for merchant Id:{} and lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
@@ -221,7 +221,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 if (Objects.nonNull(lendingApplicationKycDetails.getConsentDate()) && !reKyc) {
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
                     initiateKycResponse.setShowKycPage(false);
-                    if(initiateKycResponse.isTopup() && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())){  // Add lender in list for redirecting on lender evaluation page after kyc scope in each case of topup
+                    if(initiateKycResponse.isTopup() && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())){  // Add lender in list for redirecting on lender evaluation page after kyc scope in each case of topup
                         loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
                         return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
                     }
@@ -247,7 +247,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                         return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                     }
                     loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
-                    if(initiateKycResponse.isTopup() && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())){   // Add lender in list for redirecting on lender evaluation page after kyc scope in each case of topup
+                    if(initiateKycResponse.isTopup() && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())){   // Add lender in list for redirecting on lender evaluation page after kyc scope in each case of topup
                         return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
                     }
                     return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
@@ -268,7 +268,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
             }
             loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
-            if(initiateKycResponse.isTopup() && !reKyc && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())){
+            if(initiateKycResponse.isTopup() && !reKyc && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())){
                 return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
             }
             return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);

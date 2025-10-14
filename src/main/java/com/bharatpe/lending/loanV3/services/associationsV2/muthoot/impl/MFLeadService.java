@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
@@ -75,6 +76,8 @@ public class MFLeadService {
     @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    private static final String TOPUP = "Topup";
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -205,6 +208,10 @@ public class MFLeadService {
                                 .build())
                         .consents(getConsents(lendingApplication))
                         .build();
+
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                    payload.setAdditionalData(new MFUpdateLeadRequestDTO.AdditionalData(TOPUP));
+                }
             } else {
                 payload = MFUpdateLeadRequestDTO.builder()
                         .customerID(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())

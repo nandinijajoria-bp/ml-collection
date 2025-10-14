@@ -288,6 +288,9 @@ public class VerifyOTPService {
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
 
+    @Value("${topup.enabled.lenders:}")
+    private String topUpEnabledLenders;
+
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         if (Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -885,7 +888,7 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
-            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(),Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(activeLoan.getNbfc())) {
+            } else if(topUpEnabledLenders.contains(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeClosureAmountForLender(activeLoan);
                 if(previousAmount <= 0){
                     throw new RuntimeException(String.format("Error getting %s foreclosure details", activeLoan.getNbfc()));

@@ -246,6 +246,9 @@ public class MerchantLoansService {
     @Value("${payu.topup.rollout.percent:}")
     Integer payuTopUpRolloutPercent;
 
+    @Value("${muthoot.topup.rollout.percent:0}")
+    Integer muthootTopUpRolloutPercent;
+
     @Value("${payu.topup.rollout.date:}")
     String payuTopupRolloutDate;
 
@@ -318,7 +321,7 @@ public class MerchantLoansService {
     private Map<String,Integer> topupV2FlowLenderRolloutPercentage = new HashMap<>();
 
     private static final List<String> TOPUP_REJECTION_ENABLED_LENDERS = Arrays.asList(
-            LIQUILOANS_P2P.name(),LIQUILOANS_P2P_OF.name(), ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name(), PAYU.name());
+            LIQUILOANS_P2P.name(),LIQUILOANS_P2P_OF.name(), ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name(), PAYU.name(), MUTHOOT.name());
 
 
     @Value("${pricing.experiment.enable:false}")
@@ -347,6 +350,9 @@ public class MerchantLoansService {
 
     @Autowired
     BQPublisherUtil bqPublisherUtil;
+
+    @Value("${topup.enabled.lenders:}")
+    private String topUpEnabledLenders;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -1866,6 +1872,12 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
+            if (MUTHOOT.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), muthootTopUpRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                addRejectionReason(eligiblity, "MUTHOOT Topup not enabled for this merchant");
+                log.info("MUTHOOT Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
+
             //Please chek if being used
             if(topupPilotRunEnabledLenders.contains(lendingPaymentSchedule.getNbfc())){
                 LenderTopupEligibility lenderTopupEligibility = lenderTopupEligibilityDao.findTopupEligibilityFromLender(
@@ -2096,6 +2108,13 @@ public class MerchantLoansService {
                 addRejectionReason(eligiblity, "PAYU Topup not enabled for this merchant");
                 log.info("Payu Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Payu Topup not enabled for this merchant");
+                return eligiblity;
+            }
+
+            if (MUTHOOT.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), muthootTopUpRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                addRejectionReason(eligiblity, "MUTHOOT Topup not enabled for this merchant");
+                log.info("MUTHOOT Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown","false", "Muthoot Topup not enabled for this merchant");
                 return eligiblity;
             }
 
@@ -3065,7 +3084,7 @@ public class MerchantLoansService {
         double previousAmount = 0;
         if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
             previousAmount = loanUtil.getForeclosureAmountForLdc(lendingPaymentSchedule);
-        } else if (Arrays.asList(ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name(), PAYU.name()).contains(lendingPaymentSchedule.getNbfc())) {
+        } else if (topUpEnabledLenders.contains(lendingPaymentSchedule.getNbfc())) {
             previousAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
             if (previousAmount <= 0) {
                 String error = String.format("Error getting foreclosure details for %s %s with loanId %s", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getId());
