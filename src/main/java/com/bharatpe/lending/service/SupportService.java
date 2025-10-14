@@ -384,6 +384,12 @@ public class SupportService {
             supportLoanResponseDTO.setApplied(Boolean.FALSE);
             supportLoanResponseDTO.setExperian(Boolean.TRUE);
 
+            if(supportLoanResponseDTO.getLoanDetailsList() != null){
+                for(LoanDetailsDTO loanDetailsDTO : supportLoanResponseDTO.getLoanDetailsList()){
+                    if("ACTIVE".equalsIgnoreCase(loanDetailsDTO.getStatus())) supportLoanResponseDTO.setActiveLoan(Boolean.TRUE);
+                }
+            }
+
             supportLoanResponseDTO = getLoanDetail(supportLoanResponseDTO, merchantId);
 
             supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
