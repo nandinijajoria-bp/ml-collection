@@ -1,15 +1,12 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.Handler.EnachHandler;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -20,11 +17,9 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations.TLPayloadValidation;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.util.*;
@@ -45,15 +40,6 @@ public class TLUpdateLeadService {
 
     @Autowired
     ILenderAPIGateway lenderAPIGateway;
-
-    @Autowired
-    LendingApplicationDetailsDao lendingApplicationDetailsDao;
-
-    @Autowired
-    EnachHandler enachHandler;
-
-    @Autowired
-    LoanUtil loanUtil;
 
     @Autowired
     TrillionLoansConfig trillionLoansConfig;
@@ -95,55 +81,34 @@ public class TLUpdateLeadService {
     private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
-            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-            Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
-            TLUpdateLeadRequestV2Dto updateLeadDetails = null;
-            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
-            if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
-                updateLeadDetails = TLUpdateLeadRequestV2Dto.builder()
-                        .clientId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId())
-                        .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
-                        .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
-                        .ifscCode(merchantNachDetailsResponseDTO.getIfscCode())
-                        .accountHolderName(merchantNachDetailsResponseDTO.getBeneficiaryName())
-                        .bankName(merchantNachDetailsResponseDTO.getBankName())
-                        .bankAccountType(getAccountType(merchantNachDetailsResponseDTO.getAccountType()))
-                        .beneficiaryType("SELF")
-                        .build();
+            Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
+            if (!bankDetailsDtoOptional.isPresent()) {
+                log.info("Bank details not found for merchantId: {}", lendingApplication.getMerchantId());
+                return null;
             }
-            else if(!ObjectUtils.isEmpty(lendingApplicationDetails.getMandateFlagsToggledOn()) && lendingApplicationDetails.isAutoPayUpiEligible() && !lendingApplicationDetails.isNachEligible()){
-                log.info("Mandate switch is enabled, Updating Payload for Autopay Upi only scenario for applicationId: {}", lendingApplication.getId());
-                Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
-                BankDetailsDto merchantBankDetail = null;
-                if (!bankDetailsDtoOptional.isPresent()) {
-                    log.error("Bank details not found for merchantId: {} and applicationId: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
-                    return null;
-                }
-                merchantBankDetail = bankDetailsDtoOptional.get();
-                log.info("Bank details found for merchantId: {} and applicationId: {}: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), merchantBankDetail);
+            BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.get();
 
-                updateLeadDetails = TLUpdateLeadRequestV2Dto.builder()
-                        .clientId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId())
-                        .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
-                        .accountNumber(merchantBankDetail.getAccountNumber())
-                        .ifscCode(merchantBankDetail.getIfsc())
-                        .accountHolderName(merchantBankDetail.getBeneficiaryName())
-                        .bankName(merchantBankDetail.getBankName())
-                        .bankAccountType(getAccountType(merchantBankDetail.getAccountType()))
-                        .beneficiaryType("SELF")
-                        .build();
+            TLUpdateLeadRequestV2Dto updateLeadDetails = TLUpdateLeadRequestV2Dto.builder()
+                    .clientId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId())
+                    .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
+                    .accountNumber(merchantBankDetail.getAccountNumber())
+                    .ifscCode(merchantBankDetail.getIfsc())
+                    .accountHolderName(merchantBankDetail.getBeneficiaryName())
+                    .bankName(merchantBankDetail.getBankName())
+                    .bankAccountType(getAccountType(merchantBankDetail.getAccountType()))
+                    .beneficiaryType(trillionLoansConfig.getBeneficiaryType())
+                    .build();
 
-                log.info("Updated lead details for merchantId: {} and applicationId: {}: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), updateLeadDetails);
-            }
             if (payloadValidation.isInvalidUpdateLeadPayload(updateLeadDetails)) {
-                log.info("Error in getting update lead details payload for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                log.info("Invalid payload for updateLead of trillionLoans for applicationId {}", lendingApplication.getId());
                 return null;
             }
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
-                    .payload(updateLeadDetails).topup("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
+                    .payload(updateLeadDetails)
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
                     .build();
         } catch (Exception e) {
             log.info("Exception in creating payload of Update Lead of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -168,7 +133,7 @@ public class TLUpdateLeadService {
 
             NBFCRequestDTO updateLoanRequestDTO = getPayloadForUpdateLoan(lenderAssociationDetailsRequestDto);
             if (Objects.isNull(updateLoanRequestDTO)){
-                log.info("error in update lead payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
+                log.info("error in update loan payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
                 setOfferModificationStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), "FAILED");
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return false;
@@ -185,7 +150,7 @@ public class TLUpdateLeadService {
                 return false;
             }
         } catch(Exception ex){
-            log.info("Exception in creating payload of Update Lead of TrillionLoans for {} {} {}", lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            log.info("error while pushing update loan of TrillionLoans for {} {} {}", lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
         }
         return false;
@@ -221,7 +186,7 @@ public class TLUpdateLeadService {
                     .payload(tlUpdateLoanRequestDto).topup("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
                     .build();
         } catch (Exception ex){
-            log.info("Exception in creating payload of Update Lead of TrillionLoans for {} {} {}", lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            log.info("Exception in creating payload of Update loan of TrillionLoans for {} {} {}", lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return null;
     }
