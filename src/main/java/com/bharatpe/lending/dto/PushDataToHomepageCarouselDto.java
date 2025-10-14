@@ -18,6 +18,6 @@ public class PushDataToHomepageCarouselDto {
     private Long start_time;
     private Long end_time;
     private Integer priority;
-    private String eventType;
+    private String event_type;
 
 }
