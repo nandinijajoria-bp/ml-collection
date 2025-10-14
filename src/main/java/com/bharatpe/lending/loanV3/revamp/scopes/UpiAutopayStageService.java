@@ -357,7 +357,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
         BottomSheetEvent bottomSheetEvent = new BottomSheetEvent();
         bottomSheetEvent.setEventId("Lending_Auto_Pay_" + merchantId);
-        bottomSheetEvent.setMerchantId(BigInteger.valueOf(merchantId)));
+        bottomSheetEvent.setMerchantId(BigInteger.valueOf(merchantId));
         bottomSheetEvent.setEventType("remove");
         bottomSheetEvent.setClient("LENDING");
 
