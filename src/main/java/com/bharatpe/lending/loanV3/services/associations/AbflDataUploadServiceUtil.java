@@ -285,6 +285,13 @@ public class AbflDataUploadServiceUtil {
                 .timestamp(String.valueOf(lendingApplication.getAgreementAt().getTime()))
                 .build()
         );
+        consents.add(RegulatoryDataDto.Consent.builder()
+                .type("Income consent")
+                .content("Income details is more than 3 lakhs.")
+                .ip(lendingApplication.getIp())
+                .timestamp(String.valueOf(lendingApplication.getAgreementAt().getTime()))
+                .build()
+        );
         return consents;
     }
 
