@@ -44,7 +44,6 @@ import com.bharatpe.util.pdf.dto.PdfGenerationRequest;
 import com.bharatpe.util.pdf.dto.PdfGenerationResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.html2pdf.HtmlConverter;
 import com.opencsv.CSVWriter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
@@ -245,9 +244,6 @@ public class SupportService {
 
     @Autowired
     InsuranceService insuranceService;
-
-  @Value("${new.pdf.generation.method.lenders:-}")
-  String newPdfGenerationMethodLenders;
 
   @Autowired
   PdfGeneratorUtilV2 pdfGeneratorUtil;
@@ -1813,7 +1809,6 @@ public class SupportService {
     private void storeAgreementHelper(LendingApplication lendingApplication, String html, String type, String fileName, String s3Bucket)
         throws Exception {
       ByteArrayInputStream inStream;
-      if (newPdfGenerationMethodLenders.contains(lendingApplication.getLender())) {
         logger.info("Agreement Doc getting generated for applicationId: "+lendingApplication.getId());
         PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
             .html(html);
@@ -1826,11 +1821,6 @@ public class SupportService {
           log.error("Failed to generate PDF for applicationId: {}", lendingApplication.getId());
           throw new Exception("Unable to generate Agreement Doc for applicationID" + lendingApplication.getId());
         }
-      }else{
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        HtmlConverter.convertToPdf(html, outStream);
-        inStream = new ByteArrayInputStream(outStream.toByteArray());
-      }
         s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
         LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(), type);
         if (loanAgreement == null) {
