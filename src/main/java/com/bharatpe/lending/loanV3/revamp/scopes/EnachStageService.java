@@ -176,14 +176,13 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             String lender = openApplication.getLender();
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationServiceV3.getLendingApplicationDetailsByApplicationId(openApplication.getId());
 
-            if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
-                    Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
-                enachStateDTO.setEnachModes(Arrays.asList(new EnachModeDTO(EnachMode.NB_DC.name(), true, null)));
-            } else if (!ObjectUtils.isEmpty(lendingApplicationDetails) && MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType())) {
+            if (!ObjectUtils.isEmpty(lendingApplicationDetails) && MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType())) {
                 enachStateDTO.setEnachModes(Collections.singletonList(new EnachModeDTO(EnachMode.UPI.name(), true, null)));
                 enachStateDTO.setNativeMandateRequired(true);
-            }
-            else{
+            } else if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
+                    Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
+                enachStateDTO.setEnachModes(Arrays.asList(new EnachModeDTO(EnachMode.NB_DC.name(), true, null)));
+            } else{
                 List<EnachModeDTO> enachModes = getAvailableEnachMode(openApplication, scopeDataArgs.getLoanDetailsV3Request().getAppVersion());
                 enachStateDTO.setEnachModes(enachModes);
             }

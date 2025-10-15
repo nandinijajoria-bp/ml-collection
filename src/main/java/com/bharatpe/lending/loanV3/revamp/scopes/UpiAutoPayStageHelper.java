@@ -133,10 +133,14 @@ public class UpiAutoPayStageHelper {
         log.info("isEligibleForSkipNach : {} for applicationId : {}", isEligibleForSkipNach, lendingApplication.getId());
         LendingViewStates nextPage;
         if(isEligibleForSkipNach){
-            nextPage = vKycService.getLenderVkycPageOrDefault(
-                    LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(),
-                    lendingApplication.getLender(), LoanType.TOPUP.name().equals(lendingApplication.getLoanType()));
-            invokeDocUploadFlow(lendingApplication);
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                nextPage=LendingViewStates.AGREEMENT_PAGE;
+            }else {
+                nextPage = vKycService.getLenderVkycPageOrDefault(
+                        LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(),
+                        lendingApplication.getLender(), LoanType.TOPUP.name().equals(lendingApplication.getLoanType()));
+                invokeDocUploadFlow(lendingApplication);
+            }
             lendingApplication.setNachStatus(NachStatus.APPROVED.name());
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender(loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));

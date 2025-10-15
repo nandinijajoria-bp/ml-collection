@@ -215,17 +215,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         log.info("Fetching UPI Autopay Stage Data for Merchant ID: {}", scopeDataArgs.getMerchant().getId());
         UpiAutopayStateDTO upiAutopayStateDTO = new UpiAutopayStateDTO();
         upiAutopayStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
-        boolean isActiveApplicationAutoPaySetupFlow=false;
-        LendingPaymentScheduleSlave lps = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
-        if(Objects.isNull(scopeDataArgs.getApplicationId()) && Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isAutoPayPending()){
-            if(!mandateRegistrationHelper.isAutopayRequiredForActiveApplication(lps)){
-                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorCode(), LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorMessage());
-            }
-            scopeDataArgs.setApplicationId(lps.getApplicationId());
-        }
-        if(Objects.nonNull(lps) && "ACTIVE".equalsIgnoreCase(lps.getStatus())){
-            isActiveApplicationAutoPaySetupFlow=true;
-        }
+        boolean isActiveApplicationAutoPaySetupFlow = isActiveApplicationAutoPaySetupFlow(scopeDataArgs);
         upiAutopayStateDTO.setActiveApplicationAutoPaySetupFlow(isActiveApplicationAutoPaySetupFlow);
         LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
         if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -343,6 +333,33 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
         log.info("Upi Autopay Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), upiAutopayStateDTO);
         return new LendingStateDTO<>(upiAutopayStateDTO , LendingViewStates.UPI_AUTOPAY_PAGE, LendingViewStates.UPI_AUTOPAY_PAGE);
+    }
+
+    /**
+     * @param scopeDataArgs
+     * @return true in case of active application and non topup case --> migration cases else false
+     */
+    private boolean isActiveApplicationAutoPaySetupFlow(ScopeDataArgs scopeDataArgs) {
+        LendingPaymentScheduleSlave lps = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
+        if(Objects.isNull(scopeDataArgs.getApplicationId()) && Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isAutoPayPending()){
+            if(!mandateRegistrationHelper.isAutopayRequiredForActiveApplication(lps)){
+                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorCode(), LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorMessage());
+            }
+            scopeDataArgs.setApplicationId(lps.getApplicationId());
+        }
+        if(Objects.nonNull(lps) && LoanStatus.ACTIVE.name().equalsIgnoreCase(lps.getStatus())){
+            LendingApplication lendingApplication = lendingApplicationDao.findInProgressLoanApplication(scopeDataArgs.getMerchant().getId());
+            if(Objects.nonNull(lendingApplication) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                log.info("topup case found for active application on upiautopay stage for merchantId: {}, active applicationId: {}, and topup applicationId: {}",
+                        scopeDataArgs.getMerchant().getId(), lps.getApplicationId(), lendingApplication.getId());
+                return false;
+            }else {
+                log.info("autopay migration case found on upiautopay stage for merchantId: {}, active applicationId: {}",
+                        scopeDataArgs.getMerchant().getId(), lps.getApplicationId());
+                return true;
+            }
+        }
+        return false;
     }
 
     private void pushRemoveEvent(Long merchantId) {
