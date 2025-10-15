@@ -3121,7 +3121,7 @@ public class LoanDetailsServiceV2 {
                             return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").errorCode("APP_NOT_FOUND").detailSaved(false).applicationRejected(applicationRejected).build());
                         }
                         lendingApplicationLenderDetails.setAccountState("MFI_" + input.getValue());
-                        if (UPTO_3_LAKH.equalsIgnoreCase(input.getValue())) {
+                        if (UPTO_3_LAKH.equalsIgnoreCase(input.getValue()) && Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
                             lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.ValidationStatus.MFI_DECLARATION_FAILED.name());
                             commonService.rejectApplication(lendingApplication, lendingApplicationLenderDetails);
                             applicationRejected = true;
