@@ -31,10 +31,6 @@ import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.FileUtil;
 import com.bharatpe.util.pdf.PdfMergerUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.pdf.PdfReader;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.pdf.PdfCopy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,8 +134,6 @@ public class AbflDataUploadServiceUtil {
     @Value("${lender.doc.generate.topup.enabled.lenders:}")
     String lenderDocGenerateTopUpEnabledLenders;
 
-    @Value("${new.pdf.generation.method.lenders:-}")
-    String newPdfGenerationMethodLenders;
 
     @Autowired
     PdfMergerUtil pdfMergerUtil;
@@ -505,12 +499,11 @@ public class AbflDataUploadServiceUtil {
      * @param docKfsName docKfsName
      * @param docSanctionName docSanctionName
      * @throws IOException IOException
-     * @throws DocumentException DocumentException
      */
     private void processKfsSanctionDocument(String docType,
                                             DocUploadApiRequestDto.Payload payload,
                                             LendingApplication lendingApplication,
-                                            String docKfsName, String docSanctionName) throws IOException, DocumentException {
+                                            String docKfsName, String docSanctionName) throws IOException {
         /*
             1. download file from bucket to local storage
             2. merge both file in new merged file using ipdf
@@ -530,34 +523,18 @@ public class AbflDataUploadServiceUtil {
         URLConnection connection2 = url2.openConnection();
         InputStream inputStream2 = connection2.getInputStream();
 
-        if(newPdfGenerationMethodLenders.contains(lendingApplication.getLender())){
-            log.info("Using new pdf generation method for application {}", lendingApplication.getId());
-            byte[] mergedByteArray = pdfMergerUtil.mergePdfs(Arrays.asList(inputStream1.readAllBytes(),inputStream2.readAllBytes()));
-            try (FileOutputStream fos = new FileOutputStream("/data/" + mergedFileName)) {
-                fos.write(mergedByteArray);
-                log.info("PDF created successfully with header and footer on all pages.");
-            } catch (Exception e) {
-                log.error("Error creating PDF: {}", e.getMessage(), e);
-                throw new RuntimeException("Error creating PDF", e);
-            }
-        }else {
-            PdfReader reader1 = new PdfReader(inputStream1);
-            PdfReader reader2 = new PdfReader(inputStream2);
-            // Create the output file
-            Document document = new Document();
-            PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
-            copy.setCompressionLevel(9);
-            document.open();
-
-            // Merge the PDF files
-            copy.addDocument(reader1);
-            copy.addDocument(reader2);
-
-            // Close the document
-            document.close();
+        log.info("Using new pdf generation method for application {}", lendingApplication.getId());
+        byte[] mergedByteArray = pdfMergerUtil.mergePdfs(
+            Arrays.asList(inputStream1.readAllBytes(), inputStream2.readAllBytes()));
+        try (FileOutputStream fos = new FileOutputStream("/data/" + mergedFileName)) {
+          fos.write(mergedByteArray);
+          log.info("PDF created successfully with header and footer on all pages.");
+        } catch (Exception e) {
+          log.error("Error creating PDF: {}", e.getMessage(), e);
+          throw new RuntimeException("Error creating PDF", e);
         }
 
-        File mergedFile = new File("/data/" + mergedFileName);
+      File mergedFile = new File("/data/" + mergedFileName);
         s3BucketHandler.uploadFileToS3(mergedFile,"loan-document",mergedFileName);
         String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName,bucket);
 
