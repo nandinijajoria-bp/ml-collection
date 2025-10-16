@@ -3303,7 +3303,7 @@ public class LoanUtil {
 		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
 		PricingExperiment pricingExperiment = null;
 		if(pricingExpEnabled) {
-			pricingExperiment =pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
+			pricingExperiment =pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, String.valueOf(lendingRiskVariables.getMerchantId()), pincodeColor, "ACTIVE");
 		}
 		if(!ObjectUtils.isEmpty(pricingExperiment)) {
             logger.info("experiment available for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);

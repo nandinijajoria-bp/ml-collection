@@ -344,7 +344,7 @@ public class NbfcUtils {
                     lendingRiskVariablesSnapshot.getRiskSegment().name(),
                     lendingRiskVariablesSnapshot.getRiskGroup(),
                     lendingRiskVariablesSnapshot.getTenure(),
-                    (int) (lendingApplication.getMerchantId()%10),
+                    String.valueOf(lendingApplication.getMerchantId()),
                     lendingRiskVariablesSnapshot.getPincodeColor().name(),
                     lendingApplication.getCreatedAt()
             );
