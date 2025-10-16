@@ -786,7 +786,7 @@ public abstract class LendingApplicationServiceV3Base {
                         PricingExperiment pricingExperiment = null;
                         if(pricingExpEnabled) {
                             pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(), lendingRiskVariablesSnapshot.getRiskGroup(),
-                                    lendingRiskVariablesSnapshot.getTenure(), (int)(lendingRiskVariablesSnapshot.getMerchantId()%10), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                                    lendingRiskVariablesSnapshot.getTenure(), String.valueOf(lendingRiskVariablesSnapshot.getMerchantId()), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
                         }
                         Double pfRate;
                         if(!ObjectUtils.isEmpty(pricingExperiment)) {

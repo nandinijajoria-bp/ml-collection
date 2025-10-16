@@ -1065,7 +1065,7 @@ public class LenderAssignService implements ILenderAssignService {
                 PricingExperiment pricingExperiment = null;
                 if(pricingExpEnabled) {
                     pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                            application.get().getTenureInMonths(), (int) (lendingRiskVariables.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), application.get().getCreatedAt());
+                            application.get().getTenureInMonths(), String.valueOf((lendingRiskVariables.getMerchantId())), lendingRiskVariables.getPincodeColor().name(), application.get().getCreatedAt());
                 }
                 if(!ObjectUtils.isEmpty(pricingExperiment)) {
                     log.info("Experiment fetched for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
@@ -1575,7 +1575,7 @@ public class LenderAssignService implements ILenderAssignService {
                 if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
                     if(pricingExpEnabled) {
                         pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                                lendingApplication.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                                lendingApplication.getTenureInMonths(), String.valueOf(lendingApplication.getMerchantId()), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
                     }
                     lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
                             lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
@@ -1876,7 +1876,7 @@ public class LenderAssignService implements ILenderAssignService {
         PricingExperiment pricingExperiment = null;
         if(pricingExpEnabled) {
             pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
-                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), String.valueOf(lendingApplication.getMerchantId()), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
         }
         if(!ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("experiment available for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
@@ -1927,7 +1927,7 @@ public class LenderAssignService implements ILenderAssignService {
         PricingExperiment pricingExperiment = null;
         if(pricingExpEnabled) {
             pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(),
-                    lendingRiskVariables.getRiskGroup(), application.getTenureInMonths(), (int) (application.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
+                    lendingRiskVariables.getRiskGroup(), application.getTenureInMonths(), String.valueOf(application.getMerchantId()), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
         }
         if(!ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("experiment available for {}: {}", application.getMerchantId(), pricingExperiment);
