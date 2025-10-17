@@ -1060,7 +1060,6 @@ public class VerifyOTPService {
                                 - lendingApplicationOptional.get().getDisbursalAmount()
                                 - lendingApplicationOptional.get().getProcessingFee();
 
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplicationOptional.get().getId(), lendingApplicationOptional.get().getLender());
         if( !ObjectUtils.isEmpty(previousLoan) &&  ONE_LMS.equalsIgnoreCase(previousLoan.getLmsSource())){
             logger.info("1LMS Topup: Settling previous 1LMS loanwith loanId : {}" , previousLoan.getId());
             lmsAdjustmentForTopUp(previousLoan, previousAmount, lendingApplicationOptional.get(), previousLendingApplicationOptional.get());
@@ -1075,11 +1074,11 @@ public class VerifyOTPService {
         }
 
         // deactivate autopay upi if exists for previous loan
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(applicationId, AutoPayStatusEnum.ACTIVE.name());
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(previousLendingApplicationOptional.get().getId(), AutoPayStatusEnum.ACTIVE.name());
         if(!ObjectUtils.isEmpty(autoPayUPI)) {
             autoPayUPI.setStatus(AutoPayStatusEnum.INACTIVE);
             autoPayUPIDao.save(autoPayUPI);
-            logger.info("AutoPay UPI set to INACTIVE for applicationId: {}", applicationId);
+            logger.info("AutoPay UPI set to INACTIVE for applicationId: {}", previousLendingApplicationOptional.get().getId());
         }
 
         finalResponse.put("message", "successfully settled previous loan");
