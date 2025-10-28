@@ -32,13 +32,13 @@
         <dependency>
             <groupId>com.bharatpe.common</groupId>
             <artifactId>bharatpe-common</artifactId>
-            <version>3.0-lending-SNAPSHOT</version>
+            <version>3.0-bpmoney-SNAPSHOT</version>
         </dependency>
 
         <dependency>
             <groupId>com.bharatpe.cache</groupId>
             <artifactId>cache</artifactId>
-            <version>1.2.0-SNAPSHOT</version>
+            <version>1.2.0-bpmoney-SNAPSHOT</version>
         </dependency>
 
         <dependency>
@@ -50,7 +50,7 @@
         <dependency>
             <groupId>com.bharatpe.lending.common</groupId>
             <artifactId>lending-common</artifactId>
-            <version>3.0-SNAPSHOT</version>
+            <version>3.0-bpmoney-SNAPSHOT</version>
         </dependency>
 
 
@@ -169,7 +169,7 @@
         <repository>
             <id>maven-group</id>
             <name>maven-group</name>
-            <url>https://nexus.bharatpe.in/repository/maven-group/</url>
+            <url>https://nexus.bharatpemoney.com/repository/maven-group/</url>
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
@@ -177,12 +177,12 @@
         <repository>
             <id>com.bharatpe-snapshot</id>
             <name>snapshot</name>
-            <url>https://nexus.bharatpe.in/repository/maven-snapshots/</url>
+            <url>https://nexus.bharatpemoney.com/repository/maven-snapshots/</url>
         </repository>
         <repository>
             <id>com.bharatpe-release</id>
             <name>release</name>
-            <url>https://nexus.bharatpe.in/repository/maven-releases/</url>
+            <url>https://nexus.bharatpemoney.com/repository/maven-releases/</url>
         </repository>
     </repositories>
 </project>

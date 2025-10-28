@@ -6,14 +6,14 @@
     <mirror>
       <id>central</id>
       <name>central</name>
-      <url>http://nexus.internal-bp.com/repository/maven-group/</url>
+      <url>http://nexus.bharatpemoney.com/repository/maven-group/</url>
       <mirrorOf>*</mirrorOf>
     </mirror>
     <mirror>
         <id>maven-default-http-blocker</id>
         <mirrorOf>*</mirrorOf>
         <name></name>
-        <url>http://nexus.internal-bp.com/repository/maven-group/</url>
+        <url>http://nexus.bharatpemoney.com/repository/maven-group/</url>
     </mirror>
   </mirrors>
 
