@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LendingApplicationDao extends CrudRepository<LendingApplication , Long> {
@@ -150,5 +151,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	@Query(nativeQuery = true, value = "select external_loan_id from lending_application WHERE id = :id order by id desc")
 	String getExternalLoanIdByIdOrderByDesc(Long id);
+
+	@Query(nativeQuery = true, value = "select * from lending_application where merchant_id = :merchantId and external_loan_id = :externalLoanId order by id desc limit 1")
+	LendingApplication findByMerchantIAndExternalLoanId(Long merchantId, String externalLoanId);
 
 }

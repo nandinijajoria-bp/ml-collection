@@ -11,6 +11,7 @@ import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
 import com.bharatpe.lending.collection.core.service.impl.LoanPaymentServiceImpl;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
@@ -43,6 +44,10 @@ import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
 import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
+import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
+import com.bharatpe.lending.lendingplatform.lms.service.ForeclosureService;
+import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
+import com.bharatpe.lending.lendingplatform.lms.service.PaymentAsynchronousService;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -79,6 +84,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 
 @Service
@@ -262,6 +269,17 @@ public class VerifyOTPService {
     @Autowired
     VKycService vkycService;
 
+    @Autowired
+    private ForeclosureService foreclosureService;
+    @Autowired
+    private PaymentAsynchronousService paymentAsynchronousService;
+
+    @Autowired
+    private LmsLoanDetailsService lmsLoanDetailsService;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     @Value("${constant.pf.for.topup.enabled.lender:}")
@@ -269,6 +287,9 @@ public class VerifyOTPService {
 
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
+
+    @Value("${topup.enabled.lenders:}")
+    private String topUpEnabledLenders;
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         if (Objects.nonNull(merchant.getId())) {
@@ -867,7 +888,7 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
-            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(),Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(activeLoan.getNbfc())) {
+            } else if(topUpEnabledLenders.contains(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeClosureAmountForLender(activeLoan);
                 if(previousAmount <= 0){
                     throw new RuntimeException(String.format("Error getting %s foreclosure details", activeLoan.getNbfc()));
@@ -1039,15 +1060,72 @@ public class VerifyOTPService {
                                 - lendingApplicationOptional.get().getDisbursalAmount()
                                 - lendingApplicationOptional.get().getProcessingFee();
 
-        ledgerAdjustmentForTopup(previousLoan, lendingApplicationOptional.get(), previousAmount);
+        if( !ObjectUtils.isEmpty(previousLoan) &&  ONE_LMS.equalsIgnoreCase(previousLoan.getLmsSource())){
+            logger.info("1LMS Topup: Settling previous 1LMS loanwith loanId : {}" , previousLoan.getId());
+            lmsAdjustmentForTopUp(previousLoan, previousAmount, lendingApplicationOptional.get(), previousLendingApplicationOptional.get());
+        }
+        else {
+            ledgerAdjustmentForTopup(previousLoan, lendingApplicationOptional.get(), previousAmount);
+        }
 
         // send loan closure consent to LDC
         if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
             apiGatewayService.getLdcTopupConsent(previousLendingApplicationOptional.get().getId(), true, previousAmount);
         }
 
+        // deactivate autopay upi if exists for previous loan
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(previousLendingApplicationOptional.get().getId(), AutoPayStatusEnum.ACTIVE.name());
+        if(!ObjectUtils.isEmpty(autoPayUPI)) {
+            autoPayUPI.setStatus(AutoPayStatusEnum.INACTIVE);
+            autoPayUPIDao.save(autoPayUPI);
+            logger.info("AutoPay UPI set to INACTIVE for applicationId: {}", previousLendingApplicationOptional.get().getId());
+        }
+
         finalResponse.put("message", "successfully settled previous loan");
         return finalResponse;
+    }
+
+    public void lmsAdjustmentForTopUp(LendingPaymentSchedule previousLoan, double previousAmount, LendingApplication presentApplication, LendingApplication previousLendingApplication) {
+
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(previousLoan.getApplicationId());
+        if(!lendingApplication.isPresent()){
+            logger.error("Lending application not found for id : " + previousLoan.getApplicationId());
+            return;
+        }
+
+        LoanDetailsResponse.LoanSummary loanSummary = lmsLoanDetailsService.getLoanSummaryFromOneLms(lendingApplication.get().getExternalLoanId()).getLoanSummary();
+
+        double paidAmount = ObjectUtils.isEmpty(loanSummary.getTotalPaidAmount()) ? previousLoan.getPaidAmount() : loanSummary.getTotalPaidAmount().doubleValue();
+        double paidPrincipal = ObjectUtils.isEmpty(loanSummary.getPaidPrincipalAmount()) ? previousLoan.getPaidPrinciple() : loanSummary.getPaidPrincipalAmount().doubleValue();
+        double paidInterest = ObjectUtils.isEmpty(loanSummary.getPaidInterestAmount()) ? previousLoan.getPaidInterest() : loanSummary.getPaidInterestAmount().doubleValue();
+        double duePenalty = Objects.nonNull(previousLoan.getDuePenalty()) ? previousLoan.getDuePenalty() : 0;
+
+        previousLoan.setStatus("CLOSED");
+        previousLoan.setClosingDate(new Date());
+        previousLoan.setPaidAmount(paidAmount);
+        previousLoan.setPaidPrinciple(paidPrincipal);
+        previousLoan.setPaidInterest(paidInterest);
+        previousLoan.setDueAmount(0D);
+        previousLoan.setDuePrinciple(0D);
+        previousLoan.setDueInterest(0D);
+        previousLoan.setDuePenalty(0D);
+        previousLoan.setPaidPenalty(ObjectUtils.isEmpty(previousLoan.getPaidPenalty()) ? 0D : previousLoan.getPaidPenalty()  + duePenalty);
+        lendingPaymentScheduleDao.save(previousLoan);
+
+        logger.info("1LMS Topup: Closed previous 1LMS loan with loanId : {}" , previousLoan.getId());
+        int foreClosureAmount=0;
+        try {
+            logger.info("1LMS Topup: fethcing foreclosure amount for 1LMS loanId : {}" , previousLoan.getId());
+            foreClosureAmount = foreclosureService.getForeclosureAmount(previousLoan.getApplicationId(), previousLoan.getMerchantId());
+        }
+        catch (Exception e){
+            logger.error("1LMS Topup: Error in fetching foreclosure amount for 1LMS loanId : {}" , previousLoan.getId());
+            return;
+        }
+
+        String terminalOrderId = "topup-adjustment-" + presentApplication.getNbfcId();
+        paymentAsynchronousService.postPaymentDetails(previousLoan, (double) foreClosureAmount, presentApplication.getLoanType(), terminalOrderId, null, true);
+        logger.info("1LMS Topup: Posted foreclosure payment to 1LMS for loanId : {}" , previousLoan.getId());
     }
 
     public void sendPennyDrop(Long merchantId, Long applicationId) {

@@ -1375,6 +1375,8 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
+
+        loanDetailsV3Response.setIsNativeMandateRequired(enachStateDTO.isNativeMandateRequired());
     }
 
     private static void setUpiAutopayResponse(UpiAutopayStateDTO upiAutopayStateDTO,LoanDetailsV3Response loanDetailsV3Response){

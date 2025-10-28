@@ -1,5 +1,4 @@
 package com.bharatpe.lending.controller;
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.FosService;
 import com.bharatpe.lending.service.LendingApplicationService;
@@ -78,6 +77,12 @@ public class FosController {
     public ResponseEntity<ResponseDTO> nachAttribution(@RequestParam Long refCode,
                                                        @RequestParam Long applicationId){
         return new ResponseEntity<>(fosService.nachAttribution(refCode, applicationId), HttpStatus.OK);
+    }
+
+    @PostMapping(value = "/autopay_upi/status", produces = "application/json")
+    public ResponseEntity<UPIAutoPayResponseDto> checkAutoPayUPIStatus(@RequestBody UPIAutoPayRequestDto request){
+        logger.info("Request for autopay upi status for merchantId: {}, visitTimestamp: {} and loanId: {}", request.getMerchantId(), request.getVisitTimeStamp(), request.getLoanId());
+        return new ResponseEntity<>(fosService.getAutoPayUPIStatus(request.getMerchantId(), request.getVisitTimeStamp(), request.getLoanId()),HttpStatus.OK);
     }
 
 }

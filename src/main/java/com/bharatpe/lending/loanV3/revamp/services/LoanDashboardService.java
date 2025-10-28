@@ -51,6 +51,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
 import com.bharatpe.lending.loanV3.revamp.enums.PreApprovedLoanEnums;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
 import com.bharatpe.lending.service.MileStoneHelperService;
@@ -70,6 +71,7 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -91,6 +93,7 @@ public class LoanDashboardService {
 
     @Autowired
     MileStoneHelperService mileStoneHelperService;
+    @Lazy
     @Autowired
     private LoanUtil loanUtil;
 
@@ -259,6 +262,9 @@ public class LoanDashboardService {
 
     @Autowired
     private LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    private MerchantMetadataDao merchantMetadataDao;
 
     @Autowired
     private MandateRegistrationHelper mandateHelper;
@@ -1070,6 +1076,10 @@ public class LoanDashboardService {
         }
 
         String ineligibleReason = getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse);
+        if(IneligibleType.DEROG.name().equals(ineligibleReason)){
+            LocalDate reapplyTime = getReapplyTime(merchant.getId());
+            loanDashboardResponse.setDerogMerchantReapplyDate(reapplyTime);
+        }
         loanDashboardResponse.setIneligible(ineligibleReason);
         loanDashboardResponse.setChangeBankAccount(IneligibleType.CHANGE_BANK_ACCOUNT.name().equalsIgnoreCase(ineligibleReason));
         if(Objects.nonNull(loanDashboardResponse.getIneligible()) &&
@@ -1144,11 +1154,11 @@ public class LoanDashboardService {
     }
 
     private void handleDiwaliBanner(BasicDetailsDto merchant, LoanDashboardResponse loanDashboardResponse) {
-        Date diwaliBannerOneRolloutDateParsed = parseDate(diwaliBannerOneRolloutDate);
-        Date diwaliBannerOneEndDateParsed = parseDate(diwaliBannerOneEndDate);
+        Date diwaliBannerOneRolloutDateParsed = DateUtils.parseDate(diwaliBannerOneRolloutDate);
+        Date diwaliBannerOneEndDateParsed = DateUtils.parseDate(diwaliBannerOneEndDate);
 
-        Date diwaliBannerTwoRolloutDateParsed = parseDate(diwaliBannerTwoRolloutDate);
-        Date diwaliBannerTwoEndDateParsed = parseDate(diwaliBannerTwoEndDate);
+        Date diwaliBannerTwoRolloutDateParsed = DateUtils.parseDate(diwaliBannerTwoRolloutDate);
+        Date diwaliBannerTwoEndDateParsed = DateUtils.parseDate(diwaliBannerTwoEndDate);
 
         if (!ObjectUtils.isEmpty(diwaliBannerOneRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerOneEndDateParsed)) {
             if (new Date().after(diwaliBannerOneRolloutDateParsed) && new Date().before(diwaliBannerOneEndDateParsed)) {
@@ -1167,15 +1177,6 @@ public class LoanDashboardService {
         }
     }
 
-    private Date parseDate(String stringDate) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
-            return sdf.parse(stringDate);
-        } catch (Exception e) {
-            log.info("Exception occurred while parsing date for string : {}", stringDate);
-        }
-        return null;
-    }
 
     private void cacheLoanDetailsData(LoanDashboardResponse loanDashboardResponse) {
         //Response should not be cached in case of countdown minutes, so merchant can see updated timer on app restart
@@ -1280,7 +1281,7 @@ public class LoanDashboardService {
                 return IneligibleType.OGL.name();
             }
             if (isDerog.booleanValue()) {
-                log.info("Derog merchant:{}", merchantId);
+                log.info("Derog merchant: {}", merchantId);
                 return IneligibleType.DEROG.name();
             }
 
@@ -1295,6 +1296,48 @@ public class LoanDashboardService {
         log.info("Ineligible merchant:{}", merchantId);
         return RejectionReason.LOW_TRANSACTION.getReason();
     }
+
+    public LocalDate getReapplyTime(Long merchantId) {
+        MerchantMetadata merchantMetadata = merchantMetadataDao.findByMerchantId(merchantId);
+
+        // Case 1: First time derog → set initial reapply date = now + 90 days
+        if (ObjectUtils.isEmpty(merchantMetadata)|| ObjectUtils.isEmpty(merchantMetadata.getReapplyTime())) {
+            LocalDate reapplyDate = LocalDate.now().plusDays(90);
+            merchantMetadata = new MerchantMetadata();
+            merchantMetadata.setMerchantId(merchantId);
+            merchantMetadata.setReapplyTime(reapplyDate);
+            merchantMetadataDao.save(merchantMetadata);
+            log.info("Initial reapply date (90 days later) set for merchant {}: {}", merchantId, reapplyDate);
+            return reapplyDate;
+        }
+
+        LocalDate existingDate = merchantMetadata.getReapplyTime();
+        LocalDate today = LocalDate.now();
+
+        // Case 2a: One day before expiry → extend by 90 days from expiry date
+        if (today.isEqual(existingDate.minusDays(1))) {
+            LocalDate newDate = existingDate.plusDays(90);
+            merchantMetadata.setReapplyTime(newDate);
+            merchantMetadataDao.save(merchantMetadata);
+            log.info("Reapply date extended for merchant {} (expiry -1 day): {} -> {}",
+                    merchantId, existingDate, newDate);
+            return newDate;
+        }
+
+        // Case 2b: Already past expiry → extend by 90 days from today
+        if (today.isAfter(existingDate)) {
+            LocalDate newDate = today.plusDays(90);
+            merchantMetadata.setReapplyTime(newDate);
+            merchantMetadataDao.save(merchantMetadata);
+            log.info("Reapply date expired. New date set for merchant {}: {}", merchantId, newDate);
+            return newDate;
+        }
+
+        // Case 3: Otherwise → return existing
+        log.info("Existing reapply date for merchant {}: {}", merchantId, existingDate);
+        return existingDate;
+    }
+
 
     public LendingEligibleLoan recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
         if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {

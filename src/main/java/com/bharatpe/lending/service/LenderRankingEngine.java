@@ -119,7 +119,7 @@ public class LenderRankingEngine {
                             lendingRiskVariables.getRiskSegment(),
                             lendingRiskVariables.getRiskGroup(),
                             tenureInMonths,
-                            (int) (merchantId % 10),
+                            String.valueOf(merchantId),
                             lendingRiskVariables.getPincodeColor().name(),
                             "ACTIVE"
                     );

@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingOfferModificationSnapshotDao;
 import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -74,6 +75,8 @@ public class MFBreService {
     @Value("${muthoot.bre.max.roi.difference : 0.2}")
     Double muthootBreMaxRoiDifference;
 
+    private static final String TOPUP = "Topup";
+
     @Transactional
     public boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
@@ -128,7 +131,7 @@ public class MFBreService {
                                     .loanAmount(lendingApplication.getLoanAmount())
                                     .tenure(lendingApplication.getTenureInMonths())
                                     .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
-                                    .riskSegment(lendingRiskVariablesSnapshot.getRiskSegment().name())
+                                    .riskSegment(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? TOPUP : lendingRiskVariablesSnapshot.getRiskSegment().name())
                                     .netFreeIncome(getValueOrDefault(lendingRiskVariablesSnapshot.getMonthlyNfi(), 0D))
                                     .pincodeColour(lendingRiskVariablesSnapshot.getPincodeColor().name())
                                     .pincodeBand(lendingApplication.getPincode())

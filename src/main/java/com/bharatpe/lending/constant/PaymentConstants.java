@@ -3,6 +3,8 @@ package com.bharatpe.lending.constant;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 public class PaymentConstants {
 
@@ -19,6 +21,12 @@ public class PaymentConstants {
         put(AutoPayStatusEnum.ACTIVE, SUCCESS);
         put(AutoPayStatusEnum.FAILED, FAILED);
         put(AutoPayStatusEnum.FAILURE, FAILED);
+    }};
+
+    public static final Set<AutoPayStatusEnum> UPI_AUTOPAY_TERMINAL_STATES = new HashSet<AutoPayStatusEnum>() {{
+        add(AutoPayStatusEnum.ACTIVE);
+        add(AutoPayStatusEnum.FAILED);
+        add(AutoPayStatusEnum.FAILURE);
     }};
 
     public static HashMap<String, String> UPI_AUTOPAY_ERROR_CODE_TO_DISPLAY_MESSAGE_MAP = new HashMap<String, String>() {{

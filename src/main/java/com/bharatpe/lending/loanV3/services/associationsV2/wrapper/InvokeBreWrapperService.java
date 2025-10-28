@@ -123,7 +123,6 @@ public class InvokeBreWrapperService {
             case "USFB":
                 return associationServiceUtil.invokeLeadUpdateService(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest);
             case "TRILLIONLOANS":
-                return associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest);
             case "MUTHOOT":
             case "CAPRI":
             case "PAYU":
@@ -140,10 +139,6 @@ public class InvokeBreWrapperService {
     @Transactional
     private void invokeRiskDecision(LenderAssociationDetailsRequestDto lenderAssociationDetailDto) {
         Boolean isBreSuccess = associationServiceUtil.invokeBREService(lenderAssociationDetailDto.getLendingApplication().getLender(), lenderAssociationDetailDto);
-        if (isBreSuccess && lenderAssociationDetailDto.getLendingApplication().getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())
-            && !ObjectUtils.isEmpty(lenderAssociationDetailDto.getTopupParentLender()) && !LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lenderAssociationDetailDto.getTopupParentLender())) {
-            associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailDto.getLendingApplication().getLender(), lenderAssociationDetailDto);
-        }
     }
 
     private void runBaseChecksAndCreateLenderDetailsRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LendingApplication lendingApplication) {

@@ -13,9 +13,11 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,9 @@ public class PiramalPennyDropServiceV2 {
 
     @Autowired
     private LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    private KycUtils kycUtils;
 
     @Async
     @Transactional
@@ -94,7 +99,9 @@ public class PiramalPennyDropServiceV2 {
                     nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),
                             lendingApplication.get().getLender(), LenderAssociationStages.PENNY_DROP.name(),
                             LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.PENNY_DROP));
-                } else if(!ObjectUtils.isEmpty(piramalPennyDropResponseDTO) && ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getStatus()) && !ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getErrorDescription())) {
+                } else if((!ObjectUtils.isEmpty(piramalPennyDropResponseDTO)
+                        && ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getStatus()) && !ObjectUtils.isEmpty(piramalPennyDropResponseDTO.getErrorDescription()))
+                        || (!ObjectUtils.isEmpty(piramalPennyDropResponseDTO) && "RETRY001".equalsIgnoreCase(piramalPennyDropResponseDTO.getErrorCode()))) {
                     //reject application
                     log.info("rejecting the application as penny drop failed at lender for {} with reason {}",lendingApplication.get(), piramalPennyDropResponseDTO.getErrorDescription());
                     rejectApplication(lendingApplication, lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
@@ -113,6 +120,7 @@ public class PiramalPennyDropServiceV2 {
 
             log.info("creating piramal penny drop payload for applicationId {} and ownerId {}", lendingApplication.get().getId(), ownerId);
             MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.get().getMerchantId(), ownerId, lendingApplication.get().getLender());
+
             NbfcRequestDto nbfcRequestDto = NbfcRequestDto.builder()
                     .applicationId(lendingApplication.get().getId())
                     .lender(lendingApplication.get().getLender())
@@ -122,7 +130,8 @@ public class PiramalPennyDropServiceV2 {
                             .leadId(lendingApplicationLenderDetails.getLeadId())
                             .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
                             .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
-                            .bankAccountType(merchantNachDetailsResponseDTO.getAccountType())
+                            .accountType("CURRENT".equalsIgnoreCase(merchantNachDetailsResponseDTO.getAccountType())
+                                    ? merchantNachDetailsResponseDTO.getAccountType() : getBankAccountType(lendingApplication.get().getMerchantId()))
                             .productId(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "BPETU" : "BRTPE")
                             .build())
                     .build();
@@ -131,6 +140,25 @@ public class PiramalPennyDropServiceV2 {
             log.info("Exception in creating piramal bank details verification payload for applicationId {} {}", lendingApplication.get().getId(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private String getBankAccountType(Long merchantId) {
+        log.info("fetching kyc data for bene name match percentage for merchantId {}", merchantId);
+        try {
+            CKycResponseDto cKycResponseDto = kycUtils.getKycData(merchantId);
+            if (!ObjectUtils.isEmpty(cKycResponseDto) && !ObjectUtils.isEmpty(cKycResponseDto.getBankBenePanNameMatchPer())) {
+                if (cKycResponseDto.getBankBenePanNameMatchPer() < 0.6) {
+                    log.info("bene name match percentage is less than 60% for merchantId {} bene name {}", merchantId, cKycResponseDto.getBankBenePanNameMatchPer());
+                    return "CURRENT";
+                } else {
+                    log.info("bene name match percentage is greater than 60% for merchantId {} bene name {}", merchantId, cKycResponseDto.getBankBenePanNameMatchPer());
+                    return "SAVINGS";
+                }
+             }
+        } catch (Exception e) {
+            log.error("Exception in fetching kyc data for merchantId {}", merchantId, e);
+        }
+        return "SAVINGS";
     }
 
     private void rejectApplication(Optional<LendingApplication> lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String status) {

@@ -33,6 +33,10 @@ public class MFBreRequestDTO {
         private String experimentationFlag;
         private Double proposedInterest;
         private Double proposedProcessingFee;
+        private Integer scoreBand;
+        private Integer vintageMonths;
+        private String riskBand;
+        private String inputCustomerType;
 
     }
 

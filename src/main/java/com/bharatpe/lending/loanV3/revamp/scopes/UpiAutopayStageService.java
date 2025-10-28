@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.common.Kafka.Producer.ConfluentKafkaProducer;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
@@ -11,7 +12,9 @@ import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.PaymentConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.BottomSheetEvent;
 import com.bharatpe.lending.dto.MandateUPIStatusResponse;
+import com.bharatpe.lending.dto.PushDataToHomepageCarouselDto;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -38,13 +41,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.math.BigInteger;
 import java.util.*;
+
+import static com.bharatpe.lending.service.AutoPayUPIService.AUTO_PAY_UPI_APPLICABLE_LOAN_TYPES;
 
 @Service
 @Slf4j
 public class UpiAutopayStageService implements IStageDataService<UpiAutopayStateDTO>{
 
-    public static final String REGULAR = "REGULAR";
     @Autowired
     private LendingApplicationServiceV3 lendingApplicationServiceV3;
 
@@ -104,10 +109,17 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
     @Autowired
     private LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+    @Autowired
+    ConfluentKafkaProducer confluentKafkaProducer;
 
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
 
+    @Value("${bottom.sheet.topic:max_home_page_upi_mandate}")
+    private String bottomSheetTopic;
+
+    @Value("${push_data.homepage.carousel.topic:max_home_page_merchant_carousel}")
+    private String pushDataToHomePageCarouselTopic;
 
     @Override
     public LendingStateDTO<UpiAutopayStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -130,7 +142,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         if(!PaymentConstants.SUCCESS.equals(lendingStateDTO.getData().getMandateStatus())) {
             lendingStateDTO.setLendingViewStates(LendingViewStates.UPI_AUTOPAY_PAGE);
             if(easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), upiAutoPayForceSkipPercentage)
-                    && lendingStateDTO.getData().isUpiAutopayMandateEligible()){
+                    && lendingStateDTO.getData().isUpiAutopayMandateEligible() && !lendingStateDTO.getData().isActiveApplicationAutoPaySetupFlow()){
                 LendingApplication lendingApplication = lendingApplicationServiceV3
                         .getLendingApplication(scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
                 log.info("Setting nach status to null for applicationId: {} and loan_type: {}, as upiautopay status is not approved"
@@ -203,14 +215,8 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         log.info("Fetching UPI Autopay Stage Data for Merchant ID: {}", scopeDataArgs.getMerchant().getId());
         UpiAutopayStateDTO upiAutopayStateDTO = new UpiAutopayStateDTO();
         upiAutopayStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
-
-        if(Objects.isNull(scopeDataArgs.getApplicationId()) && Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isAutoPayPending()){
-            LendingPaymentScheduleSlave lps = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
-            if(!mandateRegistrationHelper.isAutopayRequiredForActiveApplication(lps)){
-                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorCode(), LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorMessage());
-            }
-            scopeDataArgs.setApplicationId(lps.getApplicationId());
-        }
+        boolean isActiveApplicationAutoPaySetupFlow = isActiveApplicationAutoPaySetupFlow(scopeDataArgs);
+        upiAutopayStateDTO.setActiveApplicationAutoPaySetupFlow(isActiveApplicationAutoPaySetupFlow);
         LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
         if (ObjectUtils.isEmpty(lendingApplication)) {
             log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
@@ -231,31 +237,29 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         upiAutopayStateDTO.setLoanType(lendingApplication.getLoanType());
         upiAutopayStateDTO.setWaitTime(upiAutopayProgressWaitTime);
         upiAutopayStateDTO.setPollingTime(upiAutopayStatusPollingInterval);
-        LoanApplicationDetailsV3 loanApplicationDetails = setApplicationDetails(lendingApplication);
+        LoanApplicationDetailsV3 loanApplicationDetails = setApplicationDetails(lendingApplication, isActiveApplicationAutoPaySetupFlow);
         upiAutopayStateDTO.setLoanApplication(loanApplicationDetails);
 
         upiAutopayStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
 
-        AutoPayUPI existingAutoPayUpiWithMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),"ACTIVE");
+        AutoPayUPI existingAutoPayUpiWithMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),AutoPayStatusEnum.ACTIVE.name());
         log.info("Existing AutoPay UPI for Merchant ID {}: {}", lendingApplication.getMerchantId(), existingAutoPayUpiWithMerchantId);
 
-        boolean autoPayEligible= nonRegularMandateRegistrationChecks(lendingApplication, existingAutoPayUpiWithMerchantId);
-        log.info("AutoPay eligibility for Merchant ID {}: {}", lendingApplication.getMerchantId(), autoPayEligible);
-
-        if(Arrays.asList(REGULAR, "TOPUP").contains(lendingApplication.getLoanType()) && !autoPayEligible && existingAutoPayUpiWithMerchantId != null){
-            existingAutoPayUpiWithMerchantId.setApplicationId(lendingApplication.getId());
-            autoPayUPIDao.save(existingAutoPayUpiWithMerchantId);
-            log.info("AutoPay UPI updated with new application ID: {}", lendingApplication.getId());
+        boolean autoPayUpiSkipped= autoPayUPIService.isEligibleForUpiAutoPaySkip(lendingApplication, existingAutoPayUpiWithMerchantId);
+        AutoPayUPI existingAutoPayUPI = null;
+        if(AUTO_PAY_UPI_APPLICABLE_LOAN_TYPES.contains(lendingApplication.getLoanType()) && autoPayUpiSkipped){
+            existingAutoPayUPI = autoPayUPIService.cloneAutoPayUpiEntityForNewApplication(existingAutoPayUpiWithMerchantId, lendingApplication.getId());
+            log.info("AutoPay UPI skipped for merchantId : {}", lendingApplication.getMerchantId());
             lendingApplication.setUpiAutopayStatus("APPROVED");
             lendingApplicationDao.save(lendingApplication);
             log.info("Lending application updated with UPI Autopay status: APPROVED for topup application ID: {}", lendingApplication.getId());
         }
-        if(REGULAR.equalsIgnoreCase(lendingApplication.getLoanType()) && existingAutoPayUpiWithMerchantId != null && autoPayEligible){
+        if(LoanType.REGULAR.name().equalsIgnoreCase(lendingApplication.getLoanType()) && !ObjectUtils.isEmpty(existingAutoPayUpiWithMerchantId) && Boolean.FALSE.equals(autoPayUpiSkipped)){
             // revoke previous mandate
             autoPayUPIService.revokeMandate(lendingApplication, existingAutoPayUpiWithMerchantId);
         }
 
-        AutoPayUPI existingAutoPayUPI = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+        existingAutoPayUPI = Optional.ofNullable(existingAutoPayUPI).orElse(autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId()));
         log.info("Autopay Upi Mandate found for Application Id: {} : {}", lendingApplication.getId(), existingAutoPayUPI);
 
         // If the existing AutoPay UPI is not null, check its status and set the mandate status accordingly
@@ -268,6 +272,9 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
                 upiAutopayStateDTO.setMandateStatus(PaymentConstants.UPI_AUTOPAY_MANDATE_STATUS_MAP.getOrDefault(existingAutoPayUPI.getStatus(), existingAutoPayUPI.getStatus().name()));
             } else {
                 upiAutopayStateDTO.setMandateStatus(PaymentConstants.UPI_AUTOPAY_MANDATE_STATUS_MAP.getOrDefault(existingAutoPayUPI.getStatus(), existingAutoPayUPI.getStatus().name()));
+                if(PaymentConstants.SUCCESS.equals(upiAutopayStateDTO.getMandateStatus()) && existingAutoPayUPI.isStandaloneAutopaySetup()) {
+                    pushRemoveEvent(scopeDataArgs.getMerchant().getId());
+                }
             }
             upiAutopayStateDTO.setCreatedAt(existingAutoPayUPI.getCreatedAt().getTime());
             upiAutopayStateDTO.setRetryCount(0);
@@ -297,6 +304,8 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
                 log.info("UPI Autopay mandate is SUCCESS for application: {}, and Nach is ineligible, invoking doc upload workflow", lendingApplication.getId());
                 upiAutoPayStageHelper.invokeDocUploadFlow(lendingApplication);
                 lendingApplication.setNachStatus(NachStatus.APPROVED.name());
+                lendingApplication.setNachType("ENACH");
+                lendingApplicationDao.save(lendingApplication);
             }
         }
 
@@ -304,21 +313,73 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
         if(easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent)) {
             log.info("Setting if Nach is eligible for application: {}", lendingApplication.getId());
-            loanUtil.updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
-            upiAutopayStateDTO.setUpiAutopayMandateEligible(lendingApplicationDetails.isAutoPayUpiEligible());
-            upiAutopayStateDTO.setEnachEligible(lendingApplicationDetails.isNachEligible());
+            if(isActiveApplicationAutoPaySetupFlow){
+                upiAutopayStateDTO.setUpiAutopayMandateEligible(true);
+                upiAutopayStateDTO.setEnachEligible(false);
+            }else {
+                loanUtil.updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount(), scopeDataArgs.getLoanDetailsV3Request().isIOS());
+                upiAutopayStateDTO.setUpiAutopayMandateEligible(lendingApplicationDetails.isAutoPayUpiEligible());
+                upiAutopayStateDTO.setEnachEligible(lendingApplicationDetails.isNachEligible());
+            }
         }
 
         if(Objects.nonNull(upiAutopayStateDTO.getMandateStatus()) && PaymentConstants.SUCCESS.equals(upiAutopayStateDTO.getMandateStatus())){
             // TODO: Next stage will change based on config, so we need to update this logic.
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
         }
-        else{
+        else if(!isActiveApplicationAutoPaySetupFlow){
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.UPI_AUTOPAY_PAGE);
         }
 
         log.info("Upi Autopay Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), upiAutopayStateDTO);
         return new LendingStateDTO<>(upiAutopayStateDTO , LendingViewStates.UPI_AUTOPAY_PAGE, LendingViewStates.UPI_AUTOPAY_PAGE);
+    }
+
+    /**
+     * @param scopeDataArgs
+     * @return true in case of active application and non topup case --> migration cases else false
+     */
+    private boolean isActiveApplicationAutoPaySetupFlow(ScopeDataArgs scopeDataArgs) {
+        LendingPaymentScheduleSlave lps = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
+        if(Objects.isNull(scopeDataArgs.getApplicationId()) && Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isAutoPayPending()){
+            if(!mandateRegistrationHelper.isAutopayRequiredForActiveApplication(lps)){
+                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorCode(), LoanDetailExceptionEnum.APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY.getErrorMessage());
+            }
+            scopeDataArgs.setApplicationId(lps.getApplicationId());
+        }
+        if(Objects.nonNull(lps) && LoanStatus.ACTIVE.name().equalsIgnoreCase(lps.getStatus())){
+            LendingApplication lendingApplication = lendingApplicationDao.findInProgressLoanApplication(scopeDataArgs.getMerchant().getId());
+            if(Objects.nonNull(lendingApplication) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                log.info("topup case found for active application on upiautopay stage for merchantId: {}, active applicationId: {}, and topup applicationId: {}",
+                        scopeDataArgs.getMerchant().getId(), lps.getApplicationId(), lendingApplication.getId());
+                return false;
+            }else {
+                log.info("autopay migration case found on upiautopay stage for merchantId: {}, active applicationId: {}",
+                        scopeDataArgs.getMerchant().getId(), lps.getApplicationId());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void pushRemoveEvent(Long merchantId) {
+        PushDataToHomepageCarouselDto pushDataToHomepageCarouselDto = new PushDataToHomepageCarouselDto();
+        pushDataToHomepageCarouselDto.setEvent_id("LENDING_HOMEPAGE_CAROUSEL_" + merchantId);
+        pushDataToHomepageCarouselDto.setMerchant_id(BigInteger.valueOf(merchantId));
+        pushDataToHomepageCarouselDto.setEvent_type("remove");
+        pushDataToHomepageCarouselDto.setClient("LENDING");
+
+        confluentKafkaProducer.sendMessage(pushDataToHomePageCarouselTopic, pushDataToHomepageCarouselDto);
+        log.info("Sent remove event of cic banner for merchant {}", merchantId);
+
+        BottomSheetEvent bottomSheetEvent = new BottomSheetEvent();
+        bottomSheetEvent.setEventId("Lending_Auto_Pay_" + merchantId);
+        bottomSheetEvent.setMerchantId(BigInteger.valueOf(merchantId));
+        bottomSheetEvent.setEventType("remove");
+        bottomSheetEvent.setClient("LENDING");
+
+        confluentKafkaProducer.sendMessage(bottomSheetTopic, bottomSheetEvent);
+        log.info("Sent remove event of bottom sheet for merchant {}", merchantId);
     }
 
     private void updateErrorDetails(UpiAutopayStateDTO upiAutopayStateDTO, AutoPayUPI existingAutoPayUPI) {
@@ -330,32 +391,8 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         upiAutopayStateDTO.setRetrySuggested(PaymentConstants.UPI_AUTOPAY_ERROR_CODE_TO_RETRY_ELIGIBLE_MAP.getOrDefault(existingAutoPayUPI.getErrorCode(), true));
     }
 
-    private boolean nonRegularMandateRegistrationChecks(LendingApplication lendingApplication, AutoPayUPI autoPayUPIExistingEntityMerchantId) {
-        log.info("Performing non-regular mandate registration checks for application id: {}", lendingApplication.getId());
-        if(lendingApplication.getLender()==null) {
-            log.info("lender is null in lending application for application id {}", lendingApplication.getId());
-            return true;
-        }
 
-        if (autoPayUPIExistingEntityMerchantId != null && autoPayUPIExistingEntityMerchantId.getMandateEndDate() != null) {
-            log.info("mandate end date is not null for application id {}", lendingApplication.getId());
-            long mandateEndDateInMillis = autoPayUPIExistingEntityMerchantId.getMandateEndDate().getTime();
-            long currentDateInMillis = System.currentTimeMillis();
-            long differenceInMonths = (mandateEndDateInMillis - currentDateInMillis) / (1000L * 60 * 60 * 24 * 30);
-            log.info("mandateEndDateInMillis {} currentDateInMillis {} differenceInMonths {}", mandateEndDateInMillis, currentDateInMillis, differenceInMonths);
-            log.info("difference in months for application id {} is {}", lendingApplication.getId(), differenceInMonths);
-            if ( (differenceInMonths < 36 ) || !lendingApplication.getLender().equalsIgnoreCase(autoPayUPIExistingEntityMerchantId.getLender())) {
-                log.info("returning true for autopay setup");
-                return true;
-            }
-            log.info("returning false for autopay setup");
-            return false;
-        }
-        log.info("returning true for autopay setup");
-        return true;
-    }
-
-    public LoanApplicationDetailsV3 setApplicationDetails(LendingApplication openApplication) {
+    public LoanApplicationDetailsV3 setApplicationDetails(LendingApplication openApplication, boolean isActiveApplicationFlow) {
         log.info("Setting application details for open application: {}", openApplication.getId());
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setApplicationId(openApplication.getId());
@@ -365,18 +402,21 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
             log.info("bank not nachable for {}", openApplication.getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.NON_NACHABLE_BANK.getErrorCode(),LoanDetailExceptionEnum.NON_NACHABLE_BANK.getErrorMessage());
         }
-        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true)) {
+        boolean isEligibleForNachSkip = loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true);
+        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || isEligibleForNachSkip
+                ||loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId())) {
             if(ObjectUtils.isEmpty(openApplication.getNachStatus())){
                 loanDashboardService.deleteLoanDashboardCache(openApplication.getMerchantId());
             }
             openApplication.setNachStatus("APPROVED");
             openApplication.setNachType("ENACH");
             openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
-            lendingApplicationDao.save(openApplication);
-            loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            if(!isActiveApplicationFlow){
+                lendingApplicationDao.save(openApplication);
+                loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            }
         }
-        applicationDetails.setSkipEnach(loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true));
+        applicationDetails.setSkipEnach(isEligibleForNachSkip);
         if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
         }

@@ -20,6 +20,7 @@ public class MFUpdateLeadRequestDTO {
     private BasicDetail basicDetails;
     private List<Consent> consents;
     private MandateDetails mandateDetails;
+    private AdditionalData additionalData;
 
     @Data
     @AllArgsConstructor
@@ -105,6 +106,15 @@ public class MFUpdateLeadRequestDTO {
     public static class Location {
         private String latitude;
         private String longitude;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class AdditionalData {
+        private String policyType;
     }
 
 }

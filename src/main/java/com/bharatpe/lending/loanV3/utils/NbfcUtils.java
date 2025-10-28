@@ -124,7 +124,7 @@ public class NbfcUtils {
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
-        if(Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+        if(Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.PAYU.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
             log.info("restricting lender change for {} Topup application : {}",lendingApplication.getLender(), lendingApplication.getId());
             return;
         }
@@ -344,7 +344,7 @@ public class NbfcUtils {
                     lendingRiskVariablesSnapshot.getRiskSegment().name(),
                     lendingRiskVariablesSnapshot.getRiskGroup(),
                     lendingRiskVariablesSnapshot.getTenure(),
-                    (int) (lendingApplication.getMerchantId()%10),
+                    String.valueOf(lendingApplication.getMerchantId()),
                     lendingRiskVariablesSnapshot.getPincodeColor().name(),
                     lendingApplication.getCreatedAt()
             );

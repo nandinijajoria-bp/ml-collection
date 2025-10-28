@@ -32,6 +32,8 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
+import com.bharatpe.lending.lendingplatform.lms.service.LoanDisplayService;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
@@ -60,6 +62,9 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
+import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
 @Service
 public class SignAgreementService {
@@ -158,6 +163,9 @@ public class SignAgreementService {
 	@Autowired
 	FunnelService funnelService;
 
+	@Autowired
+	LendingRiskVariablesDao lendingRiskVariablesDao;
+
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @Lazy
@@ -175,6 +183,17 @@ public class SignAgreementService {
 
 	@Value("${topup.v2.flow.lenders:PIRAMAL}")
 	private String topupV2FlowLenders;
+	@Autowired
+	private LmsLoanDetailsService lmsLoanDetailsService;
+
+	@Value("#{${topup.v2.flow.lender.rollout.percentage:{}}}")
+	private Map<String,Integer> topupV2FlowLenderRolloutPercentage = new HashMap<>();
+
+	@Autowired
+	private LoanDisplayService loanDisplayService;
+
+    @Value("${topup.enabled.lenders:}")
+    private String topUpEnabledLenders;
 
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
@@ -689,6 +708,15 @@ public class SignAgreementService {
 				response.put("message", "Eligible loan id is null");
 				return response;
 			}
+
+			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+
+			if(!"TOPUP".equals(lendingRiskVariables.getRiskSegment()) || Objects.nonNull(lendingRiskVariables.getRiskRejection()) || Objects.isNull(lendingRiskVariables.getFinalOffer())){
+				logger.info("Topup offer expired for merchant id : {}", merchant.getId());
+				response.put("message", "Topup offer expired. Pls try again later");
+				return response;
+			}
+
 			List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
 					LoanType.IO_TOPUP.name());
 			List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
@@ -798,7 +826,7 @@ public class SignAgreementService {
 
 			if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
 				previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
-			} else if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(prevLendingSchedule.getNbfc())) {
+			} else if (topUpEnabledLenders.contains(prevLendingSchedule.getNbfc())) {
 				previousAmount = loanUtil.getForeClosureAmountForLender(prevLendingSchedule);
 				if (previousAmount <= 0) {
 					logger.error("previousAmount <= 0 for merchantId {}", merchant.getId());
@@ -827,7 +855,15 @@ public class SignAgreementService {
 
 			}
 			if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-				processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
+				if(ONE_LMS.equalsIgnoreCase(prevLendingSchedule.getLmsSource())) {
+					String externalLoanId = lendingApplicationDao.getExternalLoanIdById(prevLendingSchedule.getApplicationId());
+					LendingPaymentScheduleDTO lendingPaymentScheduleDTO = lmsLoanDetailsService.getLendingPaymentScheduleDTOFromOneLms(externalLoanId, prevLendingSchedule);
+					processingFee = loanUtil.getIoHalfPFBD(lendingPaymentScheduleDTO);
+					logger.info("1LMSTOPUP : Processing fee for IO/HALF_TOPUP from ONE_LMS : {} for merchantId : {}", processingFee, merchant.getId());
+				}
+				else{
+					processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
+				}
 			}
 			newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 			newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
@@ -904,7 +940,7 @@ public class SignAgreementService {
 //			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 
 				response.put("application_id", newApplication.getId());
-				if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(newApplication.getLender())) {
+				if (topUpEnabledLenders.contains(newApplication.getLender())) {
 					String loanId = "BPL" + new SimpleDateFormat("ddMMyy").format(new Date()) + newApplication.getId();
 					newApplication.setExternalLoanId(loanId);
 					lendingApplicationDao.save(newApplication);
@@ -992,8 +1028,23 @@ public class SignAgreementService {
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 		List<LoanEligibilityDTO> loans;
-		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
-			loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
+		String topupLender = topupLenderMapper(lendingPaymentSchedule.getNbfc());
+		int rolloutPercentage = topupV2FlowLenderRolloutPercentage.getOrDefault(topupLender, 0);
+		boolean isV2Flow = easyLoanUtil.percentScaleUp(merchantId, rolloutPercentage);
+		if(isV2Flow) {
+			if(ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())){
+				try {
+					String externalLoanId = lendingApplicationDao.getExternalLoanIdById(lendingPaymentSchedule.getApplicationId());
+					LendingPaymentScheduleDTO lendingPaymentScheduleDTO = lmsLoanDetailsService.getLendingPaymentScheduleDTOFromOneLms(externalLoanId, lendingPaymentSchedule);
+					loans = loanDisplayService.topupLoanV2(lendingPaymentScheduleDTO,false);
+				} catch (Exception e) {
+					logger.error("1LMSTOPUP: Error fetching loan details from 1LMS for topup eligibility check for merchant {}", merchantId, e);
+					return false;
+				}
+
+			} else {
+				loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule, false);
+			}
 		} else {
 			loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
 		}
@@ -1008,7 +1059,7 @@ public class SignAgreementService {
 		}
 
 		LoanEligibilityDTO loanEligibilityDTO;
-		if(topupV2FlowLenders.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(merchantId, topupV2FlowEnabled)) {
+		if(isV2Flow) {
 			loanEligibilityDTO = validLoans.stream()
 					.filter(dto -> dto.getTenure().equals(eligibleLoan.getTenure())
 							&& dto.getAmount().compareTo(eligibleLoan.getAmount().intValue()) == 0)
@@ -1053,6 +1104,7 @@ public class SignAgreementService {
 			case TRILLIONLOANS:
 				return isEligibleForSkipKyc ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.KYC_PAGE;
 			case PIRAMAL:
+			case MUTHOOT:
 				return LendingViewStates.KYC_PAGE;
 			default:
 				return LendingViewStates.ENACH_PAGE;

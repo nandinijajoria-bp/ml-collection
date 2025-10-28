@@ -249,7 +249,6 @@ public class LoanService {
             logger.info("nbfcStatusApiResponseDTO for applicationId : {} {}", application.getId(), nbfcStatus);
             if (!ObjectUtils.isEmpty(nbfcStatus) && nbfcStatus.getSuccess() && "SUCCESS".equalsIgnoreCase(nbfcStatus.getStatus())) {
                 application.setNbfcId(nbfcStatus.getLoanId());
-                application.setLoanDisbursalStatus(disbursalStage);
                 application.setSendToNbfc("YES");
 
                 if (ObjectUtils.isEmpty(application.getNbfcSendDate())) {
@@ -441,7 +440,7 @@ private void executeSmsAndPaymentLink(LendingApplication application, LendingPay
     }
 
     private static final List<String> EXCLUDED_LENDERS = Arrays.asList(
-            Lender.TRILLIONLOANS.name(), Lender.UGRO.name()
+            Lender.TRILLIONLOANS.name(), Lender.UGRO.name(), Lender.OXYZO.name()
     );
 
     private LendingPaymentSchedule createLendingPaymentSchedule(LendingApplication lendingApplication, BasicDetailsDto basicDetailsDto) {

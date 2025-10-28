@@ -93,4 +93,16 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 			"AND autopay.status = 'ACTIVE'",
 			nativeQuery = true )
 	Long countLmsAutoPayApplication();
+
+	@Query(value="SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId  ORDER BY ID DESC",nativeQuery=true)
+	List<LendingPaymentSchedule> findAllLendingPaymentScheduleByMerchantId(Long merchantId);
+
+	@Query(
+			value = "SELECT COALESCE(count(lps.id), 0) FROM lending_payment_schedule lps " +
+					"WHERE created_at > '2025-09-30' " +
+					"AND nbfc = 'OXYZO' " +
+					"AND lms_source = '1LMS'",
+			nativeQuery = true
+	)
+	Long countOxyzoLoansOn1LMS();
 }

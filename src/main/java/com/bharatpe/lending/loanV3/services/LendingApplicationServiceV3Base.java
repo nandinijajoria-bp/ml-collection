@@ -172,6 +172,7 @@ public abstract class LendingApplicationServiceV3Base {
             if(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))) {
                 log.info("Lender aggregation flow in progress for applicationId {}", currentDraftApplication.getId());
                 lendingApplicationDetails.setApplicationViewState(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
             }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
@@ -785,7 +786,7 @@ public abstract class LendingApplicationServiceV3Base {
                         PricingExperiment pricingExperiment = null;
                         if(pricingExpEnabled) {
                             pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(), lendingRiskVariablesSnapshot.getRiskGroup(),
-                                    lendingRiskVariablesSnapshot.getTenure(), (int)(lendingRiskVariablesSnapshot.getMerchantId()%10), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                                    lendingRiskVariablesSnapshot.getTenure(), String.valueOf(lendingRiskVariablesSnapshot.getMerchantId()), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
                         }
                         Double pfRate;
                         if(!ObjectUtils.isEmpty(pricingExperiment)) {

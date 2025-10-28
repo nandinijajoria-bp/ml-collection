@@ -1,5 +1,6 @@
 /target
 *.iml
+/.vscode
 /.idea
 .DS_Store
 .classpath

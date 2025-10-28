@@ -164,7 +164,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             log.info("adjustMoney for loan: {} and payment {} started ", loan, payment);
 
             if (Objects.isNull(loan) || Objects.isNull(payment)) return loan;
-            String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
+
             if (isPaymentLockEnabled && !loanUtil.isPaymentLockAcquired(PAYMENT_LOCK_KEY_PREFIX + loan.getId())) {
                 log.info("Payment lock already acquired for loanId: {}, skipping payment", loan.getId());
                 isLockAcquired = false;
@@ -181,6 +181,13 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
             createLoanFundInEntry(loan, payment);
 
+            if ("CLOSED".equalsIgnoreCase(loan.getStatus())) {
+                log.info("payment received but loan already closed. {}", loan.getId());
+                adjustExtraAmountIfAny(loan, payment.getOtherAmount(), payment, true);
+                return loan;
+            }
+
+            String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
             adjustMoney(loan, payment, mechanism);
             log.info("adjustMoney for loan: {} and payment {} complete", loan, payment);
             return loan;
@@ -853,7 +860,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         log.info("Creating Lending Collection Audit for Payin for loanId: {}, payinDetailsId: {}, amount: {}, txnId: {}, mode: {}, transferType: {}",
                 lendingPaymentSchedule.getId(), lendingPayinDetails.getId(), orderAmount, txnId, mode, transferType);
 
-        Date ledgerDate = new Date();
+        Date ledgerDate = DateTimeUtil.getCurrentDayStartTime();
 
         LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                 .merchantId(lendingPaymentSchedule.getMerchantId())

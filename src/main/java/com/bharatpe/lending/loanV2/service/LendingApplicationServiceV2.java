@@ -79,25 +79,12 @@ import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.*;
 import com.bharatpe.util.pdf.HTMLEdittor.HTMLEditor;
-import com.bharatpe.util.pdf.PdfGeneratorUtil;
+import com.bharatpe.util.pdf.PdfCompressorUtil;
+import com.bharatpe.util.pdf.dto.PdfGenerationRequest;
+import com.bharatpe.util.pdf.dto.PdfGenerationResponse;
+import com.bharatpe.util.pdf.PdfGeneratorUtilV2;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.html2pdf.ConverterProperties;
-import com.itextpdf.html2pdf.HtmlConverter;
-import com.itextpdf.io.image.ImageData;
-import com.itextpdf.io.image.ImageDataFactory;
-import com.itextpdf.kernel.events.Event;
-import com.itextpdf.kernel.events.IEventHandler;
-import com.itextpdf.kernel.events.PdfDocumentEvent;
-import com.itextpdf.kernel.geom.Rectangle;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfPage;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.kernel.pdf.WriterProperties;
-import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.IBlockElement;
-import com.itextpdf.layout.element.IElement;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
@@ -385,7 +372,7 @@ public class LendingApplicationServiceV2 {
     private EdiUtil ediUtil;
 
     @Autowired
-    PdfGeneratorUtil pdfGeneratorUtil;
+    PdfGeneratorUtilV2 pdfGeneratorUtil;
 
     @Autowired
     HTMLEditor htmlEditor;
@@ -402,8 +389,8 @@ public class LendingApplicationServiceV2 {
     @Autowired
     InsuranceService insuranceService;
 
-    @Value("${new.pdf.generation.method.lenders:}")
-    String newPdfGenerationMethodLenders;
+    @Value("${topup.enabled.lenders:}")
+    private String topUpEnabledLenders;
 
     private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
 
@@ -635,19 +622,17 @@ public class LendingApplicationServiceV2 {
     public void updateEligibleLoan(Long merchantId, EligibleLoanDTO eligibleLoanDTO) {
         log.info("Updating eligible loan for merchantId: {}", merchantId);
 
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+
         try {
             if (Objects.isNull(merchantId) || Objects.isNull(eligibleLoanDTO)) {
                 AsyncLoggerUtil.logError(log, "MerchantId or EligibleLoanDTO is null for merchantId: {}", merchantId);
                 return;
             }
 
-            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, eligibleLoanDTO.getOfferType());
-            if (eligibleLoan == null) {
-                eligibleLoan = new LendingEligibleLoan();
-                eligibleLoan.setMerchantId(merchantId);
-                eligibleLoan.setCreatedAt(new Date());
-            }
-
+            LendingEligibleLoan eligibleLoan =  new LendingEligibleLoan();
+            eligibleLoan.setMerchantId(merchantId);
+            eligibleLoan.setCreatedAt(new Date());
             eligibleLoan.setCategory(eligibleLoanDTO.getCategory());
             eligibleLoan.setAmount(eligibleLoanDTO.getAmount());
             eligibleLoan.setTenure(eligibleLoanDTO.getTenure() != null ? String.valueOf(eligibleLoanDTO.getTenure()) : null);
@@ -662,6 +647,9 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
             eligibleLoan.setApr(eligibleLoanDTO.getApr());
             eligibleLoan.setIrr(eligibleLoanDTO.getIrr());
+            eligibleLoan.setLoanType(lendingRiskVariables.getLoanType()!=null ?
+                    lendingRiskVariables.getLoanType() :
+                    eligibleLoanDTO.getLoanType());
             eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
             eligibleLoan.setUpdatedAt(new Date());
             eligibleLoan.setOfferType("CUSTOM");
@@ -680,13 +668,15 @@ public class LendingApplicationServiceV2 {
     public void createEligibleLoan(Long merchantId, EligibleLoanDTO eligibleLoanDTO) {
         log.info("Updating eligible loan for merchantId: {}", merchantId);
 
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+
         try {
             if (Objects.isNull(merchantId) || Objects.isNull(eligibleLoanDTO)) {
                 AsyncLoggerUtil.logError(log, "MerchantId or EligibleLoanDTO is null for merchantId: {}", merchantId);
                 return;
             }
 
-            LendingEligibleLoan   eligibleLoan = new LendingEligibleLoan();
+            LendingEligibleLoan  eligibleLoan = new LendingEligibleLoan();
             eligibleLoan.setMerchantId(merchantId);
             eligibleLoan.setCreatedAt(new Date());
 
@@ -700,6 +690,9 @@ public class LendingApplicationServiceV2 {
             eligibleLoan.setRepayment(eligibleLoanDTO.getRepaymentAmount());
             eligibleLoan.setEdiCount(eligibleLoanDTO.getEdiCount());
             eligibleLoan.setOfferType(eligibleLoanDTO.getOfferType());
+            eligibleLoan.setLoanType(lendingRiskVariables.getLoanType()!=null ?
+                    lendingRiskVariables.getLoanType() :
+                    eligibleLoanDTO.getLoanType());
             eligibleLoan.setRateOfInterest(eligibleLoanDTO.getRateOfInterest());
             eligibleLoan.setProcessingFee(eligibleLoanDTO.getProcessingFee());
             eligibleLoan.setTenureInMonths(eligibleLoanDTO.getTenureInMonths());
@@ -910,7 +903,7 @@ public class LendingApplicationServiceV2 {
             log.info("Evaluation id to fetch initial and fallback lenders : {}", evaluationId);
 
             LendingAuditTrial lendingAuditTrialInitial =
-                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "INITIAL_LENDERS",lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(merchant.getId(),lendingApplication.getLoanAmount(), "INITIAL_LENDERS",lendingApplication.getTenureInMonths());
             if (lendingAuditTrialInitial != null) {
                 log.info("Initial lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialInitial, lendingAuditTrialInitial.getId());
                 lendingAuditTrialInitial.setApplicationId(lendingApplication.getId());
@@ -922,7 +915,7 @@ public class LendingApplicationServiceV2 {
 
 
             LendingAuditTrial lendingAuditTrialFallback =
-                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "FALLBACK_LENDERS", lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(merchant.getId(),lendingApplication.getLoanAmount(), "FALLBACK_LENDERS", lendingApplication.getTenureInMonths());
             if (lendingAuditTrialFallback != null) {
                 log.info("Fallback lenders audit trail found for evaluationId: {} : {}", lendingAuditTrialFallback, lendingAuditTrialFallback.getId());
                 lendingAuditTrialFallback.setApplicationId(lendingApplication.getId());
@@ -933,7 +926,7 @@ public class LendingApplicationServiceV2 {
             }
 
             LendingAuditTrial lendingEligibleLenders =
-                    lendingAuditTrialDao.findTopByLoanAmountAndTypeAndTenureOrderByIdDesc(lendingApplication.getLoanAmount(), "ELIGIBLE_LENDERS", lendingApplication.getTenureInMonths());
+                    lendingAuditTrialDao.findTopByMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(merchant.getId(),lendingApplication.getLoanAmount(), "ELIGIBLE_LENDERS", lendingApplication.getTenureInMonths());
             if (lendingEligibleLenders != null) {
                 log.info("Eligible lenders audit trail found for evaluationId: {} : {}", lendingEligibleLenders, lendingEligibleLenders.getId());
                 lendingEligibleLenders.setApplicationId(lendingApplication.getId());
@@ -1091,7 +1084,11 @@ public class LendingApplicationServiceV2 {
             }
 
             if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
-                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                try {
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                }catch (Exception e) {
+                    log.info("Exception while updating business name for {} {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                }
             }
         }
 
@@ -1136,6 +1133,10 @@ public class LendingApplicationServiceV2 {
             }
         });
         loanUtil.createLendingAuditTrailDTO(lendingApplication);
+        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
+        if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
+            lenderAssignService.updateLenderLimits(lendingLenderQuota, lendingApplication);
+        }
         return lendingApplication;
     }
 
@@ -1175,7 +1176,11 @@ public class LendingApplicationServiceV2 {
             }
 
             if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
-                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                try {
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                }catch (Exception e) {
+                    log.info("Exception while updating business name for {} {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                }
             }
         }
 
@@ -1375,7 +1380,11 @@ public class LendingApplicationServiceV2 {
             }
 
             if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
-                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                try {
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                }catch (Exception e) {
+                    log.info("Exception while updating business name for {} {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                }
             }
         }
 
@@ -3175,7 +3184,7 @@ public class LendingApplicationServiceV2 {
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
 
             String language = "";
-            Boolean enableKFSVernacLang = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent);
+            Boolean enableKFSVernacLang = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent) && !(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
 
             if(ObjectUtils.isEmpty(lendingKfs)){
                 log.info("KFS details not present for Id: {} for merchant : {}", applicationId, merchant.getId());
@@ -3428,7 +3437,7 @@ public class LendingApplicationServiceV2 {
                     .selectedLanguage(language)
                     .build();
 
-            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(topUpEnabledLenders.contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
                 if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
                     log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
@@ -3568,70 +3577,67 @@ public class LendingApplicationServiceV2 {
                                                                  String sanctionCumLoanAgreementHtml, String lender, boolean isForPdf) throws Exception {
         String fileName = "";
 
-        /**
-         * New Library is being used to generate PDF for only english lenders
-         * identified only english lenders are
-         * CREDITSAISON
-         * OXYZO
-         * PAYU  (not switched for now)
-         * SMFG
-         * UGRO
-         */
-        if (newPdfGenerationMethodLenders.contains(lendingApplication.getLender())) {
-            fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-            if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
-                    log.info("Add header and footer in sanction letter doc for applicationId:" + lendingApplication.getId());
-                    sanctionCumLoanAgreementHtml = htmlEditor.addHeaderToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC), null);
-                    sanctionCumLoanAgreementHtml = htmlEditor.addFooterToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(),
-                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))), null, true);
-                } else {
-                    log.info("Add header in sanction letter doc for applicationId:" + lendingApplication.getId());
-                    sanctionCumLoanAgreementHtml = htmlEditor.addHeaderToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC), null);
-                }
-            }
-            log.info("Sanction Loan Agreement Doc getting generated for applicationId:"+lendingApplication.getId());
-            byte[] pdfByteArray = pdfGeneratorUtil.generate(sanctionCumLoanAgreementHtml);
-            ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-        }
-        /** new Library code ends here **/
-
-        else if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
-            fileName = lendingApplicationLenderDetails.getLeadId() + '_' + SANCTION_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
-            ByteArrayInputStream inStream = getLoanDocPdf(sanctionCumLoanAgreementHtml, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, lendingApplication, sanctionCompressionLevel);
-            if (ObjectUtils.isEmpty(inStream)) {
-                throw new Exception("Unable to generate Sanction Cum Loan Agreement for applicationID" + lendingApplication.getId());
-            }
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+        if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+          LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+          fileName = lendingApplicationLenderDetails.getLeadId() + '_' + SANCTION_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
+          ByteArrayInputStream inStream = getLoanDocPdf(sanctionCumLoanAgreementHtml, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, lendingApplication, sanctionCompressionLevel);
+          if (ObjectUtils.isEmpty(inStream)) {
+            throw new Exception("Unable to generate Sanction Cum Loan Agreement for applicationID" + lendingApplication.getId());
+          }
+          s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
         }else {
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
-            PdfDocument pdfDocument = new PdfDocument(writer);
-            if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
-                    ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                    ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
-                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
-                    Header headerHandler = new Header(headerImageData);
-                    pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+            String headerImageUrl = null;
+            String footerImageUrl = null;
+            boolean footerOnAllPages = false;
 
-                    Footer footerHandler = new Footer(footerImageData);
-                    pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
+            if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                headerImageUrl = getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC);
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
+                    log.info("Add header and footer in sanction letter doc for applicationId:" + lendingApplication.getId());
+                    footerImageUrl = getLenderLogo(lendingApplication.getLender(),
+                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender())));
+                    footerOnAllPages = true;
                 } else {
-                    ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                    Header headerHandler = new Header(logoImageData);
-                    pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+                    log.info("Add header in sanction letter doc for applicationId:" + lendingApplication.getId());
                 }
             }
 
-            InputStream htmlStringInputStream = new ByteArrayInputStream(sanctionCumLoanAgreementHtml.getBytes(StandardCharsets.UTF_8));
-            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            log.info("Starting PDF generation for Sanction Loan Agreement using PdfGeneratorUtilV2 - applicationId: {}, lender: {}, headerImageUrl: {}, footerImageUrl: {}", 
+                    lendingApplication.getId(), lendingApplication.getLender(), 
+                    headerImageUrl != null ? "present" : "null", footerImageUrl != null ? "present" : "null");
 
-            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                    .html(sanctionCumLoanAgreementHtml);
+
+            if (headerImageUrl != null) {
+                requestBuilder.headerImageUrl(headerImageUrl);
+                log.debug("Added header image to PDF generation request - applicationId: {}", lendingApplication.getId());
+            }
+            if (footerImageUrl != null) {
+                requestBuilder.footerImageUrl(footerImageUrl);
+                requestBuilder.footerOnAllPages(footerOnAllPages);
+                log.debug("Added footer image to PDF generation request - applicationId: {}, footerOnAllPages: {}", 
+                        lendingApplication.getId(), footerOnAllPages);
+            }
+
+            PdfGenerationRequest request = requestBuilder.build();
+            log.info("Calling PdfGeneratorUtilV2.generatePdf for Sanction Loan Agreement - applicationId: {}", lendingApplication.getId());
+            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+            if (response.getSuccess()) {
+                byte[] pdfByteArray = response.getPdfAsBytes();
+                log.info("PDF generation successful for Sanction Loan Agreement - applicationId: {}, pdfSize: {} bytes", 
+                        lendingApplication.getId(), pdfByteArray.length);
+                ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                log.info("Successfully uploaded Sanction Loan Agreement to S3 - applicationId: {}, fileName: {}", 
+                        lendingApplication.getId(), fileName);
+            } else {
+                log.error("PDF generation failed for Sanction Loan Agreement - applicationId: {}, response: {}", 
+                        lendingApplication.getId(), response);
+                throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + lendingApplication.getId());
+            }
         }
         if (isForPdf) {
             return s3BucketHandler.getObject(fileName, s3Bucket);
@@ -3857,75 +3863,61 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String kfsHtml = (String) apiResponse.data;
 
-            /**
-             * New Library is being used to generate PDF for only english lenders
-             * identified only english lenders are
-             * CREDITSAISON
-             * OXYZO
-             * PAYU  (not switched for now)
-             * SMFG
-             * UGRO
-             */
-            if (newPdfGenerationMethodLenders.contains(lendingKfs.getLender())) {
+            if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+              LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+              fileName = lendingApplicationLenderDetails.getLeadId() + '_' + KFS_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
+              ByteArrayInputStream inStream = getLoanDocPdf(kfsHtml, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, lendingApplication, kfsCompressionLevel);
+              if (ObjectUtils.isEmpty(inStream)) {
+                throw new Exception("Unable to generate KFS for applicationID" + lendingApplication.getId());
+              }
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            }else{
 
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()
-                            , Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
+                String headerImageUrl = null;
+                String footerImageUrl = null;
+                boolean footerOnAllPages = false;
 
+                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
+                    headerImageUrl = getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC);
+                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
                         log.info("Add header and footer in kfs doc for applicationId:" + lendingApplication.getId());
-                        kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC), null);
-                        kfsHtml = htmlEditor.addFooterToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(),
-                                ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))), null, true);
+                        footerImageUrl = getLenderLogo(lendingApplication.getLender(),
+                                ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender())));
+                        footerOnAllPages = true;
                     } else {
-
                         log.info("Add header in kfs doc with applicationId:" + lendingApplication.getId());
-                        kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC), null);
                     }
                 }
-                byte[] pdfByteArray = pdfGeneratorUtil.generate(kfsHtml);
-                ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            }
-            /** new Library code ends here **/
 
-            else if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
-                fileName = lendingApplicationLenderDetails.getLeadId() + '_' + KFS_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
-                ByteArrayInputStream inStream = getLoanDocPdf(kfsHtml, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, lendingApplication, kfsCompressionLevel);
-                if (ObjectUtils.isEmpty(inStream)) {
-                    throw new Exception("Unable to generate KFS for applicationID" + lendingApplication.getId());
+                PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                        .html(kfsHtml);
+
+                if (headerImageUrl != null) {
+                    requestBuilder.headerImageUrl(headerImageUrl);
                 }
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            }else {
-                fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(kfsCompressionLevel));
-                PdfDocument pdfDocument = new PdfDocument(writer);
-                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()
-                            , Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
-                        ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
-                        ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
-                                ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
-                        Header headerHandler = new Header(headerImageData);
-                        pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-                        Footer footerHandler = new Footer(footerImageData);
-//                        HeaderFooter headerFooterHandler = new HeaderFooter(headerImageData,footerImageData);
-                        pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
+                if (footerImageUrl != null) {
+                    requestBuilder.footerImageUrl(footerImageUrl);
+                    requestBuilder.footerOnAllPages(footerOnAllPages);
+                }
 
-                    } else {
-                        ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
-                        Header headerHandler = new Header(logoImageData);
-                        pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+                PdfGenerationRequest request = requestBuilder.build();
+                PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+                if (response.getSuccess()) {
+                    byte[] pdfByteArray = response.getPdfAsBytes();
+                    try{
+                      pdfByteArray = PdfCompressorUtil.compressPdf(pdfByteArray,0.7f);
+                    }catch (Exception e){
+                      log.error("Error while compressing KFS pdf for applicationId: {}, proceeding with uncompressed pdf. Exception: {}", lendingApplication.getId(), e.getMessage());
                     }
+                    ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                    s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                } else {
+                    log.error("Failed to generate KFS PDF for applicationId: {}", lendingApplication.getId());
+                    throw new Exception("Unable to generate KFS pdf doc for applicationID" + lendingApplication.getId());
                 }
-                InputStream htmlStringInputStream = new ByteArrayInputStream(kfsHtml.getBytes(StandardCharsets.UTF_8));
-                HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-                ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             }
-
             String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
             if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
@@ -3946,41 +3938,51 @@ public class LendingApplicationServiceV2 {
         ByteArrayInputStream inStream = null;
 
         try{
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            ConverterProperties properties = new ConverterProperties();
-            properties.setBaseUri(new File(docHtml).getParent());
+              log.info("Using new PDF generation method for applicationId: {} and lender: {}", lendingApplication.getId(), lendingApplication.getLender());
 
-            // Convert the HTML content to PDF elements
-            List<IElement> elements = HtmlConverter.convertToElements(docHtml, properties);
-            PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(compressionLevel));
-            PdfDocument pdfDocument = new PdfDocument(writer);
+              String headerImageUrl = null;
+              String footerImageUrl = null;
+              boolean footerOnAllPages = false;
+
             if (!getLenderLogo(lendingApplication.getLender(), applicationDocType).isEmpty()) {
-
-                ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), applicationDocType));
-                ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
-                        ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
-                Header headerHandler = new Header(headerImageData);
-                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-
-                Footer footerHandler = new Footer(footerImageData);
-                pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
-
-
-            }
-            // Create a Document object to manage content layout
-            Document document = new Document(pdfDocument);
-            document.setMargins(20, 50, 90, 50);
-
-            // Add the converted HTML elements to the document
-            for (IElement element : elements) {
-                document.add((IBlockElement) element);
+              headerImageUrl = getLenderLogo(lendingApplication.getLender(), applicationDocType);
+              log.info("Add header and footer in loan doc for applicationId:" + lendingApplication.getId());
+              footerImageUrl = getLenderLogo(lendingApplication.getLender(),ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender())));
+              footerOnAllPages = true;
             }
 
-            // Close the document to finalize the PDF creation
-            document.close();
+              log.info("Starting PDF generation for KFS document using PdfGeneratorUtilV2 - applicationId: {}, lender: {}, headerImageUrl: {}, footerImageUrl: {}",
+                      lendingApplication.getId(), lendingApplication.getLender(),
+                      headerImageUrl != null ? "present" : "null", footerImageUrl != null ? "present" : "null");
 
-            inStream = new ByteArrayInputStream(outStream.toByteArray());
+              PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                      .html(docHtml);
 
+              if (headerImageUrl != null) {
+                  requestBuilder.headerImageUrl(headerImageUrl);
+                  log.debug("Added header image to KFS PDF generation request - applicationId: {}", lendingApplication.getId());
+              }
+              if (footerImageUrl != null) {
+                  requestBuilder.footerImageUrl(footerImageUrl);
+                  requestBuilder.footerOnAllPages(footerOnAllPages);
+                  log.debug("Added footer image to KFS PDF generation request - applicationId: {}, footerOnAllPages: {}",
+                          lendingApplication.getId(), footerOnAllPages);
+              }
+
+              PdfGenerationRequest request = requestBuilder.build();
+              log.info("Calling PdfGeneratorUtilV2.generatePdf for KFS document - applicationId: {}", lendingApplication.getId());
+              PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+              if (response.getSuccess()) {
+                  byte[] pdfByteArray = response.getPdfAsBytes();
+                  log.info("PDF generation successful for KFS document - applicationId: {}, pdfSize: {} bytes",
+                          lendingApplication.getId(), pdfByteArray.length);
+                  inStream = new ByteArrayInputStream(pdfByteArray);
+              } else {
+                  log.error("PDF generation failed for KFS document - applicationId: {}, response: {}",
+                          lendingApplication.getId(), response);
+                  throw new Exception("Unable to generate PDF doc for applicationID" + lendingApplication.getId());
+              }
         } catch(Exception e){
             log.error("Error in creating loan doc {} for application id {} with exception {}", applicationDocType, lendingApplication.getId(), e.getMessage());
         }
@@ -4017,7 +4019,7 @@ public class LendingApplicationServiceV2 {
             String language = "";
 
 
-            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent)){
+            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent) && !(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                 language = ObjectUtils.isEmpty(kfsDto.getSelectedLanguage()) ? languageService.getOrSetLanguageMappingByLenderAndLang(lender, lendingApplication.getId(), lang) : "_" + kfsDto.getSelectedLanguage();
                 log.info("language of selection: {}", language);
             } else {
@@ -4046,6 +4048,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
+            } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                filePath = "/templates/" + "KFS_NONP2P_MUTHOOT_TOPUP.html";
             } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + language + ".html";
             } else if(lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -4146,7 +4150,7 @@ public class LendingApplicationServiceV2 {
             String language = "";
 
 
-            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent)){
+            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent) && !(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))){
                 language = ObjectUtils.isEmpty(kfsDto.getSelectedLanguage()) ? languageService.getOrSetLanguageMappingByLenderAndLang(lender, lendingApplication.getId(), lang) : "_" + kfsDto.getSelectedLanguage();
 
                 log.info("language of selection: {}", language);
@@ -4177,6 +4181,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
+            } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT_TOPUP.html";
             } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -4233,16 +4239,32 @@ public class LendingApplicationServiceV2 {
         }
         String shortUrl = "";
         try {
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream);
-            PdfDocument pdfDocument = new PdfDocument(writer);
-            InputStream htmlStringInputStream = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
+            // Get the lending application to check if it uses new PDF generation method
+            LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
+            
+            /**
+             * New Library is being used to generate PDF for selected lenders
+             */
+            if (lendingApplication != null) {
+                log.info("Using new PDF generation method for disbursement request letter for applicationId: {} and lender: {}", applicationId, lendingApplication.getLender());
+                
+                PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                        .html(html);
 
-            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            String disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
-            shortUrl = apiGatewayService.getShortUrl(disbursementRequestLetterUrl);
+                PdfGenerationRequest request = requestBuilder.build();
+                PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+                if (response.getSuccess()) {
+                    byte[] pdfByteArray = response.getPdfAsBytes();
+                    ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                    s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                    String disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
+                    shortUrl = apiGatewayService.getShortUrl(disbursementRequestLetterUrl);
+                } else {
+                    log.error("Failed to generate PDF using new method for disbursement request letter for applicationId: {}", applicationId);
+                    throw new Exception("Unable to generate disbursement request letter PDF for applicationID" + applicationId);
+                }
+            }
         } catch (Exception e) {
             log.error("Error while creating DisbursementRequestLetter for applicationiId : {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
@@ -4608,7 +4630,7 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(kfsDto.getLender())) {
+        if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name(), Lender.MUTHOOT.name()).contains(kfsDto.getLender())) {
             LendingApplication parentLendingApplication = lendingApplicationDao.findByExternalLoanId(kfsDto.getParentLoanBplId());
             if (kfsDto.isTopUpLoan()) {
                 data.put("parent_loan_amount", parentLendingApplication.getLoanAmount());
@@ -4753,10 +4775,10 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_logo_header.png";
         }
         else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name()) && applicationDocType.equals(ApplicationDocType.MUTHOOT_LETTERHEAD_FOOTER)){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-footer-1708687663592.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-footer-min-1760082773945.png";
         }
         else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-header-1708687626411.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-header-min-1760082725551.png";
         }
         else if(lender.equalsIgnoreCase(Lender.PAYU.name()) && applicationDocType.equals(ApplicationDocType.PAYU_LETTERHEAD_FOOTER)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-footer-bp-compressed-1729234893465.png";
@@ -4936,69 +4958,6 @@ public class LendingApplicationServiceV2 {
         return Rupees;
     }
 
-    protected static class Header implements IEventHandler {
-        private ImageData headerImage;
-
-        public Header(ImageData header) {
-            this.headerImage = header;
-        }
-
-        @Override
-        public void handleEvent(Event event) {
-            PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
-            PdfDocument pdf = docEvent.getDocument();
-            PdfPage page = docEvent.getPage();
-            Rectangle pageSize = page.getPageSize();
-            Rectangle rectangle = new Rectangle(0, pageSize.getHeight() - 75, pageSize.getWidth(), 75);
-            PdfCanvas pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdf);
-            pdfCanvas.addImageFittedIntoRectangle(headerImage, rectangle, false);
-            pdfCanvas.release();
-        }
-    }
-    protected static class HeaderFooter implements IEventHandler {
-        private ImageData footerImage;
-        private ImageData headerImage;
-
-        public HeaderFooter(ImageData header,ImageData footer) {
-            this.footerImage = footer;
-            this.headerImage = header;
-        }
-
-        @Override
-        public void handleEvent(Event event) {
-            PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
-            PdfDocument pdf = docEvent.getDocument();
-            PdfPage page = docEvent.getPage();
-            Rectangle pageSize = page.getPageSize();
-            Rectangle headerRectangle = new Rectangle(0, pageSize.getHeight() - 75, pageSize.getWidth(), 75);
-            Rectangle footerRectangle = new Rectangle(0, 20 , pageSize.getWidth(), 80);
-            PdfCanvas pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdf);
-            pdfCanvas.addImageFittedIntoRectangle(headerImage, headerRectangle, false);
-            pdfCanvas.addImageFittedIntoRectangle(footerImage, footerRectangle, false);
-            pdfCanvas.release();
-        }
-    }
-
-    protected static class Footer implements IEventHandler {
-        private ImageData footerImage;
-
-        public Footer(ImageData footer) {
-            this.footerImage = footer;
-        }
-
-        @Override
-        public void handleEvent(Event event) {
-            PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
-            PdfDocument pdf = docEvent.getDocument();
-            PdfPage page = docEvent.getPage();
-            Rectangle pageSize = page.getPageSize();
-            Rectangle footerRectangle =  new Rectangle(0, 0 , pageSize.getWidth(), 90);
-            PdfCanvas pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdf);
-            pdfCanvas.addImageFittedIntoRectangle(footerImage, footerRectangle, false);
-            pdfCanvas.release();
-        }
-    }
-
     public ApiResponse<?> updateCurrentAddress(BasicDetailsDto merchant, Long applicationId, AddressDetails addressDetails, Boolean sameAsAdhaar) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
@@ -5140,38 +5099,60 @@ public class LendingApplicationServiceV2 {
         }
         String fileName = "";
         fileName = WELCOME_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(outStream);
-        PdfDocument pdfDocument = new PdfDocument(writer);
+        
+        log.info("Using new PDF generation method for Welcome Document for applicationId: {} and lender: {}", 
+                lendingApplication.getId(), lendingApplication.getLender());
+
+        String headerImageUrl = null;
+        String footerImageUrl = null;
+        boolean footerOnAllPages = false;
+
         if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.WELCOME_LETTER_DOC).isEmpty()) {
+            headerImageUrl = getLenderLogo(lendingApplication.getLender(), ApplicationDocType.WELCOME_LETTER_DOC);
             if (Lender.ABFL.name().equalsIgnoreCase(lendingKfs.getLender())) {
-                ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.ABFL_LETTERHEAD_FOOTER));
-                Header headerHandler = new Header(headerImageData);
-                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-                Footer footerHandler = new Footer(footerImageData);
-//                    HeaderFooter headerFooterHandler = new HeaderFooter(headerImageData,footerImageData);
-                pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
+                log.info("Add header and footer in welcome doc for applicationId:" + lendingApplication.getId());
+                footerImageUrl = getLenderLogo(lendingApplication.getLender(), ApplicationDocType.ABFL_LETTERHEAD_FOOTER);
+                footerOnAllPages = true;
             } else {
-                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                Header headerHandler = new Header(logoImageData);
-                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+                log.info("Add header in welcome doc for applicationId:" + lendingApplication.getId());
             }
         }
-        InputStream htmlStringInputStream = new ByteArrayInputStream(welcomeHtml.getBytes(StandardCharsets.UTF_8));
-        HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-        ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-        s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-        String welcomeUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
-        String welcomeShortUrl = apiGatewayService.getShortUrl(welcomeUrl);
-        if (welcomeShortUrl == null || welcomeShortUrl.isEmpty() || welcomeShortUrl.trim().isEmpty())
-            throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
-        else {
-            lendingKfs.setWelcomeDocFile(fileName);
-            lendingKfs.setWelcomeDocUrl(welcomeShortUrl);
-            lendingKfsDao.save(lendingKfs);
+
+        PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                .html(welcomeHtml);
+
+        if (headerImageUrl != null) {
+            requestBuilder.headerImageUrl(headerImageUrl);
+            log.debug("Added header image to Welcome PDF generation request - applicationId: {}", lendingApplication.getId());
         }
-        return Boolean.TRUE;
+        if (footerImageUrl != null) {
+            requestBuilder.footerImageUrl(footerImageUrl);
+            requestBuilder.footerOnAllPages(footerOnAllPages);
+            log.debug("Added footer image to Welcome PDF generation request - applicationId: {}", lendingApplication.getId());
+        }
+
+        PdfGenerationRequest request = requestBuilder.build();
+        PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+        if (response.getSuccess()) {
+            byte[] pdfByteArray = response.getPdfAsBytes();
+            ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            String welcomeUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
+            String welcomeShortUrl = apiGatewayService.getShortUrl(welcomeUrl);
+            if (welcomeShortUrl == null || welcomeShortUrl.isEmpty() || welcomeShortUrl.trim().isEmpty())
+                throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
+            else {
+                lendingKfs.setWelcomeDocFile(fileName);
+                lendingKfs.setWelcomeDocUrl(welcomeShortUrl);
+                lendingKfsDao.save(lendingKfs);
+            }
+            return Boolean.TRUE;
+        } else {
+            log.error("Failed to generate Welcome PDF for applicationId: {}, response: {}", 
+                    lendingApplication.getId(), response);
+            return Boolean.FALSE;
+        }
     }
 
 
@@ -5245,20 +5226,32 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String authorizationHtml = (String) apiResponse.data;
             fileName = AUTHORIZATION_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(kfsCompressionLevel));
-            PdfDocument pdfDocument = new PdfDocument(writer);
-            InputStream htmlStringInputStream = new ByteArrayInputStream(authorizationHtml.getBytes(StandardCharsets.UTF_8));
-            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
-            String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
-            if (ObjectUtils.isEmpty(authorizationLetterShortUrl) || authorizationLetterShortUrl.trim().isEmpty())
-                throw new Exception("Unable to create short URL for Authorization doc link for : " + lendingApplication.getId());
-            else {
-                lendingKfs.setAuthorizationLetterDocFile(fileName);
-                lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterShortUrl);
+            
+            log.info("Using new PDF generation method for Authorization Letter for applicationId: {} and lender: {}", 
+                    lendingApplication.getId(), lendingApplication.getLender());
+
+            PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                    .html(authorizationHtml);
+
+            PdfGenerationRequest request = requestBuilder.build();
+            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+            if (response.getSuccess()) {
+                byte[] pdfByteArray = response.getPdfAsBytes();
+                ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
+                String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
+                if (ObjectUtils.isEmpty(authorizationLetterShortUrl) || authorizationLetterShortUrl.trim().isEmpty())
+                    throw new Exception("Unable to create short URL for Authorization doc link for : " + lendingApplication.getId());
+                else {
+                    lendingKfs.setAuthorizationLetterDocFile(fileName);
+                    lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterShortUrl);
+                }
+            } else {
+                log.error("Failed to generate Authorization Letter PDF for applicationId: {}, response: {}", 
+                        lendingApplication.getId(), response);
+                throw new Exception("Unable to generate Authorization Letter PDF for applicationID" + lendingApplication.getId());
             }
         }
         else{
@@ -5266,6 +5259,7 @@ public class LendingApplicationServiceV2 {
             throw new Exception("Unable to generate Authorization Letter doc for applicationID" + lendingApplication.getId());
         }
     }
+
     public String constructShopAddress(LendingApplication lendingApplication) {
         return (ObjectUtils.isEmpty(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress()) + "," +
@@ -5514,19 +5508,46 @@ public class LendingApplicationServiceV2 {
                 s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             } else {
                 fileName = LENDER_ADDITIONAL_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
-                PdfDocument pdfDocument = new PdfDocument(writer);
+                    log.info("Using new PDF generation method for LOA for applicationId: {} and lender: {}", lendingApplication.getId(), lendingApplication.getLender());
 
-                if (Collections.singletonList(Lender.UGRO.name()).contains(lendingKfs.getLender()) && !getLenderLogo(lendingApplication.getLender(), ApplicationDocType.LOA_DOC).isEmpty()) {
-                    ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.LOA_DOC));
-                    Header headerHandler = new Header(logoImageData);
-                    pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-                }
-                InputStream htmlStringInputStream = new ByteArrayInputStream(loaHtml.getBytes(StandardCharsets.UTF_8));
-                HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-                ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                    String headerImageUrl = null;
+                    String footerImageUrl = null;
+                    boolean footerOnAllPages = false;
+
+                    if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.LOA_DOC).isEmpty()) {
+                        headerImageUrl = getLenderLogo(lendingApplication.getLender(), ApplicationDocType.LOA_DOC);
+                        if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
+                            log.info("Add header and footer in LOA doc for applicationId:" + lendingApplication.getId());
+                            footerImageUrl = getLenderLogo(lendingApplication.getLender(),
+                                    ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender())));
+                            footerOnAllPages = true;
+                        } else {
+                            log.info("Add header in LOA doc for applicationId:" + lendingApplication.getId());
+                        }
+                    }
+
+                    PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                            .html(loaHtml);
+
+                    if (headerImageUrl != null) {
+                        requestBuilder.headerImageUrl(headerImageUrl);
+                    }
+                    if (footerImageUrl != null) {
+                        requestBuilder.footerImageUrl(footerImageUrl);
+                        requestBuilder.footerOnAllPages(footerOnAllPages);
+                    }
+
+                    PdfGenerationRequest request = requestBuilder.build();
+                    PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+                    if (response.getSuccess()) {
+                        byte[] pdfByteArray = response.getPdfAsBytes();
+                        ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                        s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                    } else {
+                        log.error("Failed to generate PDF using new method for LOA for applicationId: {}", lendingApplication.getId());
+                        throw new Exception("Unable to generate LOA PDF for applicationID" + lendingApplication.getId());
+                    }
             }
             String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String loaShortUrl = apiGatewayService.getShortUrl(loaUrl);
@@ -5610,18 +5631,46 @@ public class LendingApplicationServiceV2 {
                 s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             } else {
                 fileName = AF_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
-                PdfDocument pdfDocument = new PdfDocument(writer);
-                if (Collections.singletonList(Lender.UGRO.name()).contains(lendingKfs.getLender()) && !getLenderLogo(lendingApplication.getLender(), ApplicationDocType.APPLICATION_FORM_DOC).isEmpty()) {
-                    ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.APPLICATION_FORM_DOC));
-                    Header headerHandler = new Header(logoImageData);
-                    pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-                }
-                InputStream htmlStringInputStream = new ByteArrayInputStream(applicationFormHtml.getBytes(StandardCharsets.UTF_8));
-                HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-                ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                  log.info("Using new PDF generation method for Application Form for applicationId: {} and lender: {}", lendingApplication.getId(), lendingApplication.getLender());
+
+                  String headerImageUrl = null;
+                  String footerImageUrl = null;
+                  boolean footerOnAllPages = false;
+
+                  if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.APPLICATION_FORM_DOC).isEmpty()) {
+                      headerImageUrl = getLenderLogo(lendingApplication.getLender(), ApplicationDocType.APPLICATION_FORM_DOC);
+                      if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
+                          log.info("Add header and footer in Application Form doc for applicationId:" + lendingApplication.getId());
+                          footerImageUrl = getLenderLogo(lendingApplication.getLender(),
+                                  ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender())));
+                          footerOnAllPages = true;
+                      } else {
+                          log.info("Add header in Application Form doc for applicationId:" + lendingApplication.getId());
+                      }
+                  }
+
+                  PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                          .html(applicationFormHtml);
+
+                  if (headerImageUrl != null) {
+                      requestBuilder.headerImageUrl(headerImageUrl);
+                  }
+                  if (footerImageUrl != null) {
+                      requestBuilder.footerImageUrl(footerImageUrl);
+                      requestBuilder.footerOnAllPages(footerOnAllPages);
+                  }
+
+                  PdfGenerationRequest request = requestBuilder.build();
+                  PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+                  if (response.getSuccess()) {
+                      byte[] pdfByteArray = response.getPdfAsBytes();
+                      ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                      s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                  } else {
+                      log.error("Failed to generate PDF using new method for Application Form for applicationId: {}", lendingApplication.getId());
+                      throw new Exception("Unable to generate Application Form PDF for applicationID" + lendingApplication.getId());
+                  }
             }
 
             String applicationFormUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
@@ -5835,12 +5884,27 @@ public class LendingApplicationServiceV2 {
                 html = html.replace(key, val);
             }
 
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(kfsCompressionLevel));
-            PdfDocument pdfDocument = new PdfDocument(writer);
-            InputStream htmlStringInputStream = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
-            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            ByteArrayInputStream inStream = null;
+            log.info("Starting PDF generation for Signed Details using PdfGeneratorUtilV2 - applicationId: {}, lender: {}",
+                    lendingApplication.getId(), lendingApplication.getLender());
+
+            PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
+                    .html(html);
+
+            PdfGenerationRequest request = requestBuilder.build();
+            log.info("Calling PdfGeneratorUtilV2.generatePdf for Signed Details - applicationId: {}", lendingApplication.getId());
+            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+
+            if (response.getSuccess()) {
+                byte[] pdfByteArray = response.getPdfAsBytes();
+                log.info("PDF generation successful for Signed Details - applicationId: {}, pdfSize: {} bytes",
+                        lendingApplication.getId(), pdfByteArray.length);
+                inStream = new ByteArrayInputStream(pdfByteArray);
+            } else {
+                log.error("PDF generation failed for Signed Details - applicationId: {}, response: {}",
+                        lendingApplication.getId(), response);
+                throw new Exception("Unable to generate Signed Details PDF for applicationID" + lendingApplication.getId());
+            }
 
             //Appending signed details in kfs doc
             URL url1 = new URL(docUploadUtils.getS3PresignedUrlFromKey(lendingKfs.getKfsDocFile()));
@@ -5852,11 +5916,23 @@ public class LendingApplicationServiceV2 {
                 throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
 
             //Appending signed details in sanction doc
-            inStream = new ByteArrayInputStream(outStream.toByteArray());
+            // Create a new stream for the second merge operation
+            ByteArrayInputStream inStream2 = null;
+            // For new PDF generation method, we need to regenerate the PDF
+            PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder2 = PdfGenerationRequest.builder()
+                    .html(html);
+            PdfGenerationRequest request2 = requestBuilder2.build();
+            PdfGenerationResponse response2 = pdfGeneratorUtil.generatePdf(request2);
+            if (response2.getSuccess()) {
+                byte[] pdfByteArray2 = response2.getPdfAsBytes();
+                inStream2 = new ByteArrayInputStream(pdfByteArray2);
+            } else {
+                throw new Exception("Unable to regenerate Signed Details PDF for applicationID" + lendingApplication.getId());
+            }
             URL url2 = new URL(docUploadUtils.getS3PresignedUrlFromKey(lendingKfs.getSanctionLoanAgreementDocFile()));
             URLConnection connection2 = url2.openConnection();
             InputStream sanctionStream = connection2.getInputStream();
-            String sanctionUrl = docUploadUtils.mergeDocs(lendingApplication.getId(), sanctionStream, inStream, lendingKfs.getSanctionLoanAgreementDocFile());
+            String sanctionUrl = docUploadUtils.mergeDocs(lendingApplication.getId(), sanctionStream, inStream2, lendingKfs.getSanctionLoanAgreementDocFile());
             String sanctionShortUrl = apiGatewayService.getShortUrl(sanctionUrl);
             if (sanctionShortUrl == null || sanctionShortUrl.isEmpty() || sanctionShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for sanction doc link for : " + lendingApplication.getId());
@@ -5886,7 +5962,13 @@ public class LendingApplicationServiceV2 {
             }
 
             if (!ObjectUtils.isEmpty(saveMerchantDetailsDto.getBusinessName())) {
-                boolean isUpdated = merchantService.updateMerchantBusinessName(merchant.getId(), saveMerchantDetailsDto.getBusinessName());
+                boolean isUpdated = false;
+                try {
+                    isUpdated = merchantService.updateMerchantBusinessName(merchant.getId(), saveMerchantDetailsDto.getBusinessName());
+                }catch (Exception e) {
+                    log.error("Error while updating business name for merchant: {}", merchant.getId());
+                }
+
                 if (isUpdated) {
                     LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
                     lendingMerchantDetails.setBusinessName(saveMerchantDetailsDto.getBusinessName());

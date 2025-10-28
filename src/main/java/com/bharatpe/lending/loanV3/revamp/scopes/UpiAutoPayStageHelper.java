@@ -22,6 +22,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
@@ -38,6 +39,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import javax.validation.constraints.NotNull;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -69,6 +71,8 @@ public class UpiAutoPayStageHelper {
 
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
+
+    private final List<Lender> legacyAssociationLendersList = Arrays.asList(Lender.ABFL, Lender.PIRAMAL);
 
     public boolean isEligibleForFailedForceSkip(Long applicationId, Long merchantId) {
         if(!easyLoanUtil.percentScaleUp(merchantId, upiAutoPayForceSkipPercentage)){
@@ -129,10 +133,14 @@ public class UpiAutoPayStageHelper {
         log.info("isEligibleForSkipNach : {} for applicationId : {}", isEligibleForSkipNach, lendingApplication.getId());
         LendingViewStates nextPage;
         if(isEligibleForSkipNach){
-            nextPage = vKycService.getLenderVkycPageOrDefault(
-                    LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(),
-                    lendingApplication.getLender(), LoanType.TOPUP.name().equals(lendingApplication.getLoanType()));
-            invokeDocUploadFlow(lendingApplication);
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                nextPage=LendingViewStates.AGREEMENT_PAGE;
+            }else {
+                nextPage = vKycService.getLenderVkycPageOrDefault(
+                        LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(),
+                        lendingApplication.getLender(), LoanType.TOPUP.name().equals(lendingApplication.getLoanType()));
+                invokeDocUploadFlow(lendingApplication);
+            }
             lendingApplication.setNachStatus(NachStatus.APPROVED.name());
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender(loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
@@ -146,9 +154,7 @@ public class UpiAutoPayStageHelper {
         lendingApplicationDetails.setApplicationViewState(nextPage.name());
         lendingApplicationDetails.setAutoPayUpiEligible(false);
         lendingApplicationDetails.setNachEligible(true);
-        Map<String, Object> metadata = Objects.isNull(lendingApplicationDetails.getMetaData()) ? new HashMap<>() : lendingApplicationDetails.getMetaData();
-        metadata.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.AUTOPAY_NACH);
-        lendingApplicationDetails.setMetaData(metadata);
+        lendingApplicationDetails.setMandateType(MandateType.AUTOPAY_NACH);
         lendingApplicationDetails.setMandateFlagsToggledOn(new Date());
         lendingApplicationDao.save(lendingApplication);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
@@ -178,9 +184,12 @@ public class UpiAutoPayStageHelper {
             verifyOTPServiceV2.invokeDocUploadAndNachWorflow(lendingApplication);
         }
         else {
+            Boolean isAutoInvokeRequired = legacyAssociationLendersList.contains(Lender.valueOf(lendingApplication.getLender()))
+                    ? LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED)
+                    : LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+
             log.info("Rearch flow is not enabled for application id: {}, pushing application to next stage", lendingApplication.getId());
-            nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
-                    LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED));
+            nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(), isAutoInvokeRequired);
             log.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
         }
     }
