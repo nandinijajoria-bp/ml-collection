@@ -1026,9 +1026,9 @@ public class LoanEligibleService {
                             // For new evaluations without an open application
                             if (cache.openApplication != null) {
                                 loanSpecificInitialAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
-                                        loan.getAmount(), null, "INITIAL_LENDERS", loan.getTenureInMonths());
+                                        loan.getAmount(), cache.openApplication.getId(), "INITIAL_LENDERS", loan.getTenureInMonths());
                                 loanSpecificFallbackAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
-                                        loan.getAmount(), null, "FALLBACK_LENDERS", loan.getTenureInMonths());
+                                        loan.getAmount(), cache.openApplication.getId(), "FALLBACK_LENDERS", loan.getTenureInMonths());
                                 AsyncLoggerUtil.logInfo(logger, "Loan-specific audit trials for amount: {}, tenure: {} - Initial: {}, Fallback: {}",
                                         loan.getAmount(), loan.getTenureInMonths(), loanSpecificInitialAuditTrial, loanSpecificFallbackAuditTrial);
                             } else {
