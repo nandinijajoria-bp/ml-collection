@@ -4063,23 +4063,27 @@ public class LoanUtil {
 	}
 
 	private AddressDetails fetchAddress(String token, Long merchantId, LendingApplication lendingApplication, String pincode) {
-		AddressDetails addressDetails = new AddressDetails();
 		if (lendingApplication == null) {
 			logger.info("Lending application is null. Fetching address from merchant service for merchant: {}", merchantId);
-			addressDetails = getAddressOfMerchant(token, merchantId, pincode);
+			return getAddressOfMerchant(token, merchantId, pincode);
 		} else {
-			if(loanDetailsV3Service.isAddressComplete(lendingApplication)) {
-				addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
-				addressDetails.setArea(lendingApplication.getArea());
-				addressDetails.setLandmark(lendingApplication.getLandmark());
-				addressDetails.setAddress2(lendingApplication.getStreetAddress());
-				addressDetails.setAddress1(lendingApplication.getShopNumber());
-				addressDetails.setCity(lendingApplication.getCity());
-				addressDetails.setState(lendingApplication.getState());
-				return addressDetails;
-			}
+			return merchantAddress(lendingApplication);
 		}
-		return addressDetails;
+	}
+
+	public AddressDetails merchantAddress(LendingApplication lendingApplication) {
+		AddressDetails addressDetails = new AddressDetails();
+		if(loanDetailsV3Service.isAddressComplete(lendingApplication)) {
+			addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
+			addressDetails.setArea(lendingApplication.getArea());
+			addressDetails.setLandmark(lendingApplication.getLandmark());
+			addressDetails.setAddress2(lendingApplication.getStreetAddress());
+			addressDetails.setAddress1(lendingApplication.getShopNumber());
+			addressDetails.setCity(lendingApplication.getCity());
+			addressDetails.setState(lendingApplication.getState());
+			return addressDetails;
+		}
+		return null;
 	}
 
 	public String getBusinessName(Long merchantId, LendingApplication lendingApplication) {
@@ -4103,45 +4107,49 @@ public class LoanUtil {
 
 
 	public AddressDetails getAddressOfMerchant(String token, Long merchantId,String pincode) {
-		MerchantDto merchantDto = new MerchantDto();
-		merchantDto.setMerchantId(merchantId);
-		ListMerchantAddressResponseDto addressResponse = merchantService.getAddress(merchantDto, token);
-		logger.info("Address response from Merchant Service: {}", addressResponse);
+		try {
+			MerchantDto merchantDto = new MerchantDto();
+			merchantDto.setMerchantId(merchantId);
+			ListMerchantAddressResponseDto addressResponse = merchantService.getAddress(merchantDto, token);
+			logger.info("Address response from Merchant Service: {}", addressResponse);
 
-		if (!ObjectUtils.isEmpty(addressResponse) && !CollectionUtils.isEmpty(addressResponse.getAddress())) {
-			// Filter addresses that have required fields and matching pincode
-			Optional<Long> validAddressId = addressResponse.getAddress().stream()
-					.filter(address -> address.getAddress() != null &&
-							address.getAdd2() != null &&
-							address.getArea() != null &&
-							address.getPincode() != null &&
-							address.getPincode().equals(pincode))
-					.max(Comparator.comparing(ListMerchantAddressResponseDto.Address::getId))
-					.map(ListMerchantAddressResponseDto.Address::getId);
-			logger.info("Valid address ID with matching pincode: {}", validAddressId);
+			if (!ObjectUtils.isEmpty(addressResponse) && !CollectionUtils.isEmpty(addressResponse.getAddress())) {
+				// Filter addresses that have required fields and matching pincode
+				Optional<Long> validAddressId = addressResponse.getAddress().stream()
+						.filter(address -> address.getAddress() != null &&
+								address.getAdd2() != null &&
+								address.getArea() != null &&
+								address.getPincode() != null &&
+								address.getPincode().equals(pincode))
+						.max(Comparator.comparing(ListMerchantAddressResponseDto.Address::getId))
+						.map(ListMerchantAddressResponseDto.Address::getId);
+				logger.info("Valid address ID with matching pincode: {}", validAddressId);
 
-			if (!validAddressId.isPresent()) {
-				logger.info("No valid address found with matching pincode: {}", pincode);
-				return null;
+				if (!validAddressId.isPresent()) {
+					logger.info("No valid address found with matching pincode: {}", pincode);
+					return null;
+				}
+
+				ListMerchantAddressResponseDto.Address latestAddress = addressResponse.getAddress().stream()
+						.filter(address -> address.getId().equals(validAddressId.get()))
+						.findFirst()
+						.orElse(null);
+				logger.info("Latest address: {}", latestAddress);
+
+				if (!ObjectUtils.isEmpty(latestAddress)) {
+					AddressDetails addressDetails = new AddressDetails();
+					addressDetails.setPincode(latestAddress.getPincode());
+					addressDetails.setAddress2(latestAddress.getAdd2());
+					addressDetails.setAddress1(latestAddress.getAddress());
+					addressDetails.setLandmark(latestAddress.getLandmark());
+					addressDetails.setCity(latestAddress.getCity());
+					addressDetails.setState(latestAddress.getState());
+					addressDetails.setArea(latestAddress.getArea());
+					return addressDetails;
+				}
 			}
-
-			ListMerchantAddressResponseDto.Address latestAddress = addressResponse.getAddress().stream()
-					.filter(address -> address.getId().equals(validAddressId.get()))
-					.findFirst()
-					.orElse(null);
-			logger.info("Latest address: {}", latestAddress);
-
-			if (!ObjectUtils.isEmpty(latestAddress)) {
-				AddressDetails addressDetails = new AddressDetails();
-				addressDetails.setPincode(latestAddress.getPincode());
-				addressDetails.setAddress2(latestAddress.getAdd2());
-				addressDetails.setAddress1(latestAddress.getAddress());
-				addressDetails.setLandmark(latestAddress.getLandmark());
-				addressDetails.setCity(latestAddress.getCity());
-				addressDetails.setState(latestAddress.getState());
-				addressDetails.setArea(latestAddress.getArea());
-				return addressDetails;
-			}
+		}catch (Exception e) {
+			logger.error("Exception while fetching merchant address for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
 		}
 		return null;
 	}
