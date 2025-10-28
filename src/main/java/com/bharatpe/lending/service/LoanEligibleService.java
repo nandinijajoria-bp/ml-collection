@@ -1024,21 +1024,23 @@ public class LoanEligibleService {
                             LendingAuditTrial loanSpecificFallbackAuditTrial;
 
                             // For new evaluations without an open application
-                            if(cache.openApplication == null) {
+                            if (cache.openApplication != null) {
                                 loanSpecificInitialAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
                                         loan.getAmount(), null, "INITIAL_LENDERS", loan.getTenureInMonths());
                                 loanSpecificFallbackAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
                                         loan.getAmount(), null, "FALLBACK_LENDERS", loan.getTenureInMonths());
+                                AsyncLoggerUtil.logInfo(logger, "Loan-specific audit trials for amount: {}, tenure: {} - Initial: {}, Fallback: {}",
+                                        loan.getAmount(), loan.getTenureInMonths(), loanSpecificInitialAuditTrial, loanSpecificFallbackAuditTrial);
+                            } else {
+                                loanSpecificInitialAuditTrial = null;
+                                loanSpecificFallbackAuditTrial = null;
                             }
-                            else {
-                                loanSpecificInitialAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
-                                        loan.getAmount(), cache.openApplication.getId(), "INITIAL_LENDERS", loan.getTenureInMonths());
-                                loanSpecificFallbackAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
-                                        loan.getAmount(), cache.openApplication.getId(), "FALLBACK_LENDERS", loan.getTenureInMonths());
-                            }
-
-                            AsyncLoggerUtil.logInfo(logger, "Loan-specific audit trials for amount: {}, tenure: {} - Initial: {}, Fallback: {}",
-                                    loan.getAmount(), loan.getTenureInMonths(), loanSpecificInitialAuditTrial, loanSpecificFallbackAuditTrial);
+//                            else {
+//                                loanSpecificInitialAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
+//                                        loan.getAmount(), cache.openApplication.getId(), "INITIAL_LENDERS", loan.getTenureInMonths());
+//                                loanSpecificFallbackAuditTrial = lendingAuditTrialDao.findTopByLoanAmountAndApplicationIdAndTypeAndTenureOrderByIdDesc(
+//                                        loan.getAmount(), cache.openApplication.getId(), "FALLBACK_LENDERS", loan.getTenureInMonths());
+//                            }
 
                             return processSingleLoanOptimized(
                                     merchantId, loan, lendingRiskVariables, evaluationId, rejectedLenders,
