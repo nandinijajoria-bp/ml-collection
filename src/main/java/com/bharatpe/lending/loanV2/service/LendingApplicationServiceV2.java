@@ -1084,7 +1084,11 @@ public class LendingApplicationServiceV2 {
             }
 
             if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
-                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                try {
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                }catch (Exception e) {
+                    log.info("Exception while updating business name for {} {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                }
             }
         }
 
@@ -1172,7 +1176,11 @@ public class LendingApplicationServiceV2 {
             }
 
             if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
-                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                try {
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                }catch (Exception e) {
+                    log.info("Exception while updating business name for {} {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                }
             }
         }
 
@@ -1372,7 +1380,11 @@ public class LendingApplicationServiceV2 {
             }
 
             if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
-                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                try {
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+                }catch (Exception e) {
+                    log.info("Exception while updating business name for {} {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                }
             }
         }
 
@@ -5950,7 +5962,13 @@ public class LendingApplicationServiceV2 {
             }
 
             if (!ObjectUtils.isEmpty(saveMerchantDetailsDto.getBusinessName())) {
-                boolean isUpdated = merchantService.updateMerchantBusinessName(merchant.getId(), saveMerchantDetailsDto.getBusinessName());
+                boolean isUpdated = false;
+                try {
+                    isUpdated = merchantService.updateMerchantBusinessName(merchant.getId(), saveMerchantDetailsDto.getBusinessName());
+                }catch (Exception e) {
+                    log.error("Error while updating business name for merchant: {}", merchant.getId());
+                }
+
                 if (isUpdated) {
                     LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
                     lendingMerchantDetails.setBusinessName(saveMerchantDetailsDto.getBusinessName());
