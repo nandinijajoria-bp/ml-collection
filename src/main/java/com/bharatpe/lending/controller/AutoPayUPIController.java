@@ -89,6 +89,7 @@ public class AutoPayUPIController {
                 .message(message)
                 .build();
         return ResponseEntity.ok(response);
+    }
 
     @GetMapping(value = "/required")
     public ResponseEntity<AutoPayRequiredDto> upiAutoPayRequired(@RequestAttribute BasicDetailsDto merchant){
