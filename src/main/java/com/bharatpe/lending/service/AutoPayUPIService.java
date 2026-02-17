@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.dao.LendingPullPaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingPullPayment;
+import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -27,6 +28,7 @@ import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
+import com.bharatpe.lending.config.AutoPayUPIErrorConfig;
 import com.bharatpe.lending.loanV3.revamp.enums.UpiAutoPayStatus;
 import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.ErrorDescriptionMapper;
@@ -64,6 +66,9 @@ public class AutoPayUPIService {
     private static final int DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS = 1;
     @Autowired
     private LendingPullPaymentDao lendingPullPaymentDao;
+
+    @Autowired
+    private LendingPullPaymentDaoSlave lendingPullPaymentDaoSlave;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -122,6 +127,9 @@ public class AutoPayUPIService {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    AutoPayUPIErrorConfig autoPayUPIErrorConfig;
 
     @Autowired
     ConfluentKafkaProducer confluentKafkaProducer;
@@ -861,6 +869,59 @@ public class AutoPayUPIService {
         }
 
         return JS_CASHFREE.name();
+    }
+
+    public Boolean checkConsecutiveError(Long merchantId) {
+        try {
+            // Validate merchantId
+            if (merchantId == null) {
+                log.error("Merchant ID cannot be null");
+                return false;
+            }
+            log.info("Checking consecutive errors for merchantId: {}", merchantId);
+
+            String mode = "AUTOPAYUPI";
+            Date now = new Date();
+            Date todayStart = getStartOfDay(0);
+            List<String> errors = lendingPullPaymentDaoSlave.findDistinctErrorsForDate(merchantId, mode, todayStart, now);
+            if (errors == null || errors.isEmpty()) {
+                log.info("No error found today for merchantId: {}", merchantId);
+                return false;
+            }
+            log.info("Found {} unique error description(s) for merchantId: {}", errors.size(), merchantId);
+
+            // Check each error for consecutive days
+            for (String error_description : errors) {
+                if (!StringUtils.hasText(error_description)) {
+                    continue;
+                }
+                int requiredDays = autoPayUPIErrorConfig.getConsecutiveDaysForError(error_description);
+                Date startDate = getStartOfDay(requiredDays - 1);
+                log.info("Checking error '{}' for merchantId: {} from {} to {}", error_description, merchantId, startDate, now);
+                // Count distinct dates where this error occurred in the date range
+                Long dayCount = lendingPullPaymentDaoSlave.countDistinctDaysForError(merchantId, error_description, startDate, now);
+                // If number of distinct dates equals requiredDays, it means the error came for all consecutive days
+                if (dayCount != null && dayCount == requiredDays) {
+                    log.info("Found consecutive error for merchantId: {}, error: {}, days: {}", merchantId, error_description, requiredDays);
+                    return true;
+                }
+            }
+            log.info("No consecutive errors found for merchantId: {}", merchantId);
+            return false;
+        } catch (Exception e) {
+            log.error("Error while checking consecutive errors for merchantId: {}", merchantId, e);
+            return false;
+        }
+    }
+
+    private Date getStartOfDay(int daysAgo) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        calendar.add(Calendar.DAY_OF_MONTH, -daysAgo);
+        return calendar.getTime();
     }
 
     public AutoPayRequiredDto isUPIAutoPayRequired(BasicDetailsDto merchant) {
