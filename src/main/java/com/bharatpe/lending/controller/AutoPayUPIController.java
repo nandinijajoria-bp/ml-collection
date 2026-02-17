@@ -73,5 +73,19 @@ public class AutoPayUPIController {
         return ResponseEntity.ok(autoPayUPIService.updateFrequencyForMandate(merchant, dto));
     }
 
-
+    @GetMapping(value = "/mandate/need-alt-account")
+    public ResponseEntity<NewAccountRequiredResponseDto> checkConsecutiveError(
+            @RequestAttribute BasicDetailsDto merchant,
+            @RequestParam(required = false) Optional<Long> merchantId) {
+        Long targetMerchantId = merchantId.orElse(merchant != null ? merchant.getId() : null);
+        log.info("Received request for consecutive error check for merchantId: {}", targetMerchantId);
+        Boolean result = autoPayUPIService.checkConsecutiveError(targetMerchantId);
+        log.info("Response for consecutive error check for merchantId: {} is: {}", targetMerchantId, result);
+        String message = result ? "Bank account change required" : "Bank account change not required";
+        NewAccountRequiredResponseDto response = NewAccountRequiredResponseDto.builder()
+                .action(result)
+                .message(message)
+                .build();
+        return ResponseEntity.ok(response);
+    }
 }
