@@ -14,6 +14,9 @@ public class EdiUtil {
     @Value("${round.down.eligible.lenders:TRILLIONLOANS}")
     private List<String> roundDownEligibleLenders;
 
+    @Value("${annual.roi.rounding.up.skip.lenders:SMFG}")
+    private List<String> annualRoiRoundingUpSkipLender;
+
     public double getEdiAfterRoundingLogic(Long applicationId, @NotNull Double edi,String lender) {
         if(roundDownEligibleLenders.contains(lender)){
             log.info("rounding-down the edi amount for application: {}, and lender: {}",applicationId , lender);
@@ -34,7 +37,10 @@ public class EdiUtil {
         }
     }
 
-    public boolean isRoundDownEligibleLender(String lender) {
+    public boolean isEligibleForRoundingUpAnnualRoi(String lender) {
+        if(annualRoiRoundingUpSkipLender.contains(lender)){
+            return false;
+        }
         return roundDownEligibleLenders.contains(lender);
     }
 }

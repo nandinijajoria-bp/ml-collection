@@ -19,6 +19,7 @@ public class EnachStateDTO {
     private String applicationId;
 
     private String enachDeeplink;
+    private NachDetail nachDetail;
     private List<EnachModeDTO> enachModes;
     private Boolean enachDone;
     private EnachErrorMessageDTO enachErrorResponse;
@@ -31,4 +32,8 @@ public class EnachStateDTO {
     private Long merchantId;
     private boolean isPaymentBank;
     private boolean hasLinkedPaymentBank;
+    private boolean isNativeMandateRequired;
+    private boolean isCurrentLoanActive;
+    private Double loanAmount;
+    private Double maxMandateAmount;
 }

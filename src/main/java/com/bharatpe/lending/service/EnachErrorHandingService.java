@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
@@ -27,6 +28,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static com.bharatpe.lending.constant.RejectionReasons.ENACH_FAILURE;
 
 @Service
 public class EnachErrorHandingService {
@@ -187,7 +190,8 @@ public class EnachErrorHandingService {
                 lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name());
                 lendingApplication.setKycApprovedDate(new Date());
                 lendingApplication.setManualKycReason("eNACH Failure");
-
+                lendingApplication.setRejectionReason(ENACH_FAILURE);
+                lendingApplication.setRejectionStage(RejectionStage.ENACH);
                 lendingApplicationDao.save(lendingApplication);
                 executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
             }
@@ -218,7 +222,8 @@ public class EnachErrorHandingService {
                 lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name());
                 lendingApplication.setKycApprovedDate(new Date());
                 lendingApplication.setManualKycReason("eNACH Failure");
-
+                lendingApplication.setRejectionReason(ENACH_FAILURE);
+                lendingApplication.setRejectionStage(RejectionStage.ENACH);
                 lendingApplicationDao.save(lendingApplication);
                 executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
             }

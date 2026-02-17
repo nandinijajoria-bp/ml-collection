@@ -17,12 +17,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 import static com.bharatpe.lending.constant.LendingConstants.UPI;
 import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
@@ -43,7 +42,13 @@ public class LendingCollectionAuditService {
     ObjectMapper objectMapper;
 
     @Value("${collection.receipt.push.realtime.topic:realtime-posting}")
-    private String realTimePostingLenderTopic;
+    String realTimePostingLenderTopic;
+
+    @Value("${collection.receipt.push.realtime.topic.low:realtime-posting-low-priority}")
+    String realTimePostingLenderTopicLowTopic;
+
+    @Value("#{'${real.time.posting.lender.low.priority:}'.split(',')}")
+    Set<String> realTimePostingLenderLowPriority;
 
     @Autowired
     @Qualifier("CollectionLowLatencyKafkaTemplate")
@@ -179,12 +184,20 @@ public class LendingCollectionAuditService {
     }
 
     public void sendReceiptPosting(long loanId) {
+        sendReceiptPosting(loanId, null);
+    }
+
+    public void sendReceiptPosting(long loanId, String lender) {
         try {
             PushReceiptKafkaMsgDto dto = PushReceiptKafkaMsgDto.builder()
                     .loanId(loanId)
                     .build();
             log.info("Sending receipt posting for loan id {}", dto);
-            confluentKafkaTemplate.send(realTimePostingLenderTopic, objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
+            String topic = realTimePostingLenderTopic;
+            if(!StringUtils.isEmpty(lender) && !CollectionUtils.isEmpty(realTimePostingLenderLowPriority) && realTimePostingLenderLowPriority.contains(lender)){
+                topic = realTimePostingLenderTopicLowTopic;
+            }
+            confluentKafkaTemplate.send(topic, objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
         } catch (Exception e) {
             log.error("sendReceiptPosting exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }

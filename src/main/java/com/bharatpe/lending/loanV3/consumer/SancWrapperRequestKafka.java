@@ -176,7 +176,7 @@ public class SancWrapperRequestKafka {
             SanctionCallbackResponseDto.Data data = sanctionCallbackResponseDto.getData().getData();
             LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(sanctionCallbackResponseDto.getLender()),LenderAssociationStages.SANCTION_WRAPPER);
             existingLendingApplicationLenderDetails.setStage(nextStage.name());
-            existingLendingApplicationLenderDetails.setAccountState(data.getAccountState());
+//            existingLendingApplicationLenderDetails.setAccountState(data.getAccountState());
             existingLendingApplicationLenderDetails.setKycMode(data.getKycMode());
             existingLendingApplicationLenderDetails.setDealGenerationTimestamp(new Date());
             existingLendingApplicationLenderDetails.setApprovedOfferLimit(Double.valueOf(data.getApprovedOfferLimit()));

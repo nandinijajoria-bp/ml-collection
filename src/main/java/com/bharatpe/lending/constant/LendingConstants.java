@@ -42,6 +42,11 @@ public interface LendingConstants {
 	String ENACH_BANK_MESSAGE="<p class='inel-note'>Note: Your Bank A/C is not eNACH-able and our lending partners don’t process a loan application in this Bank A/C. Please change your Bank A/C by clicking <b>here</b> and try again.</p>";
 	String BANK_CHANGE_DEEPLINK="bharatpe://dynamic?key=add-bank-account&wroute=easy-loans";
 	String COLLECT_VPA_CREATE_TXN_URL = "/startTxn";
+	String OWNER_ID = "ownerId";
+	String MERCHANT_ID = "merchant_id";
+	String MANDATE_ID = "mandate_id";
+	String MANDATE_NACH_STATUS = "mandate_nach_status";
+	String MANDATE_STATUS = "mandate_status";
 	long MAX_MERCHANT_REFERENCES_ALLOWED = 3L;
 	String MANDATE_TYPE_KEY = "mandate_type";
 
@@ -90,6 +95,9 @@ public interface LendingConstants {
 	String GET_MERCHANTS_REFERENCES_CACHE_KEY = "MERCHANT_REFERENCES_FROM_DE_";
 	String INITIATE_KYC_CACHE_KEYWORD = "INITIATE_KYC_CALLED_";
 
+	int DAYS_IN_YEAR_365 = 365;
+	int DAYS_IN_YEAR_360 = 360;
+
 	String ELIGIBILITY_IFRAME_KYC_CACHE_KEYWORD = "ELIGIBILITY_IFRAME_";
 	String HOMEPAGE_CARD_CACHE_KEYWORD = "HOMEPAGE_CARD_";
 	String POA_PROVIDER = "DIGIO";
@@ -129,6 +137,7 @@ public interface LendingConstants {
 	String NACH_BOUNCE_PENALTY_FEE = "NACH BOUNCE PENALTY FEE";
 	String PENALTY_TXN_TYPE = "Penalty";
 	String NACH_BOUNCE_TXN_TYPE = "NACH Bounce";
+	String NACH_TYPE = "ENACH";
 
 	Map<String , List<String>> ResubmitReasonMap = new HashMap<String , List<String>>() {{
 		put("SHOP_PHOTO", Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
@@ -233,6 +242,11 @@ public interface LendingConstants {
 	}};
 
 	List<String> TPV_500_IDENTIFIERS = Collections.unmodifiableList(Arrays.asList("Inactive_lowTPV_SMS","Active_lowTPV_SMS"));
+	int PENNYDROP_MAX_ATTEMPTS = 5;
+    Double MIN_TOPUP_ROUNDOFF = 1000.0;
+    Double MAX_TOPUP_ROUNDOFF = 5000.0;
+    Double TOPUP_ROUNDOFF_AMOUNT = 25000.0;
+	Double MAX_MANDATE_AMOUNT= 15000.0;
 
 }
 

@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.enums.LMSPaymentStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.lms.client.LendingPlatformHttpClient;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.lendingplatform.lms.dto.request.PaymentAsynchronousRequest;
@@ -39,11 +40,12 @@ public class PaymentAsynchronousService {
             LendingPaymentSchedule activeLoan, Double amount, String source, String terminalOrderId, Long orderId, boolean foreClosure) {
         try {
             LendingApplication lendingApplication = loanDetailsService.getLendingApplicationByApplicationId(activeLoan.getApplicationId());
-            BankDetailsDto merchantBankDetail = loanDetailsService.getMerchantBankDetails(activeLoan.getMerchantId()); //Fetching bank details form Merchant service
             LendingApplicationLenderDetails lald = loanDetailsService.getLenderDetails(lendingApplication.getId(), lendingApplication.getLender());
 
             LmsPaymentDetails lmsPaymentDetails =
                     insertTransactionRecord(lendingApplication, amount, source, terminalOrderId);
+
+            BankDetailsDto merchantBankDetail = loanDetailsService.getMerchantBankDetails(activeLoan.getMerchantId()); //Fetching bank details from Merchant service
 
             PaymentAsynchronousRequest paymentAsynchronousRequest = getPaymentAsynchronousRequest(
                     amount, source, terminalOrderId, lendingApplication, merchantBankDetail, lald, new Date(), orderId, foreClosure);
@@ -113,7 +115,10 @@ public class PaymentAsynchronousService {
     private PaymentAsynchronousRequest getPaymentAsynchronousRequest(
             Double amount, String source, String terminalOrderId, LendingApplication lendingApplication, BankDetailsDto merchantBankDetail, LendingApplicationLenderDetails lald, Date transferDate, Long orderId, boolean foreclosureEligibility) {
         double foreclosureCharges = 0;
-        LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        LoanForeClosureCharges loanForeClosureCharges = null;
+        if(!LoanType.TOPUP.name().equals(source)) {
+            loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        }
         if(!ObjectUtils.isEmpty(loanForeClosureCharges)){
             log.info("Foreclosure charges table found for orderId; {}", orderId);
             foreclosureCharges = loanForeClosureCharges.getAmount() + loanForeClosureCharges.getTax();

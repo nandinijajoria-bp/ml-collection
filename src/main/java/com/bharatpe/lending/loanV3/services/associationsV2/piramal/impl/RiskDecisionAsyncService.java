@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -32,6 +33,7 @@ import java.util.*;
 
 import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_PERCENTAGE;
 import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_THRESHOLD;
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_FAILED_BRE;
 
 
 @Service
@@ -129,6 +131,9 @@ public class RiskDecisionAsyncService {
                         log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForecosureThreshodAmountCheck, applicationId);
                         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
                         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                        lendingApplication.setRejectionReason(LENDER_FAILED_BRE);
+                        lendingApplication.setRejectionStage(RejectionStage.BRE);
+                        lenderAssociationDetailsRequestDto.setLendingApplication(lendingApplication);
                         commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
                     }
                     return;

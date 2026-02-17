@@ -29,8 +29,10 @@ public class LoanDashboardController {
 
     @GetMapping(value = "/v2/loan-dashboard-details", produces="application/json")
     public ResponseEntity<ApiResponse<?>> getLoanDashboardDetails(@RequestAttribute BasicDetailsDto merchant,
-                                                                  @RequestHeader(required = false) String token) throws IOException {
-        return ResponseEntity.ok().body(new ApiResponse<>(loanDashboardService.fetchLoanDashboardDetailsResponse(merchant, token)));
+                                                                  @RequestHeader(required = false) String token,
+                                                                  @RequestParam(required = false, defaultValue = "false") Boolean isIOS,
+                                                                  @RequestParam(required = false) Integer appVersion) throws IOException {
+        return ResponseEntity.ok().body(new ApiResponse<>(loanDashboardService.fetchLoanDashboardDetailsResponse(merchant, token, isIOS, appVersion)));
     }
 
     @GetMapping(value = "/v1/loan/status", produces = "application/json")

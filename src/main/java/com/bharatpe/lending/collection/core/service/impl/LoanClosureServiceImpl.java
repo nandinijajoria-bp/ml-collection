@@ -8,8 +8,10 @@ import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.dao.ForeClosureAmountInfoDao;
+import com.bharatpe.lending.common.dao.LendingCollectionAuditDao;
 import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.service.NBFCService;
 import com.bharatpe.lending.common.entity.ForeClosureAmountInfo;
@@ -52,6 +54,9 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     @Autowired
     LenderForeclosureCachingService lenderForeclosureCachingService;
 
+    @Autowired
+    LendingCollectionAuditDao lendingCollectionAuditDao;
+
     @Override
     public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
         log.info("inside close loan and update lender for loanId {} orderId {} ",loan.getId(),loanClosureDTO.getOrderId());
@@ -78,6 +83,9 @@ public class LoanClosureServiceImpl implements LoanClosureService {
 
 
     private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
+
+        markingLCAForeclosureEntryAsSuccess(activeLoan, lendingLedger);
+
         lenderForeclosureCachingService.evictLenderForeclosureDetailsCache(activeLoan.getNbfc(), activeLoan.getApplicationId());
         Long orderId = loanClosureDTO.getOrderId();
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
@@ -94,7 +102,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
             loanClosurePostingService.sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger, orderId);
         } else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
             loanClosurePostingService.postForeclosureReceiptPiramal(activeLoan, lendingLedger, loanClosureDTO);
-        } else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", "SMFG", Lender.UGRO.name()).contains(activeLoan.getNbfc())) {
+        } else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", "SMFG", Lender.UGRO.name(), Lender.MUTHOOT.name()).contains(activeLoan.getNbfc())) {
             loanClosurePostingService.postForeclosureReceipt(activeLoan, lendingLedger);
         } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())) {
             loanClosurePostingService.sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
@@ -112,6 +120,18 @@ public class LoanClosureServiceImpl implements LoanClosureService {
         Long merchantId = activeLoan.getMerchantId();
         log.info("sending loan flag event in adjustLoanBalance for merchantId : {}",merchantId);
         sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
+    }
+
+    private void markingLCAForeclosureEntryAsSuccess(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
+        List<LendingCollectionAudit> lendingCollectionAuditList = lendingCollectionAuditDao.getAllByLoanIdAndStatus(activeLoan.getId(), "PENDING");
+        for(LendingCollectionAudit lendingCollectionAudit : lendingCollectionAuditList){
+            if("PAYIN".equalsIgnoreCase(lendingCollectionAudit.getTxnType())
+                    && lendingCollectionAudit.getTerminalOrderId().equalsIgnoreCase(lendingLedger.getTerminalOrderId())){
+                lendingCollectionAudit.setStatus("SUCCESS");
+                lendingCollectionAuditDao.save(lendingCollectionAudit);
+                log.info("Marking foreclosure lending collection audit entry as SUCCESS: {}", lendingCollectionAudit.getId());
+            }
+        }
     }
 
     public void updateForeclosureChargesStatus(String status, Long orderId) {

@@ -11,7 +11,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TLCreateClientRequestDto {
 
-    private Long clientId;
+    private String clientId;
     private ClientDetails clientDetails;
 
     @Data
@@ -94,5 +94,29 @@ public class TLCreateClientRequestDto {
         private Double monthlySalary;
         private Integer totalWorkExperience;
         private String currentEmployerName;
+    }
+
+    private List<AdditionalDetails> additionalDetails;
+
+    @Data
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class AdditionalDetails {
+        private String dataTableName;
+        private String appTable;
+        private String subIndustry;
+        private String industry;
+        private String businessType;
+        private String businessAddress;
+        private String state;
+        private String city;
+        private String country;
+        private Long postalCode;
+        private String businessAddressType;
+        private String gstNumber;
+        private String businessDocument;
+        private String legalName;
+        private String tradeName;
+        private String bankBeneName;
     }
 }

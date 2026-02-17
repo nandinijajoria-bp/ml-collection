@@ -27,6 +27,8 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.*;
 
+import static com.bharatpe.lending.enums.Lender.MUTHOOT;
+
 @Slf4j
 @Service
 public class InvokeLeadWrapperService {
@@ -65,7 +67,7 @@ public class InvokeLeadWrapperService {
             LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
             lenderAssociationDetailsRequestDto.setApplicationId(applicationId);
             lenderAssociationDetailsRequestDto.setManageState(true);
-            runBaseChecksAndCreateRecord(lenderAssociationDetailsRequestDto);
+            String lender = runBaseChecksAndCreateRecord(lenderAssociationDetailsRequestDto);
             if (ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails())) {
                 log.info("no record found in lendingApplicationLenderDetails for applicationId {} with lender {}", applicationId, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
                 MDC.clear();
@@ -84,7 +86,7 @@ public class InvokeLeadWrapperService {
                 MDC.clear();
                 return;
             }
-            if(!eligibleForSkipKyc && !eligibleForLenderKyc) {
+            if(!eligibleForSkipKyc && !eligibleForLenderKyc && !MUTHOOT.name().equalsIgnoreCase(lender)) {
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
             }
             MDC.clear();
@@ -94,12 +96,12 @@ public class InvokeLeadWrapperService {
         }
     }
 
-    public void runBaseChecksAndCreateRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+    public String runBaseChecksAndCreateRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lenderAssociationDetailsDto.getApplicationId());
         log.info("lending application {}", lendingApplication.get());
         if (ObjectUtils.isEmpty(lendingApplication.get())) {
             log.info("no application found for {}", lenderAssociationDetailsDto.getApplicationId());
-            return;
+            return "";
         }
         lenderAssociationDetailsDto.setLendingApplication(lendingApplication.get());
         lenderAssociationDetailsDto.setMerchantId(lendingApplication.get().getMerchantId());
@@ -114,6 +116,7 @@ public class InvokeLeadWrapperService {
             lendingApplicationLenderDetails = createLenderRecord(lendingApplication.get(), LenderAssociationStages.LEAD_WRAPPER.name(), Status.ACTIVE.name());
         }
         lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+        return lendingApplicationLenderDetails.getLender();
     }
 
     private LendingApplicationLenderDetails createLenderRecord(LendingApplication lendingApplication, String stage, String recordStatus) {
@@ -125,7 +128,7 @@ public class InvokeLeadWrapperService {
         lendingApplicationLenderDetails.setStatus(recordStatus);
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
-        df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
+        df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
         if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             df = new DecimalFormat("#.######");
         }
@@ -160,6 +163,7 @@ public class InvokeLeadWrapperService {
             case CAPRI:
                 return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name());
             case MUTHOOT:
+                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.DEDUPE_CHECK.name());
             case PAYU:
                 return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name());
             case CREDITSAISON:

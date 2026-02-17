@@ -150,6 +150,12 @@ public class PayUUpdateLeadRequestDTO {
 
         @JsonProperty("partner_vintage")
         private String partnerVintage;
+
+        @JsonProperty("category")
+        private String category;
+
+        @JsonProperty("sub_category")
+        private String subCategory;
     }
 
     @Data

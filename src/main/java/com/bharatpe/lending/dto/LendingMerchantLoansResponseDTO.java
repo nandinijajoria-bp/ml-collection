@@ -23,11 +23,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ObjectUtils;
 
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static com.bharatpe.lending.lendingplatform.lms.util.ConversionUtil.safeBigDecimalToDouble;
+import static com.bharatpe.lending.lendingplatform.lms.util.ConversionUtil.safeBigDecimalToInt;
 
 @Slf4j
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -131,6 +135,7 @@ public class LendingMerchantLoansResponseDTO extends TopupEligibilityResponseDat
     public static class Loan {
 
         private String presentmentStatus;
+        private String failureReason;
         private Double presentmentAmount;
         private Long applicationId;
         private Long loanId;
@@ -380,12 +385,12 @@ public class LendingMerchantLoansResponseDTO extends TopupEligibilityResponseDat
     }
 
     private void updateFromLoanSummary(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse.LoanSummary loanSummary, LendingPaymentSchedule lpsTable) {
-        loan.setEdiAmount((double) loanSummary.getInstalmentAmountAsInt());
-        loan.setDueAmount((double) loanSummary.getOverdueInstalmentAmountAsInt());
-        loan.setPendingAmount((double) loanSummary.getPendingInstalmentAmountAsInt());
-        loan.setPaidPrinciple((double) loanSummary.getPaidPrincipalAmountAsInt());
-        loan.setPaidAmount((double) loanSummary.getTotalPaidAmountAsInt());
-        loan.setDuePenalty(loanSummary.getPaidPenalChargesAsInt());
+        loan.setEdiAmount(Math.ceil(safeBigDecimalToDouble(loanSummary.getInstalmentAmount())));
+        loan.setDueAmount(Math.ceil(safeBigDecimalToDouble(loanSummary.getOverdueInstalmentAmount())));
+        loan.setPendingAmount(Math.ceil(safeBigDecimalToDouble(loanSummary.getPendingInstalmentAmount())));
+        loan.setPaidPrinciple((double) safeBigDecimalToInt(loanSummary.getPaidPrincipalAmount()));
+        loan.setPaidAmount((double) safeBigDecimalToInt(loanSummary.getTotalPaidAmount()));
+        loan.setDuePenalty(loanSummary.calculateDuePenaltyAsDouble(true));
     }
 
     private double calculateRepaymentAmount(LoanDetailsResponse.LoanSummary loanSummary) {

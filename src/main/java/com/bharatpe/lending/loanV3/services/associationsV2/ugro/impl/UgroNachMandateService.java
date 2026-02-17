@@ -1,13 +1,13 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.enums.MandateType;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.MandateUtil;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -40,7 +40,7 @@ public class UgroNachMandateService {
     UgroPayloadValidation payloadValidation;
 
     @Autowired
-    EnachHandler enachHandler;
+    MandateUtil mandateUtil;
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
@@ -83,10 +83,8 @@ public class UgroNachMandateService {
     private NBFCRequestDTO<?> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
-            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             UgroNachMandateRequest mandateDetails = null;
-            Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
-            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
+            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = mandateUtil.getMandateDetails(lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getLender());
             if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                 mandateDetails = UgroNachMandateRequest.builder()
                         .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
@@ -104,6 +102,15 @@ public class UgroNachMandateService {
                         .vendorRequestId(merchantNachDetailsResponseDTO.getMandateId())
                         .status(ugroConfig.getNachStatus())
                         .build();
+                if (MandateType.UPIAUTOPAY.name().equalsIgnoreCase(merchantNachDetailsResponseDTO.getMandateType())) {
+                    mandateDetails.setEndDate(String.valueOf(merchantNachDetailsResponseDTO.getEndDate().getTime()));
+                    mandateDetails.setMaxAmount(15000D);
+                    mandateDetails.setNachMode("UPI_AUTOPAY");
+                    mandateDetails.setNachVendor(getNachVendorForAutopay(merchantNachDetailsResponseDTO.getProvider()));
+                    mandateDetails.setVendorRequestId(null);
+                    mandateDetails.setAuthorisationMode(null);
+                    mandateDetails.setMandateID(merchantNachDetailsResponseDTO.getMandateId());
+                }
             }
             if (payloadValidation.isInvalidNachMandatePayload(mandateDetails)) {
                 log.info("UGRO: error in getting mandate details payload for merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
@@ -126,6 +133,16 @@ public class UgroNachMandateService {
             return ugroConfig.getAadhaarEnachMode();
         } else {
             return EnachMode.NB_DC.name();
+        }
+    }
+
+    private String getNachVendorForAutopay(String mode) {
+        switch (mode) {
+            case "DR_CASHFREE":
+            case "JS_CASHFREE":
+                return "CASHFREE";
+            default:
+                return mode;
         }
     }
 }

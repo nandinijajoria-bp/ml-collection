@@ -32,7 +32,7 @@ import org.springframework.util.StringUtils;
 
 import java.io.FileNotFoundException;
 import java.math.BigDecimal;
-import java.sql.Date;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -83,9 +83,9 @@ public class LmsLoanCreationService {
 
     public boolean processLoanRequest(LendingApplication lendingApplication,
                                    LendingPaymentSchedule lendingPaymentSchedule,
-                                   Map<String, Object> disbursalResponseMap) {
+                                   Map<String, Object> disbursalResponseMap, Date disbursalDate) {
         try {
-            CreateLoanRequest createLoanRequest = mapCreateLoanRequest(lendingApplication, lendingPaymentSchedule);
+            CreateLoanRequest createLoanRequest = mapCreateLoanRequest(lendingApplication, lendingPaymentSchedule, disbursalDate);
             ApiResponse<CreateLoanResponse> createLoanResponse = lendingPlatformHttpClient.sendPostRequest(
                     CREATE_LOAN, createLoanRequest, CreateLoanResponse.class);
 
@@ -171,7 +171,7 @@ public class LmsLoanCreationService {
     }
 
     private CreateLoanRequest mapCreateLoanRequest(LendingApplication lendingApplication,
-                                                   LendingPaymentSchedule lendingPaymentSchedule) throws FileNotFoundException {
+                                                   LendingPaymentSchedule lendingPaymentSchedule, Date disbursalDate) throws FileNotFoundException {
         log.info("mapping create loan request. BP Loan ID: {}", lendingApplication.getExternalLoanId());
 
         LendingApplicationLenderDetails lenderDetails = lmsLoandetailsservice.getLenderDetails(lendingApplication.getId(), lendingApplication.getLender());
@@ -190,7 +190,7 @@ public class LmsLoanCreationService {
 
         LendingApplicationKycDetails lendingApplicationKycDetails = lmsLoandetailsservice.getKycDetails(lendingApplication.getId());
 
-        CreateLoanRequest.LoanDetails loanDetails = getLoanDetails(lendingApplication, annualRoi);
+        CreateLoanRequest.LoanDetails loanDetails = getLoanDetails(lendingApplication, annualRoi, disbursalDate);
         CreateLoanRequest.CustomerDetails customerDetails = getCustomerDetails(lendingApplication, merchantBankDetail, cKycResponseDto, lendingPaymentSchedule, lendingApplicationKycDetails);
         CreateLoanRequest.NBFCDetails nbfcDetails = getNbfcDetails(lendingApplication.getNbfcId(), lenderDetails.getLeadId());
         CreateLoanRequest.MandateDetails mandateDetails = getMandateDetails(lendingApplication);
@@ -202,6 +202,7 @@ public class LmsLoanCreationService {
 
         return CreateLoanRequest.builder()
                 .bpLoanId(lendingApplication.getExternalLoanId())
+                .applicationId(lendingApplication.getId().toString())
                 .productName(lendingApplication.getLender())
                 .loanDetails(loanDetails)
                 .customerDetails(customerDetails)
@@ -226,10 +227,10 @@ public class LmsLoanCreationService {
     }
 
     private CreateLoanRequest.LoanDetails getLoanDetails(LendingApplication lendingApplication,
-                                                         Double annualRoi) {
+                                                         Double annualRoi,Date disbursalDate) {
         try {
-            log.info("Disbursed Timestamp {}", lendingApplication.getDisburseTimestamp());
-            LocalDate disburseLocalDate = lendingApplication.getDisburseTimestamp().toInstant()
+            log.info("Disbursed Timestamp {}", disbursalDate);
+            LocalDate disburseLocalDate = disbursalDate.toInstant()
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate();
 
@@ -445,7 +446,7 @@ public class LmsLoanCreationService {
             MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = lmsLoandetailsservice.getMandateDetails(lendingApplication);
             return CreateLoanRequest.MandateDetails.builder()
                     .mandateAmount(String.valueOf(merchantNachDetailsResponseDTO.getNachAmount()))
-                    .mandateEndDate(Date.valueOf("2027-11-01"))
+                    .mandateEndDate(new SimpleDateFormat("yyyy-MM-dd").parse("2027-11-01"))
                     .mandateStartDate(merchantNachDetailsResponseDTO.getStartDate())
                     .mandateId(merchantNachDetailsResponseDTO.getMandateId())
                     .umrn(merchantNachDetailsResponseDTO.getProviderUmrn())
@@ -457,5 +458,4 @@ public class LmsLoanCreationService {
         }
         return null;
     }
-
 }

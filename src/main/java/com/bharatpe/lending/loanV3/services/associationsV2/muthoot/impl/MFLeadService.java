@@ -3,11 +3,13 @@ package com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingLoanInsuranceDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingLoanInsurance;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -15,6 +17,7 @@ import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
@@ -38,6 +41,8 @@ import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.util.*;
+
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 
 @Slf4j
 @Service
@@ -75,6 +80,11 @@ public class MFLeadService {
     @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    LendingLoanInsuranceDao lendingLoanInsuranceDao;
+
+    private static final String TOPUP = "Topup";
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -205,6 +215,10 @@ public class MFLeadService {
                                 .build())
                         .consents(getConsents(lendingApplication))
                         .build();
+
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                    payload.setAdditionalData(new MFUpdateLeadRequestDTO.AdditionalData(TOPUP));
+                }
             } else {
                 payload = MFUpdateLeadRequestDTO.builder()
                         .customerID(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
@@ -212,6 +226,7 @@ public class MFLeadService {
                         .basicDetails(MFUpdateLeadRequestDTO.BasicDetail.builder()
                                 .businessDetails(getBusinessAddress(lendingApplication))
                                 .build())
+                        .consents(getConsents(lendingApplication))
                         .mandateDetails(getMandateDetails(lendingApplication))
                         .build();
                 if(leadPayloadValidation.isInValidUpdateLeadPayload(payload)){
@@ -261,13 +276,24 @@ public class MFLeadService {
     }
 
     private List<MFUpdateLeadRequestDTO.Consent> getConsents(LendingApplication lendingApplication) {
+        LendingLoanInsurance lendingLoanInsurance = lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
+                lendingApplication.getId(), lendingApplication.getLender(), SELECTED);
+
         List<MFUpdateLeadRequestDTO.Consent> consents = new ArrayList<>();
+
+        String bodyText;
+        if (ObjectUtils.isEmpty(lendingLoanInsurance)) {
+            bodyText = "CKYC - I agree to sharing my KYC information with Bharatpe’s lending and other financial services partners; BUREAU - I agree to avail the loan facilitation services offered by Resilient Digi Services Private Limited (RDSPL) through RBI registered NBFC/Banks and further authorize and appoint RDSPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RDSPL to obtain my credit information from the credit bureaus; PRIVACY_POLICY - Please read our Privacy policy and Terms & Conditions; TNC - By clicking on I Agree, I accept the Key Facts Statement, Sanction and loan agreement, Privacy Policy and Terms & Conditions of LSP";
+        } else {
+            bodyText = "CKYC - I agree to sharing my KYC information with Bharatpe’s lending and other financial services partners; BUREAU - I agree to avail the loan facilitation services offered by Resilient Digi Services Private Limited (RDSPL) through RBI registered NBFC/Banks and further authorize and appoint RDSPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RDSPL to obtain my credit information from the credit bureaus; PRIVACY_POLICY - Please read our Privacy policy and Terms & Conditions; TNC - By clicking on I Agree, I accept the Key Facts Statement, Sanction and loan agreement, Privacy Policy and Terms & Conditions of LSP; INSURANCE - I hereby provide my explicit and voluntary consent to avail a comprehensive and composite group insurance policy being offered by the insurer. I acknowledge that the insurance cover is optional and not a pre-condition for sanction, disbursal, or continuation of my loan. I am opting for this insurance cover of my own free will and after understanding the benefits, terms, premium amount, and coverage details. I authorize the lender to share my required personal and loan-related information with the insurer and/or insurance intermediaries solely for the purpose of policy issuance, administration, servicing, and claims processing. I agree to Muthootfincorp terms-and-conditions, Muthootfincorp Privacy Policy, Acko Insurance terms-and-conditions, Acko Insurance privacy-policy. I understand that refusal to opt for insurance shall not affect my loan eligibility, terms, or service from the lender in any manner.";
+        }
+
         consents.add(MFUpdateLeadRequestDTO.Consent.builder()
                 .type("HYBRID_CONSENT")
                 .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
                 .ipAddress(lendingApplication.getIp())
                 .url("")
-                .body("CKYC - I agree to sharing my KYC information with Bharatpe’s lending and other financial services partners; BUREAU - I agree to avail the loan facilitation services offered by Resilient Digi Services Private Limited (RDSPL) through RBI registered NBFC/Banks and further authorize and appoint RDSPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RDSPL to obtain my credit information from the credit bureaus; PRIVACY_POLICY - Please read our Privacy policy and Terms & Conditions; TNC - By clicking on I Agree, I accept the Key Facts Statement, Sanction and loan agreement, Privacy Policy and Terms & Conditions of LSP")
+                .body(bodyText)
                 .build());
         return consents;
     }

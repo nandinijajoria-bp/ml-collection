@@ -34,6 +34,7 @@ public class BharatPeOtpHandler{
     RestTemplate restTemplate;
     private final String CLIENT = "LENDING";
     private static String clientSecret;
+    private static final String OTP_RETRY_EXHAUSTED_CODE = "19";
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -70,16 +71,33 @@ public class BharatPeOtpHandler{
                 logger.info("Bharatpe send otp Request: {}, URL: {}",request,Objects.requireNonNull(env.getProperty("lending.otp.endpoint")));
                 ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.otp.endpoint")), HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
                 logger.info("Bharatpe send otp Response: {}", responseEntity);
-                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("status")!=null && responseEntity.getBody().get("status").equals("success")) {
-                    response.put("success", Boolean.TRUE);
-                    Map<String, Object> body = responseEntity.getBody();
-                    Map<String, Object> data = (Map<String, Object>) body.get("data");
-                    response.put("uuid", data.get("mobileuuid"));
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null) {
+                    if (responseEntity.getBody().get("status") != null && responseEntity.getBody().get("status").equals("success")) {
+                        response.put("success", Boolean.TRUE);
+                        Map<String, Object> body = responseEntity.getBody();
+                        Map<String, Object> data = (Map<String, Object>) body.get("data");
+                        response.put("uuid", data.get("mobileuuid"));
+                    } else if (responseEntity.getBody().get("error") != null) {
+                        Map<String, Object> body = responseEntity.getBody();
+                        Map<String, Object> error = (Map<String, Object>) body.get("error");
+                        if (error.get("code") != null && OTP_RETRY_EXHAUSTED_CODE.equals(String.valueOf(error.get("code")))) {
+                            response.put("otp_retry_exhausted", Boolean.TRUE);
+                        }
+                        response.put("otp_generation_failed", Boolean.TRUE);
+                        response.put("success", Boolean.FALSE);
+                        response.put("message", error.get("message"));
+                    } else {
+                        response.put("success", Boolean.FALSE);
+                        response.put("otp_generation_failed", Boolean.TRUE);
+                        response.put("message", "Error while sending otp");
+                    }
                 }
-
             }
             catch(Exception e) {
                 logger.error("Error occurred while generating otp", e);
+                response.put("success", Boolean.FALSE);
+                response.put("otp_generation_failed", Boolean.TRUE);
+                response.put("message", "Error while sending otp");
             }
         return response;
 

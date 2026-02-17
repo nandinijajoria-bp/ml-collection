@@ -58,6 +58,10 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
 
     List<LendingLedger> findByLendingPaymentScheduleOrderByDateAsc(LendingPaymentSchedule lendingPaymentSchedule);
 
+    @Query(nativeQuery = true, value = "select * from lending_ledger WHERE loan_id=:loanId order by id desc limit 7")
+    List<LendingLedger> findByLendingPaymentScheduleOrderByDateAsc(Long loanId);
+
+
     @Query(value = "select * from lending_ledger where amount > 0 and created_at > :date and merchant_id = :merchantId", nativeQuery = true)
     LendingLedger findLastLedgerEntry(Long merchantId, Date date);
 
@@ -113,4 +117,9 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
     @Query(value = "SELECT * FROM lending_ledger WHERE loan_id = :lpsId AND created_at >= :date ORDER BY id DESC", nativeQuery = true)
     List<LendingLedger> findAdvanceEdiLedgerList(Long lpsId, Date date);
 
+    @Query(value = "SELECT * FROM lending_ledger WHERE merchant_id = :id AND amount > 0 AND date >= :date ORDER BY date DESC", nativeQuery = true)
+    List<LendingLedger> findByMerchantIdAndDateAfter(Long id, Date date);
+
+    @Query(value = "SELECT * FROM lending_ledger WHERE loan_id = :lpsId AND amount > 0 AND created_at >= :date ORDER BY id DESC", nativeQuery = true)
+    List<LendingLedger> findByLpsIdAndCreatedAtAfter(Long lpsId, Date date);
 }

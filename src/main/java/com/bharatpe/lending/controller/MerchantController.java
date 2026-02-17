@@ -2,12 +2,15 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
 import com.bharatpe.lending.common.dao.LendingPincodesDao;
+import com.bharatpe.lending.common.dto.MerchantListBankResponseDto;
 import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ErrorMessages;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BusinessDetailsDTO;
+import com.bharatpe.lending.service.MerchantJourneyService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -22,13 +25,16 @@ import java.util.Map;
 public class MerchantController {
 
     @Autowired
-    MerchantService merchantService;
+    private MerchantService merchantService;
 
     @Autowired
-    LendingPincodesDao lendingPincodesDao;
+    private LendingPincodesDao lendingPincodesDao;
 
     @Autowired
-    LendingMerchantDetailsDao lendingMerchantDetailsDao;
+    private  LendingMerchantDetailsDao lendingMerchantDetailsDao;
+
+    @Autowired
+    private MerchantJourneyService merchantJourneyService;
 
     /**
      * Add Merchant Address
@@ -126,5 +132,11 @@ public class MerchantController {
     private ResponseEntity<Object> buildErrorResponse(String errorCode, String errorMessage) {
         log.warn("Error occurred: {} - {}", errorCode, errorMessage);
         return ResponseEntity.badRequest().body(Map.of("errorCode", errorCode, "errorMessage", errorMessage));
+    }
+
+    @GetMapping("/bankslist")
+    public ResponseEntity<MerchantListBankResponseDto> listBanks(@RequestHeader String token,
+                                                                 @RequestAttribute BasicDetailsDto merchant) {
+        return ResponseEntity.ok(merchantJourneyService.getBankList(token, merchant));
     }
 }

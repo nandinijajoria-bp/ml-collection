@@ -220,7 +220,7 @@ public class LanguageService {
     public String getVernacLanguage(String lender, String loanType, Long merchantId) {
         String language="";
         boolean vernacularDocLanguageDisabled = false;
-        if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(loanType)) {
+        if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(loanType)) {
             vernacularDocLanguageDisabled = true;
         }
 

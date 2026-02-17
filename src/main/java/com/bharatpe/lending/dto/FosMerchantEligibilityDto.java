@@ -21,6 +21,7 @@ public class FosMerchantEligibilityDto {
     int nachTask;
     int autoPayTask;
     UpgradeLoanOfferEligibility upgradeLoanOfferEligibility;
+    EmiTaskEligibility emiTaskEligibility;
 
     @Data
     @Builder
@@ -31,5 +32,15 @@ public class FosMerchantEligibilityDto {
         Boolean BsActive;
         Boolean AaActive;
         Boolean gst3bActive;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class EmiTaskEligibility {
+        String emiEligibility;
+        int emiNachTask;
+        String emiStatus;
     }
 }

@@ -7,6 +7,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
@@ -169,9 +170,27 @@ public abstract class LendingApplicationServiceV3Base {
             return new ApiResponse<>(false, "lending application details not found");
         }
         if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
+            List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), "INACTIVE");
+            LendingAuditTrial lendingAuditTrial= lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(currentDraftApplication.getId(),
+                    merchantId, currentDraftApplication.getLoanAmount(), currentDraftApplication.getTenureInMonths(), "ELIGIBLE_LENDERS");
+
+            List<String> eligibleLendersList = new ArrayList<>();
+
+            if(lendingAuditTrial != null && lendingAuditTrial.getRemarks() != null){
+                String[] eligibleLendersArray = lendingAuditTrial.getRemarks().split(",");
+                eligibleLendersList = new ArrayList<>(Arrays.asList(eligibleLendersArray));
+                eligibleLendersList.removeAll(alreadyAssignedLender);
+                log.info("Eligible lenders list from audit trial for applicationId {} is {}", currentDraftApplication.getId(), eligibleLendersList);
+            }
+
+            if(eligibleLendersList.isEmpty())
+            {   log.info("alreadyAssignedLender: {}, lendingAuditTrial: {} for merchantId: {}", alreadyAssignedLender, lendingAuditTrial, merchantId);
+                handleMaxLenderAttemptsReached(currentDraftApplication, merchantId.toString());
+            }
             if(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))) {
                 log.info("Lender aggregation flow in progress for applicationId {}", currentDraftApplication.getId());
                 lendingApplicationDetails.setApplicationViewState(LendingViewStates.OFFER_EVALUATION_PAGE.name());
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
             }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
@@ -183,6 +202,8 @@ public abstract class LendingApplicationServiceV3Base {
                             !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreenV2(currentDraftApplication.getId(), merchantId))
                     )
                     .applicationId(currentDraftApplication.getId())
+                    .prevLender(getPrevLender(currentDraftApplication))
+                    .eligibleLenders(eligibleLendersList != null ? eligibleLendersList : Collections.emptyList())
                     .build());
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
@@ -323,10 +344,29 @@ public abstract class LendingApplicationServiceV3Base {
                         .lenderKycRetry(LenderAssociationStatus.EKYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()))
                         .applicationId(currentDraftApplication.getId())
                         .build());
+            } else if(LenderAssociationStages.PENNY_DROP.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                log.info("Lender assoc at PENNY_DROP for applicationId {}", currentDraftApplication.getId());
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getPennyDropStatus()).orElse(LenderAssociationStatus.PENNY_DROP_PENDING.name())))
+                        .stage(LenderAssociationStages.PENNY_DROP)
+                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                        .lender(currentDraftApplication.getLender())
+                        .applicationId(currentDraftApplication.getId())
+                        .build());
             }
         }
         return new ApiResponse<>(false, "something went wrong");
     }
+
+    private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
+        log.info("Max lender attempts reached for merchant: {}", merchantId);
+        lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setRejectionReason("Max lender selection attempts reached");
+        lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+        lendingApplicationDao.save(lendingApplication);
+    }
+
 
     public Boolean checkForBPKycRequired(LendingApplication currentDraftApplication, LenderAssociationStages stage) {
         Boolean lenderKycPipe = kycUtils.isEligibleForLenderKyc(currentDraftApplication.getLender(), currentDraftApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType()));
@@ -454,7 +494,7 @@ public abstract class LendingApplicationServiceV3Base {
                     lendingApplicationLenderDetails.get().setAnnualRoi(null);
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails.get());
                     DecimalFormat df = new DecimalFormat("#.##");
-                    df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
+                    df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                     if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.get().getLender())) {
                         df = new DecimalFormat("#.######");
                     }
@@ -678,8 +718,15 @@ public abstract class LendingApplicationServiceV3Base {
                 BigDecimal initialDisbursalAmountWithoutProcessingFee = disbursalAmount.add(processingFeeAmount);
                 processingFeeRate = processingFeeAmount.divide(initialDisbursalAmountWithoutProcessingFee, 10, RoundingMode.HALF_UP);
                 BigDecimal nbfcApprovedLoanOfferAmt = BigDecimal.valueOf(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt());
-                processingFee= nbfcApprovedLoanOfferAmt.multiply(processingFeeRate).setScale(0, RoundingMode.CEILING);
-                finalDisbursalAmount = nbfcApprovedLoanOfferAmt.subtract(processingFee);
+                log.info("Before offer modification of applicationId: {}, processingFee: {}, disbursalAmount: {}", lendingApplication.getId(), processingFeeAmount, disbursalAmount);
+                double previousAmount = 0;
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+                    LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(),  Collections.singletonList("ACTIVE"));
+                    previousAmount = fetchLenderForeclosureAmount(activeLoan);
+                }
+                processingFee= (nbfcApprovedLoanOfferAmt.subtract(BigDecimal.valueOf(previousAmount))).multiply(processingFeeRate).setScale(0, RoundingMode.CEILING);
+                log.info("Processing fee for merchant: {} with loanType: {} is {}", merchantId, lendingApplication.getLoanType(), processingFee);
+                finalDisbursalAmount = (nbfcApprovedLoanOfferAmt.subtract(BigDecimal.valueOf(previousAmount))).subtract(processingFee);
             }else{
                 throw new NullPointerException("Either processing fee or disbursal amount or nbfc approved amount cannot be null");
             }
@@ -735,6 +782,17 @@ public abstract class LendingApplicationServiceV3Base {
         return new ApiResponse<>(false, createResponse("false", "something went wrong"), "something went wrong");
     }
 
+    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
+        Double foreClosureAmount = 0D;
+        foreClosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+        if (foreClosureAmount <= 0) {
+            log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            throw new Exception("Unable to fetch foreclosure amount for parent loan");
+        }
+        log.info("foreclosure amount of lender {} for applicationId: {}", lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getApplicationId());
+        return foreClosureAmount;
+    }
+
     private Map<String, Object> createResponse(String success, String message){
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -785,7 +843,7 @@ public abstract class LendingApplicationServiceV3Base {
                         PricingExperiment pricingExperiment = null;
                         if(pricingExpEnabled) {
                             pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(), lendingRiskVariablesSnapshot.getRiskGroup(),
-                                    lendingRiskVariablesSnapshot.getTenure(), (int)(lendingRiskVariablesSnapshot.getMerchantId()%10), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                                    lendingRiskVariablesSnapshot.getTenure(), String.valueOf(lendingRiskVariablesSnapshot.getMerchantId()), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
                         }
                         Double pfRate;
                         if(!ObjectUtils.isEmpty(pricingExperiment)) {

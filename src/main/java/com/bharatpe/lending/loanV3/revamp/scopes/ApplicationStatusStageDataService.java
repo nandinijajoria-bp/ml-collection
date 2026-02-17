@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -69,22 +70,21 @@ public class ApplicationStatusStageDataService implements IStageDataService<Appl
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationServiceV3.getLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
+                log.info("Application details not found for application: {} and merchant: {}", lendingApplication.getId(), scopeDataArgs.getMerchant().getId());
+                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorCode(),
+                        LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorMessage());
+            }
 
             applicationStatusStateDTO.setApplicationId(lendingApplication.getId());
             applicationStatusStateDTO.setLender(lendingApplication.getLender());
             applicationStatusStateDTO.setEnachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId()));
-
+            boolean isMandateDone = loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails);
             if (applicationStatusStateDTO.getEnachBank()) {
                 applicationStatusStateDTO.setEnachDeeplink(getEnachDeeplink(lendingApplication, scopeDataArgs.getToken(), scopeDataArgs.getLoanDetailsV3Request().isIOS()));
             }
-
-            if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())) {
-                applicationStatusStateDTO.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) || "PENDING_VERIFICATION".equalsIgnoreCase(lendingApplication.getNachStatus()));
-            }
-
-            if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus())){
-                applicationStatusStateDTO.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
-            }
+            applicationStatusStateDTO.setEnachDone(isMandateDone);
 
             if (applicationStatusStateDTO.getEnachDeeplink() == null && (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus()) || ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getStatus()))) {
                 applicationStatusStateDTO.setTransferDays(loanUtil.getApplicationTatMessage(lendingApplication));
@@ -132,17 +132,6 @@ public class ApplicationStatusStageDataService implements IStageDataService<Appl
 
     private String getEnachDeeplink(LendingApplication openApplication, String token, boolean isIOS) {
         if (!"TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && !ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
-            return null;
-        }
-        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true)) {
-            if(ObjectUtils.isEmpty(openApplication.getNachStatus())){
-                loanDashboardService.deleteLoanDashboardCache(openApplication.getMerchantId());
-            }
-            openApplication.setNachStatus("APPROVED");
-            openApplication.setNachType("ENACH");
-            openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
-            lendingApplicationDao.save(openApplication);
             return null;
         }
         if (isIOS) return Deeplink.TECHPROCESS;

@@ -132,6 +132,10 @@ public class LoanDetailsV3Response {
     private AddressDetails addressDetails;
     private LendingApplication lendingApplication;
     private String lenderAggregationScreen;
+    private Boolean isNativeMandateRequired;
+    private String prevLender;
+    private List<String> eligibleLenders;
+    private Double maxMandateAmount;
 
     @Data
     @ToString

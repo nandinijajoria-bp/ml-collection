@@ -1,14 +1,11 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.utils.NotificationUtil;
-import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.EnachHandler;
-import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
@@ -24,7 +21,6 @@ import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.ResponseDTO;
@@ -98,25 +94,16 @@ public class LiquiloansService {
     private final Logger logger = LoggerFactory.getLogger(LiquiloansService.class);
 
     @Autowired
-    LendingHmacCalculator lendingHmacCalculator;
-
-    @Autowired
     RestTemplate restTemplate;
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
-    LendingApplicationDetailsDao lendingApplicationDetailsDao;
-
-    @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
     LoanAgreementDao loanAgreementDao;
-
-//    @Autowired
-//    MerchantDao merchantDao;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -136,9 +123,6 @@ public class LiquiloansService {
     @Autowired
     LoanService loanService;
 
-//    @Autowired
-//    SmsServiceHandler smsServiceHandler;
-
     @Autowired
     S3BucketHandler s3BucketHandler;
 
@@ -148,39 +132,9 @@ public class LiquiloansService {
     @Value("${aws.s3.loan.agreement.bucket}")
     private String bucket;
 
-//    @Autowired
-//    ValidateDao validateDao;
-//
-//    @Autowired
-//    SettlementScheduleDao settlementScheduleDao;
-
     @Autowired
     @Qualifier("LoanApiKafkaTemplate")
     KafkaTemplate<String, Object> confluentKafkaTemplate;
-
-//    @Autowired
-//    CreditApplicationDao creditApplicationDao;
-
-//    @Autowired
-//    MerchantDocumentProofOcrDaoSlave merchantDocumentProofOcrDaoSlave;
-
-//    @Autowired
-//	MerchantSummaryDao merchantSummaryDao;
-
-    @Autowired
-    ExperianDao experianDao;
-
-//    @Autowired
-//    CreditApplicationAddressDao creditApplicationAddressDao;
-
-    @Autowired
-    LiquiloansDirectDisbursalRawResponseDao liquiloansDirectDisbursalRawResponseDao;
-
-//    @Autowired
-//    LendingTlDetailsDao lendingTlDetailsDao;
-
-    @Autowired
-    MerchantUpdateService merchantUpdateService;
 
     @Autowired
     LendingEDIScheduleDao lendingEDIScheduleDao;
@@ -193,9 +147,6 @@ public class LiquiloansService {
 
     @Autowired
     LendingCategoryDao lendingCategoryDao;
-
-    @Autowired
-    RedisNotificationService redisNotificationService;
 
     @Autowired
     LenderVirtualAccountDao lenderVirtualAccountDao;
@@ -224,18 +175,12 @@ public class LiquiloansService {
     @Autowired
     LendingVpaDetailsDao lendingVpaDetailsDao;
 
-    @Autowired
-    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
-
     private static String secretKey;
 
     private static String SID;
 
     @Value("${loan.redemption.topic}")
     String TOPIC;
-
-    @Autowired
-    MerchantSummaryHandler merchantSummaryHandler;
 
     @Autowired
     MerchantService merchantService;
@@ -245,9 +190,6 @@ public class LiquiloansService {
 
     @Autowired
     LiquiloansService liquiloansService;
-
-    @Autowired
-    LendingGstDao lendingGstDao;
 
     @Autowired
     FunnelService funnelService;
@@ -282,16 +224,7 @@ public class LiquiloansService {
     AssociationServiceUtil associationServiceUtil;
 
     @Autowired
-    LendingConsentDao lendingConsentDao;
-
-    @Autowired
     EasyLoanUtil easyLoanUtil;
-
-    @Autowired
-    AutoPayUPIDao autoPayUPIDao;
-
-    @Autowired
-    AutoPayUPIService autoPayUPIService;
 
     @Autowired
     RolloutUtil rolloutUtil;
@@ -304,9 +237,6 @@ public class LiquiloansService {
 
     @Value("${sameDayEdiAdjusment.eligible.lenders:}")
     String sameDayEdiAdjustmentEligibleLenders;
-
-    @Value("${enable.autopayupi.registration:false}")
-    private Boolean enableAutopayUPIRegistration;
 
     @Value("${sameDayEdiAdjusment.partial.rollout.eligible.lenders:}")
     String pdpPartialRollout;
@@ -424,7 +354,6 @@ public class LiquiloansService {
                 logger.error("Loan payment schedule already exist for loanId {} and merchantId {}.", postPayoutRequestDto.getApplicationId(), basicDetailsDto);
                 return new ResponseEntity<>("Duplicate Request", HttpStatus.BAD_REQUEST);
             }
-            updateAutoPayUpiApplicationIdForTopUp(lendingApplication);
             lendingPaymentSchedule = new LendingPaymentSchedule();
 
             logger.info("Popualting data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
@@ -537,27 +466,6 @@ public class LiquiloansService {
         }
         loanUtil.publishApplicationEvent(lendingApplication);
         return new ResponseEntity<>("Ok", HttpStatus.OK);
-    }
-
-    private void updateAutoPayUpiApplicationIdForTopUp(LendingApplication lendingApplication) {
-        try {
-            List<String> loanTypes = Arrays.asList("TOPUP", "HALF_TOPUP", "IO_TOPUP");
-            logger.info("inside update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
-
-            if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(),
-                    lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication) && loanTypes.contains(lendingApplication.getLoanType())) {
-                logger.info("checking update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
-                    AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
-                    if (autoPayUPI != null && autoPayUPI.getLender().equalsIgnoreCase(lendingApplication.getLender())) {
-                        logger.info("going update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
-                        autoPayUPI.setApplicationId(lendingApplication.getId());
-                        autoPayUPIDao.save(autoPayUPI);
-                    }
-                }
-
-        }catch (Exception e){
-            logger.error("Error occured while updating the applicationId on top up loan for applicationId {}", lendingApplication.getId());
-        }
     }
 
     public LendingPaymentSchedule updatePreviousLoan(LendingApplication lendingApplication) {
@@ -767,7 +675,6 @@ public class LiquiloansService {
 
 
 
-                updateAutoPayUpiApplicationIdForTopUp(lendingApplication);
                 if (Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
@@ -798,7 +705,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 
-                if (lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name())) {
+                if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lendingApplication.getLender())) {
                     insuranceService.publishLoanInsuranceEvent(lendingApplication, loanDashboardApiVersion);
                 }
 
@@ -1827,7 +1734,7 @@ public class LiquiloansService {
                     }
 
                     if (Lender.PIRAMAL.name().equalsIgnoreCase(paymentSchedule.getNbfc())
-                            && ! ediUtil.isRoundDownEligibleLender(paymentSchedule.getNbfc())) {
+                            && ! ediUtil.isEligibleForRoundingUpAnnualRoi(paymentSchedule.getNbfc())) {
                         interest = roundToWhole(interest);
                         principal = paymentSchedule.getEdiAmount().intValue() - interest;
                     }
@@ -2280,26 +2187,6 @@ public class LiquiloansService {
             logger.error("Exception while saving signed docs of {} for applicationId {}, Exception is {} {}", lendingApplication.getLender(), lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return false;
         }
-    }
-
-    public boolean isAutoPayUpiEnabled(Long applicationId){
-        try{
-            AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
-            if (autoPayUpi == null) {
-                logger.info("AUTOPAY : No autopay request exist for applicationId : {}", applicationId);
-                return false;
-            }
-
-            logger.info("AUTOPAY : Starting Autopay for entity : {}", autoPayUpi);
-            if (autoPayUpi.getMandateId() != null && AutoPayStatusEnum.ACTIVE.name().equalsIgnoreCase(autoPayUpi.getStatus().name())) {
-                logger.info("AUTOPAY :Processing autoPay pull loans batch starting at entity {}", autoPayUpi.getApplicationId());
-                return true;
-            }
-        }
-        catch(Exception e){
-            logger.error("autopay upi presentment failed for {}, {}, {}", applicationId, e.getMessage(), e.getStackTrace());
-        }
-        return false;
     }
 
     private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule,PostPayoutRequestDto postPayoutRequestDto) {

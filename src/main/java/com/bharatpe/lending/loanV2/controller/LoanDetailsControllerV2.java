@@ -248,11 +248,11 @@ public class LoanDetailsControllerV2 {
         return apiResponseDTO;
     }
 
-
     @GetMapping(value = "/additionalDetails")
     public ResponseEntity<?> additionalLoanDetails(@RequestAttribute BasicDetailsDto merchant,
-                                                   @RequestParam(required = false) Long applicationId) {
-        return ResponseEntity.ok(loanDetailsServiceV2.additionalLoanDetails(merchant, applicationId));
+                                                   @RequestParam(required = false) Long applicationId,
+                                                   @RequestParam(required = false) String version) {
+        return ResponseEntity.ok(loanDetailsServiceV2.additionalLoanDetails(merchant, applicationId, version));
     }
 
     @PostMapping(value = "/additionalDetails")

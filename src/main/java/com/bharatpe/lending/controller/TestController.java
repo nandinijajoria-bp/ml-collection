@@ -7,7 +7,6 @@ import com.bharatpe.lending.loanV3.dto.ManualDigiSignInvoke;
 import com.bharatpe.lending.loanV3.services.associations.ABFLDigiSignService;
 import com.bharatpe.lending.service.NBFCPayoutService;
 import com.bharatpe.lending.common.service.PennyDropService;
-import com.itextpdf.text.DocumentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -47,7 +46,7 @@ public class TestController {
     ABFLDigiSignService abflDigiSignService2;
 
     @PostMapping("manual-abfl-digisign-invoke")
-    public ResponseEntity<ApiResponse<?>> manualDigiSignInvoke(@RequestBody ManualDigiSignInvoke manualDigiSignInvoke) throws IOException, DocumentException {
+    public ResponseEntity<ApiResponse<?>> manualDigiSignInvoke(@RequestBody ManualDigiSignInvoke manualDigiSignInvoke) throws IOException {
         log.info("manualDigiSignInvoke hit received via controller {}", manualDigiSignInvoke);
         AbflDigiSignResponseDTO abflDigiSignResponseDTO=abflDigiSignService2.invoke(manualDigiSignInvoke.getApplicationId(),manualDigiSignInvoke.getArgs());
         return ResponseEntity.ok(new ApiResponse<>(true,abflDigiSignResponseDTO.toString()));

@@ -13,12 +13,9 @@ import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.LoanAttribution;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
-import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
-import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -30,24 +27,33 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 //import com.bharatpe.lending.common.slave.entity.MerchantInferredLocationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.CommonConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
-import com.bharatpe.lending.exception.BureauCallMaskedApiException;
-import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV2.dto.UnderwritingDocEligibilityDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.revamp.dto.EmiTaskDetailsResponse;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.utils.EmiUtils;
+import com.bharatpe.lending.loanV3.utils.LrvUtility;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -68,6 +74,15 @@ public class FosService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    EmiDashboardService emiDashboardService;
+
+    @Autowired
+    EmiUtils emiUtils;
+
+    @Autowired
+    LrvUtility lrvUtility;
 
 //    @Autowired
 //    LendingCpvDetailsDao lendingCpvDetailsDao;
@@ -155,11 +170,17 @@ public class FosService {
     @Autowired
     LoanDashboardService loanDashboardService;
 
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
+
     @Value("${nach.eligible.default.flag:true}")
     boolean merchantNachEligibleFlag;
 
     @Value("${autopay.upi.eligible.default.flag:false}")
     boolean merchantAutoPayEligibleFlag;
+
+    @Value("${upi.auto.pay.time.threshold:30}")
+    Integer upiAutopayTimeThreshold;
 
     @Autowired
     LendingConfigsDao lendingConfigsDao;
@@ -213,7 +234,11 @@ public class FosService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            if (eligibleLoan == null && lendingApplication == null) {
+            LendingApplicationDetails lendingApplicationDetails = null;
+            if(Objects.nonNull(lendingApplication)){
+                lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+            }
+            if (eligibleLoan == null && lendingApplication == null && lendingApplicationDetails==null) {
                 data.put("message", "Merchant Not Eligible For Loan.");
                 data.put("eligible", Boolean.FALSE);
                 responseDTO.setData(data);
@@ -239,7 +264,7 @@ public class FosService {
                 data.put("loanType", lendingApplication.getLoanType());
                 data.put("loanAmount", lendingApplication.getLoanAmount());
                 data.put("loanId", lendingApplication.getExternalLoanId());
-                data.put("nachStatus", "APPROVED".equals(lendingApplication.getNachStatus()) ? "APPROVED" : "PENDING");
+                data.put("nachStatus", loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails) ? "APPROVED" : "PENDING");
                 String loanType = lendingApplication.getLoanType();
 
                 if ("draft".equals(lendingApplication.getStatus())) {
@@ -258,7 +283,7 @@ public class FosService {
                 if ("pending_verification".equals(lendingApplication.getStatus())) {
                     data.put("message", "Merchant Loan Application Is Pending Verification State.");
                     data.put("agreement_at", lendingApplication.getAgreementAt().toString());
-                    if (("NTB".equals(loanType) || "OGL".equals(loanType) || "BHARAT_SWIPE".equals(loanType) || "NTB_SMS_1".equals(loanType)) && !"APPROVED".equals(lendingApplication.getNachStatus())) {
+                    if (("NTB".equals(loanType) || "OGL".equals(loanType) || "BHARAT_SWIPE".equals(loanType) || "NTB_SMS_1".equals(loanType)) && !loanUtil.isMandateDone(lendingApplication,lendingApplicationDetails)) {
                         data.put("message", "Please Complete Enach For Further Process Application.");
                         data.put("nachRequired", Boolean.TRUE);
                     }
@@ -489,7 +514,13 @@ public class FosService {
                 responseDTO.setMessage("Application Id And Merchant Id Not Validated");
                 return responseDTO;
             }
-            if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && !"approved".equalsIgnoreCase(lendingApplication.getStatus())) {
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+            if(lendingApplicationDetails==null){
+                responseDTO.setSuccess(Boolean.FALSE);
+                responseDTO.setMessage("Application Id And Merchant Id Not Validated");
+                return responseDTO;
+            }
+            if (!loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails) && !"approved".equalsIgnoreCase(lendingApplication.getStatus())) {
                 lendingApplication.setNachReferenceNumber(lendingApplication.getExternalLoanId());
 //                lendingApplication.setNachLender("BHARATPE");
                 lendingApplication.setNachType("EXTERNAL");
@@ -895,7 +926,9 @@ public class FosService {
                 } else if (lendingApplication.getStatus().equalsIgnoreCase("pending_verification")) {
                     // pending nach
                     logger.info("merchant {} has a pending application", merchantId);
-                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && lendingApplication.getLoanAmount() > 20000 ) {
+                    LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+                    boolean isMandateDone = Objects.nonNull(lendingApplicationDetails) && loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails);
+                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !isMandateDone && lendingApplication.getLoanAmount() > 20000 ) {
                         if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), fosNachPercent)){
                             long dateDiffInDays = dateTimeUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date());
                             logger.info("Date difference between agreement date and current date {}", dateDiffInDays);
@@ -913,7 +946,7 @@ public class FosService {
                         }
                     }
                     // pending applications
-                    else if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equalsIgnoreCase("APPROVED")) {
+                    else if (isMandateDone) {
                         logger.info("merchant {} has a pending application", merchantId);
                         return computeEligibilityParams("ineligible", null, merchantId, "pending application");
                     }
@@ -1058,7 +1091,13 @@ public class FosService {
         String loanType = getLoanType(eligibility, merchantId);
         String offerType = getOfferType(eligibility);
         Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
-        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0, 0,null);
+        FosMerchantEligibilityDto.EmiTaskEligibility emiTaskEligibility = getEmiTaskEligibility(eligibility, merchantId);
+        String ediEligibility = "SMALL_TICKET".equals(loanType) ? CommonConstants.INELIGIBLE : eligibility;
+        if (StringUtils.isNotEmpty(emiTaskEligibility.getEmiStatus()) && (EmiApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(emiTaskEligibility.getEmiStatus()) || EmiApplicationStatus.APPROVED.name().equalsIgnoreCase(emiTaskEligibility.getEmiStatus())
+                || EmiApplicationStatus.SEND_TO_NBFC.name().equalsIgnoreCase(emiTaskEligibility.getEmiStatus()))) {
+            ediEligibility = CommonConstants.INELIGIBLE;
+        }
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto(ediEligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason) ? 1 : 0, 0, null, emiTaskEligibility);
         if("eligible".equalsIgnoreCase(eligibility)) {
             fosMerchantEligibilityDto.setUpgradeLoanOfferEligibility(getUpgradeLoanOfferEligibility(merchantId));
         }
@@ -1098,7 +1137,7 @@ public class FosService {
             Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
             logger.info("Calculated taskEndTimeStamp: {} for merchantId: {}", taskEndTimeStamp, merchantId);
 //            Merchant merchant = merchantDao.getById(merchantId);
-            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+            LendingApplication lendingApplication = lendingApplicationDao.findLatestOpenApplication(merchantId);
             if(ObjectUtils.isEmpty(lendingApplication)){
                 logger.info("application not found for merchantId : {}", merchantId);
                 fosTaskStatusDto.setMessage("application not found");
@@ -1181,7 +1220,8 @@ public class FosService {
             if ("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
                 fosTaskStatusDto.setStage(ApplicationStage.DRAFT.getStage());
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus())) {
-                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+                if (Objects.nonNull(lendingApplicationDetails) && loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails)) {
                     fosTaskStatusDto.setStage(ApplicationStage.RELEVANT.getStage());
                 } else {
                     fosTaskStatusDto.setStage(ApplicationStage.SUBMITTED.getStage());
@@ -1210,6 +1250,12 @@ public class FosService {
         String nachFlag,disbursalFlag;
 
         try{
+            boolean isEmiApplication = Boolean.parseBoolean(String.valueOf(request.get(CommonConstants.KEY_IS_EMI_APPLICATION)));
+            if(isEmiApplication) {
+                logger.info("EMI application, FOS attribution for applicationId:{}", applicationId);
+                EmiTaskDetailsResponse emiTaskDetailsResponse = emiDashboardService.getEmiApplicationTaskDetailsFromApplicationId(applicationId);
+                return getEmiTaskStatusForAttribution(emiTaskDetailsResponse);
+            }
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
             if(!lendingApplication.isPresent()){
                 logger.error("Application with id:{} not found", applicationId);
@@ -1225,12 +1271,14 @@ public class FosService {
             else disbursalFlag = "NO";
             MerchantNachDetailsResponseDTO enach = enachHandler.findSuccessEnach(finalLendingApplication.getMerchantId(), applicationId);
             logger.info("findSuccessEnachResponse:{}", enach);
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(finalLendingApplication.getId());
+            boolean isMandateDone = Objects.nonNull(lendingApplicationDetails) && loanUtil.isMandateDone(finalLendingApplication, lendingApplicationDetails);
             if(ObjectUtils.isEmpty(enach) && Math.abs(dateTimeUtil.getDateDiffInDays(new Date(), finalLendingApplication.getAgreementAt())) <= 7 &&
-                    !"APPROVED".equalsIgnoreCase(finalLendingApplication.getNachStatus())){
+                    !isMandateDone){
                 nachFlag = "MAYBE";
             }
             else if(!ObjectUtils.isEmpty(enach) && Math.abs(dateTimeUtil.getDateDiffInDays(finalLendingApplication.getAgreementAt(), enach.getUpdatedAt())) <= 7 &&
-                    "APPROVED".equalsIgnoreCase(finalLendingApplication.getNachStatus())){
+                    isMandateDone){
                 nachFlag = "YES";
             }
             else nachFlag = "NO";
@@ -1245,20 +1293,20 @@ public class FosService {
     public ResponseDTO createCompoundStatusForAttribution(String nachFlag, String disbursalFlag) {
         logger.info("Creating compound status -> NACH:{} | DISBURSAL:{}", nachFlag, disbursalFlag);
         Map<String, Object> response = new HashMap<>();
-        if("NO".equals(nachFlag)) {
+        if("NO".equalsIgnoreCase(nachFlag)) {
             response.put("status", nachFlag);
             response.put("stage_name", "NACH");
         }
-        else if ("MAYBE".equals(nachFlag)){
+        else if ("MAYBE".equalsIgnoreCase(nachFlag)){
             response.put("status", nachFlag);
             response.put("stage_name", "NACH");
         }
         else{
-            if("YES".equals(disbursalFlag)){
+            if("YES".equalsIgnoreCase(disbursalFlag)){
                 response.put("status", disbursalFlag);
                 response.put("stage_name", "DISBURSAL");
             }
-            else if ("NO".equals(disbursalFlag)){
+            else if ("NO".equalsIgnoreCase(disbursalFlag)){
                 response.put("status", disbursalFlag);
                 response.put("stage_name", "DISBURSAL");
             }
@@ -1289,7 +1337,7 @@ public class FosService {
         }
 
         Map<String, Object> response = new HashMap<>();
-        LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+        LendingApplication lendingApplication = lendingApplicationDao.findLatestOpenApplication(merchantId);
         logger.info("lendingApplication -> {}", lendingApplication);
         if(ObjectUtils.isEmpty(lendingApplication)){
             logger.info("Application not found for merchant: {}", merchantId);
@@ -1308,6 +1356,7 @@ public class FosService {
             Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
             MerchantNachDetailsResponseDTO enach = enachHandler.findSuccessEnach(lendingApplication.getMerchantId(), lendingApplication.getId());
             logger.info("findSuccessEnachResponse:{}", enach);
+            // this flow is deprecated
             if(!ObjectUtils.isEmpty(enach) && enach.getUpdatedAt().after(taskStartTimestamp) && enach.getUpdatedAt().before(taskEndTimeStamp)){
                 if(!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && "APPROVED".equals(lendingApplication.getNachStatus())){
                     if(ObjectUtils.isEmpty(lendingApplicationDetails)){
@@ -1437,13 +1486,16 @@ public class FosService {
             logger.info("taskStartTimestamp: {} for merchantId : {} ", taskStartTimestamp, merchantId);
             Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
             logger.info("Calculated taskEndTimeStamp: {} for merchantId: {}", taskEndTimeStamp, merchantId);
+            fosTaskStatusDto.setEmiTaskDetails(getEmiTaskStatusDetails(taskStartTimestamp, taskEndTimeStamp, merchantId));
 //            Merchant merchant = merchantDao.getById(merchantId);
-            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+            LendingApplication lendingApplication = lendingApplicationDao.findLatestOpenApplication(merchantId);
             if(ObjectUtils.isEmpty(lendingApplication)){
-                logger.info("application not found for merchantId : {}", merchantId);
-                fosTaskStatusDto.setMessage("application not found");
-                responseDTO.setSuccess(Boolean.TRUE);
+                fosTaskStatusDto.setStatus("INCOMPLETE");
+                fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
                 responseDTO.setData(fosTaskStatusDto);
+                responseDTO.setSuccess(Boolean.TRUE);
+                fosTaskStatusDto.setMessage("No Application Found for this Merchant");
+                logger.info("No Application Found for this Merchant for merchant {} {}", merchantId, fosTaskStatusDto);
                 return responseDTO;
             }
             logger.info("Found lending application for merchantId: {} with applicationId: {} and application data: {}", merchantId, lendingApplication.getId(), lendingApplication);
@@ -1456,78 +1508,108 @@ public class FosService {
                 return responseDTO;
             }
             logger.info("Fetched basic details {} for merchantId: {}", basicDetailsDto, merchantId);
-            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
+//            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-            boolean merchantNachEligible = merchantNachEligibleFlag;
-            boolean merchantAutoPayEligible = merchantAutoPayEligibleFlag;
-            merchantNachEligible = !ObjectUtils.isEmpty(lendingApplicationDetails) && lendingApplicationDetails.getMandateFlagsToggledOn() != null  ? lendingApplicationDetails.isNachEligible() : merchantNachEligibleFlag;
-            merchantAutoPayEligible = !ObjectUtils.isEmpty(lendingApplicationDetails) && lendingApplicationDetails.getMandateFlagsToggledOn() != null ? lendingApplicationDetails.isAutoPayUpiEligible() : merchantAutoPayEligibleFlag;
-            boolean autoPayUpiStatus = "APPROVED".equalsIgnoreCase(lendingApplication.getUpiAutopayStatus());
+//            boolean merchantNachEligible = merchantNachEligibleFlag;
+//            boolean merchantAutoPayEligible = merchantAutoPayEligibleFlag;
+//            merchantNachEligible = !ObjectUtils.isEmpty(lendingApplicationDetails) && lendingApplicationDetails.getMandateFlagsToggledOn() != null  ? lendingApplicationDetails.isNachEligible() : merchantNachEligibleFlag;
+//            merchantAutoPayEligible = !ObjectUtils.isEmpty(lendingApplicationDetails) && lendingApplicationDetails.getMandateFlagsToggledOn() != null ? lendingApplicationDetails.isAutoPayUpiEligible() : merchantAutoPayEligibleFlag;
+//            boolean autoPayUpiStatus = "APPROVED".equalsIgnoreCase(lendingApplication.getUpiAutopayStatus());
 
-            logger.info("Fetched NACH details for merchantId: {}: {}", merchantId, bpEnach);
+//            logger.info("Fetched NACH details for merchantId: {}: {}", merchantId, bpEnach);
 
-            boolean isNachInvalid = false;
-            if (merchantNachEligible) {
-                isNachInvalid = ObjectUtils.isEmpty(bpEnach)
-                        || bpEnach.getUpdatedAt().before(taskStartTimestamp)
-                        || bpEnach.getUpdatedAt().after(taskEndTimeStamp);
+//            boolean isNachInvalid = false;
+//            if (merchantNachEligible) {
+//                isNachInvalid = ObjectUtils.isEmpty(bpEnach)
+//                        || bpEnach.getUpdatedAt().before(taskStartTimestamp)
+//                        || bpEnach.getUpdatedAt().after(taskEndTimeStamp);
+//            }
+
+//            boolean isAutoPayInvalid = false;
+//            if (merchantAutoPayEligible) {
+//                isAutoPayInvalid = !autoPayUpiStatus;
+//            }
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH);
+            ZoneId zoneId = ZoneId.of("Asia/Kolkata");
+            String startTimeStamp = taskStartTimestamp.toInstant().atZone(zoneId)
+                    .toLocalTime().format(formatter);
+            String endTimeStamp = taskEndTimeStamp.toInstant().atZone(zoneId)
+                    .toLocalTime().format(formatter);
+
+
+            if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
+                LocalDate agreementDate =
+                        lendingApplication.getAgreementAt().toInstant()
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate();
+
+                LocalDate taskStartDate =
+                        taskStartTimestamp.toInstant()
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate();
+
+                if (agreementDate.isBefore(taskStartDate)){
+                    fosTaskStatusDto.setStatus("INCOMPLETE");
+                    fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
+                    responseDTO.setData(fosTaskStatusDto);
+                    responseDTO.setSuccess(Boolean.TRUE);
+                    DateTimeFormatter dateformatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                    String formattedDate = LocalDate.now().format(dateformatter);
+                    fosTaskStatusDto.setMessage("Agreement signed on " + agreementDate + " whereas task started on " + taskStartDate + " Task must begin before agreement signing.");
+                    logger.info("Agreement signed on {} whereas task started on - {} Task must begin before agreement signing for merchantId :{}", agreementDate, taskStartDate, lendingApplication.getMerchantId());
+                    return responseDTO;
+                }
+
+                if (lendingApplication.getAgreementAt().after(taskEndTimeStamp)){
+                    fosTaskStatusDto.setStatus("INCOMPLETE");
+                    fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
+                    responseDTO.setData(fosTaskStatusDto);
+                    responseDTO.setSuccess(Boolean.TRUE);
+                    fosTaskStatusDto.setMessage("Agreement signed on " + agreementDate + " after expected task end time " + taskEndTimeStamp + " Agreement must be signed before task end time.");
+                    logger.info("Agreement signed on {} after expected task end time {}. Agreement must be signed before task end time for merchant {}", startTimeStamp, endTimeStamp, lendingApplication.getMerchantId());
+                    return responseDTO;
+                }
+
+                fosTaskStatusDto.setStatus("COMPLETE");
+                fosTaskStatusDto.setMessage("task completed");
+                logger.info("nach done for merchant {}", merchantId);
             }
-
-            boolean isAutoPayInvalid = false;
-            if (merchantAutoPayEligible) {
-                isAutoPayInvalid = !autoPayUpiStatus;
-            }
-
-
-            if (ObjectUtils.isEmpty(lendingApplication) ||
-                    ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
-                            (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
-                                    lendingApplication.getAgreementAt().after(taskEndTimeStamp))
-                                    && ( isNachInvalid || isAutoPayInvalid )
-                            ))
-            ) {
+            else {
                 fosTaskStatusDto.setStatus("INCOMPLETE");
                 fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
-                fosTaskStatusDto.setMessage("no application found against this task");
                 responseDTO.setData(fosTaskStatusDto);
                 responseDTO.setSuccess(Boolean.TRUE);
-                logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
-                return responseDTO;
-            } else {
-                if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
-                    fosTaskStatusDto.setStatus("COMPLETE");
-                    fosTaskStatusDto.setMessage("task completed");
-                    logger.info("nach done for merchant {}", merchantId);
-                } else {
-                    fosTaskStatusDto.setStatus("INCOMPLETE");
-                    fosTaskStatusDto.setMessage("Nach pending for the application");
-                    logger.info("nach pending for merchant {}", merchantId);
-                }
-                logger.info("agreement done for merchant {} and applicationId : {} and agreement date is {}", lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getAgreementAt());
-                if(ObjectUtils.isEmpty(lendingApplicationDetails)){
-                    lendingApplicationDetails = new LendingApplicationDetails();
-                    lendingApplicationDetails.setApplicationId(lendingApplication.getId());
-                }
-                lendingApplicationDetails.setCpvReferralCode(String.valueOf(refCode));
-                logger.info("updated lending_application_details -> {} for merchantId : {}", lendingApplicationDetails.getCpvReferralCode(), merchantId);
-                lendingApplicationDetailsDao.save(lendingApplicationDetails);
-                saveRefCodeAudit(lendingApplicationDetails, String.valueOf(refCode), lendingApplication, "LOAN_TASK");
-                populateApplicationStage(lendingApplication, fosTaskStatusDto);
-                if (lendingApplication.getLoanType().equalsIgnoreCase("SMALL_TICKET")) {
-                    fosTaskStatusDto.setEligibleForPayout("NO");
-                    fosTaskStatusDto.setLoanType(lendingApplication.getLoanType());
-                } else {
-                    LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-                    fosTaskStatusDto.setEligibleForPayout("YES");
-                    fosTaskStatusDto.setLoanType(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)? null:lendingRiskVariablesSnapshot.getRiskSegment().name());
-                    logger.info("MerchantId: {} has loan type {}. Eligible for payout: YES", merchantId, lendingApplication.getLoanType());
-                }
-                fosTaskStatusDto.setApplicationId(lendingApplication.getId());
-                responseDTO.setData(fosTaskStatusDto);
-                responseDTO.setSuccess(Boolean.TRUE);
-                logger.info("fos task status for merchant, {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
+                fosTaskStatusDto.setMessage("Merchant has not yet completed the agreement signing step");
+                logger.info("No eligible application found for this task between {} - {} for merchant {} {} ", startTimeStamp, endTimeStamp, lendingApplication.getMerchantId(), fosTaskStatusDto);
                 return responseDTO;
             }
+
+            logger.info("agreement done for merchant {} and applicationId : {} and agreement date is {}", lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getAgreementAt());
+            if (ObjectUtils.isEmpty(lendingApplicationDetails)){
+                lendingApplicationDetails = new LendingApplicationDetails();
+                lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+            }
+            lendingApplicationDetails.setCpvReferralCode(String.valueOf(refCode));
+            logger.info("updated lending_application_details -> {} for merchantId : {}", lendingApplicationDetails.getCpvReferralCode(), merchantId);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            saveRefCodeAudit(lendingApplicationDetails, String.valueOf(refCode), lendingApplication, "LOAN_TASK");
+            populateApplicationStage(lendingApplication, fosTaskStatusDto);
+            if (lendingApplication.getLoanType().equalsIgnoreCase("SMALL_TICKET")) {
+                fosTaskStatusDto.setEligibleForPayout("NO");
+                fosTaskStatusDto.setLoanType(lendingApplication.getLoanType());
+            } else {
+                LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+                fosTaskStatusDto.setEligibleForPayout("YES");
+                fosTaskStatusDto.setLoanType(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)? null:lendingRiskVariablesSnapshot.getRiskSegment().name());
+                logger.info("MerchantId: {} has loan type {}. Eligible for payout: YES", merchantId, lendingApplication.getLoanType());
+            }
+            fosTaskStatusDto.setApplicationId(lendingApplication.getId());
+            responseDTO.setData(fosTaskStatusDto);
+            responseDTO.setSuccess(Boolean.TRUE);
+            logger.info("fos task status for merchant, {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
+            return responseDTO;
+
         } catch (Exception e) {
             logger.error("exception occurred while fetching fos task status for merchant: {}", merchantId, e);
         }
@@ -1548,13 +1630,23 @@ public class FosService {
         }
 
         Map<String, Object> response = new HashMap<>();
-        LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+        LendingApplication lendingApplication = lendingApplicationDao.findLatestOpenApplication(merchantId);
         logger.info("lendingApplication -> {}", lendingApplication);
         if(ObjectUtils.isEmpty(lendingApplication)){
+            Long emiApplicationId = getApplicationIdForEmiNachSuccessTask(merchantId, visitTimestamp, timeWindow);
+            if (!ObjectUtils.isEmpty(emiApplicationId)) {
+                logger.info("EMI NACH task success for merchantId: {}", merchantId);
+                response.put("message", "Nach Done for EMI Application");
+                response.put("status", true);
+                response.put("application_id", emiApplicationId);
+                response.put("is_emi_application", true);
+                return new ResponseDTO(Boolean.TRUE, "Nach Done for EMI Application", response);
+            }
             logger.info("Application not found for merchant: {}", merchantId);
             response.put("message", "Application not found");
             response.put("status", false);
             response.put("application_id", null);
+            response.put("is_emi_application", false);
             return new ResponseDTO(Boolean.FALSE, "Application not found.", response);
         }
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
@@ -1596,6 +1688,7 @@ public class FosService {
                     response.put("autopay_upi_status", autoPayStatus);
                     response.put("status", mandateTaskStatus);
                     response.put("application_id", lendingApplication.getId());
+                    response.put("is_emi_application", false);
                     logger.info("nach done for the application:{} and response is {}", lendingApplication.getId(), response);
                     return new ResponseDTO(Boolean.TRUE, "nach done for the application", response);
                 } else{
@@ -1605,6 +1698,7 @@ public class FosService {
                     response.put("nach_status", nachStatus);
                     response.put("autopay_upi_status", autoPayStatus);
                     response.put("application_id", null);
+                    response.put("is_emi_application", false);
                     logger.info("nach is pending for the application:{} and response is {}", lendingApplication.getId(), response);
                     return new ResponseDTO(Boolean.FALSE, "nach is pending for the application", response);
                 }
@@ -1615,6 +1709,7 @@ public class FosService {
                 response.put("nach_status", nachStatus);
                 response.put("autopay_upi_status", autoPayStatus);
                 response.put("application_id", null);
+                response.put("is_emi_application", false);
                 return new ResponseDTO(Boolean.FALSE, "no application found against this task", response);
             }
         } catch (Exception ex){
@@ -1624,6 +1719,7 @@ public class FosService {
             response.put("nach_status", nachStatus);
             response.put("autopay_upi_status", autoPayStatus);
             response.put("application_id", null);
+            response.put("is_emi_application", false);
             return new ResponseDTO(Boolean.FALSE, "Error occurred while checking nach status", response);
         }
     }
@@ -1638,31 +1734,36 @@ public class FosService {
 
         LendingApplicationDetails lendingApplicationDetails = null;
 
-        if(lendingApplication != null) {
-            lendingApplicationDetails  = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        if (lendingApplication != null) {
+            lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         }
 
         boolean autopayUpiStatus = false;
         boolean nachEligible = merchantNachEligibleFlag;
         boolean autoPayUpiEligible = merchantAutoPayEligibleFlag;
 
-        if(lendingApplication != null && lendingApplicationDetails != null && lendingApplicationDetails.getMandateFlagsToggledOn() != null) {
-            nachEligible =  lendingApplicationDetails.isNachEligible();
-            autoPayUpiEligible =  lendingApplicationDetails.isAutoPayUpiEligible();
+        if (lendingApplication != null && lendingApplicationDetails != null && lendingApplicationDetails.getMandateFlagsToggledOn() != null) {
+            nachEligible = lendingApplicationDetails.isNachEligible();
+            autoPayUpiEligible = lendingApplicationDetails.isAutoPayUpiEligible();
             autopayUpiStatus = "APPROVED".equalsIgnoreCase(lendingApplication.getUpiAutopayStatus());
         }
 
         boolean loanAmountLessThan20k = false;
-        if(lendingApplication != null && lendingApplication.getLoanAmount() != null) {
+        if (lendingApplication != null && lendingApplication.getLoanAmount() != null) {
             loanAmountLessThan20k = lendingApplication.getLoanAmount() < 20000;
         }
         boolean pendingVerification = false;
-        if(lendingApplication != null && "pending_verification".equalsIgnoreCase(lendingApplication.getStatus()))  {
+        if (lendingApplication != null && "pending_verification".equalsIgnoreCase(lendingApplication.getStatus())) {
             pendingVerification = true;
         }
-
-        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, ("pending nach application".equals(reason) && nachEligible) ?1:0, (!autopayUpiStatus && autoPayUpiEligible && !loanAmountLessThan20k && pendingVerification) ? 1:0 , null);
-        if("eligible".equalsIgnoreCase(eligibility)) {
+        FosMerchantEligibilityDto.EmiTaskEligibility emiTaskEligibility = getEmiTaskEligibility(eligibility, merchantId);
+        String ediEligibility = "SMALL_TICKET".equals(loanType) ? "ineligible" : eligibility;
+        if (StringUtils.isNotEmpty(emiTaskEligibility.getEmiStatus()) && (EmiApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(emiTaskEligibility.getEmiStatus()) || EmiApplicationStatus.APPROVED.name().equalsIgnoreCase(emiTaskEligibility.getEmiStatus())
+                || EmiApplicationStatus.SEND_TO_NBFC.name().equalsIgnoreCase(emiTaskEligibility.getEmiStatus()))) {
+            ediEligibility = CommonConstants.INELIGIBLE;
+        }
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto(ediEligibility, merchantId, priority, offerType, loanType, reason, ("pending nach application".equals(reason) && nachEligible) ? 1 : 0, (!autopayUpiStatus && autoPayUpiEligible && !loanAmountLessThan20k && pendingVerification) ? 1 : 0, null, emiTaskEligibility);
+        if (CommonConstants.ELIGIBLE.equalsIgnoreCase(eligibility)) {
             fosMerchantEligibilityDto.setUpgradeLoanOfferEligibility(getUpgradeLoanOfferEligibility(merchantId));
         }
         ResponseDTO responseDTO = new ResponseDTO();
@@ -1670,5 +1771,270 @@ public class FosService {
         responseDTO.setSuccess(Boolean.TRUE);
         logger.info("Returning response DTO for merchantId {}: {}", merchantId, responseDTO);
         return responseDTO;
+    }
+
+
+    public FosMerchantEligibilityDto.EmiTaskEligibility getEmiTaskEligibility(String ediEligibility, Long merchantId) {
+        try {
+            LendingRiskVariables lrv = lendingRiskVariablesDao.findByMerchantId(merchantId);
+            if (ObjectUtils.isEmpty(lrv)) {
+                return null;
+            }
+            EmiTaskDetailsResponse emiTaskResponse = emiDashboardService.getEmiApplicationTaskDetailsFromMerchantId(merchantId);
+            if (ObjectUtils.isEmpty(emiTaskResponse) || ObjectUtils.isEmpty(emiTaskResponse.getResult())) {
+                logger.info("Emi task details response or result is null for merchantId: {}", merchantId);
+                if (CommonConstants.MAYBE.equalsIgnoreCase(ediEligibility))
+                    return new FosMerchantEligibilityDto.EmiTaskEligibility(CommonConstants.MAYBE, 0, null);
+                return new FosMerchantEligibilityDto.EmiTaskEligibility(lrvUtility.getBlEligibility(lrv) ? CommonConstants.ELIGIBLE : CommonConstants.INELIGIBLE, 0, null);
+
+            }
+            EmiTaskDetailsResponse.Result emiTaskResult = emiTaskResponse.getResult();
+            Optional<EmiApplicationStatus> emiApplicationStatus = EmiApplicationStatus.fromString(emiTaskResult.getStatus());
+            if (!emiApplicationStatus.isPresent()) {
+                return null;
+            }
+            switch (emiApplicationStatus.get()) {
+                case DRAFT: {
+                    return new FosMerchantEligibilityDto.EmiTaskEligibility(emiTaskResult.isAgreementDone() ? CommonConstants.INELIGIBLE : CommonConstants.ELIGIBLE, getEmiNachTask(emiTaskResult) ? 1 : 0, EmiApplicationStatus.DRAFT.name());
+                }
+                case PENDING_VERIFICATION: {
+                    return new FosMerchantEligibilityDto.EmiTaskEligibility(CommonConstants.INELIGIBLE, getEmiNachTask(emiTaskResult) ? 1 : 0, EmiApplicationStatus.PENDING_VERIFICATION.name());
+                }
+                case SEND_TO_NBFC:
+                case APPROVED: {
+                    return new FosMerchantEligibilityDto.EmiTaskEligibility(CommonConstants.INELIGIBLE, 0, EmiApplicationStatus.APPROVED.name());
+                }
+                case REJECTED: {
+                    Integer emiELigibleIn = emiUtils.getEmiEligibleIn(emiTaskResult.getLastRejectedDate());
+                    if (emiELigibleIn == null || emiELigibleIn > 0) {
+                        return new FosMerchantEligibilityDto.EmiTaskEligibility(CommonConstants.INELIGIBLE, 0, EmiApplicationStatus.REJECTED.name());
+                    }
+                    if (CommonConstants.MAYBE.equalsIgnoreCase(ediEligibility))
+                        return new FosMerchantEligibilityDto.EmiTaskEligibility(CommonConstants.MAYBE, 0, EmiApplicationStatus.REJECTED.name());
+                    return new FosMerchantEligibilityDto.EmiTaskEligibility(lrvUtility.getBlEligibility(lrv) ? CommonConstants.ELIGIBLE : CommonConstants.INELIGIBLE, 0, EmiApplicationStatus.REJECTED.name());
+
+                }
+                default: {
+                    if (CommonConstants.MAYBE.equalsIgnoreCase(ediEligibility))
+                        return new FosMerchantEligibilityDto.EmiTaskEligibility(CommonConstants.MAYBE, 0, null);
+                    return new FosMerchantEligibilityDto.EmiTaskEligibility(lrvUtility.getBlEligibility(lrv) ? CommonConstants.ELIGIBLE : CommonConstants.INELIGIBLE, 0, null);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception in getting emi task eligibility for merchantId : {}", merchantId);
+        }
+        return null;
+    }
+
+    public boolean getEmiNachTask(EmiTaskDetailsResponse.Result emiTaskResult) {
+        if (ObjectUtils.isEmpty(emiTaskResult.getAgreementDate()) || !emiTaskResult.isAgreementDone()) {
+            return false;
+        }
+        if (emiTaskResult.isNachDone()) {
+            return false;
+        }
+        LocalDateTime agreementDate = emiTaskResult.getAgreementDate();
+        return agreementDate.isBefore(LocalDateTime.now().minusDays(7));
+    }
+
+    private FosTaskStatusDto.EmiFosTaskStatusDto getEmiTaskStatusDetails(Date taskStartTimestamp, Date taskEndTimestamp, Long merchantId) {
+        try {
+            EmiTaskDetailsResponse emiTaskDetailsResponse = emiDashboardService.getEmiApplicationTaskDetailsFromMerchantId(merchantId);
+            if (ObjectUtils.isEmpty(emiTaskDetailsResponse) || ObjectUtils.isEmpty(emiTaskDetailsResponse.getResult())
+                    || EmiApplicationStatus.REJECTED.name().equalsIgnoreCase(emiTaskDetailsResponse.getResult().getStatus())
+                    || EmiApplicationStatus.EXPIRED.name().equalsIgnoreCase(emiTaskDetailsResponse.getResult().getStatus())) {
+                logger.info("Emi task details response or result is null for merchantId : {}", merchantId);
+                return FosTaskStatusDto.EmiFosTaskStatusDto.builder().message("application not found").build();
+            }
+            EmiTaskDetailsResponse.Result emiTaskResult = emiTaskDetailsResponse.getResult();
+            boolean isLoanTaskCompleted = isEmiLoanTaskCompletedByFSE(emiTaskResult, taskStartTimestamp, taskEndTimestamp);
+            if (isLoanTaskCompleted) {
+                return FosTaskStatusDto.EmiFosTaskStatusDto.builder().applicationId(emiTaskDetailsResponse.getResult().getApplicationId())
+                        .status(CommonConstants.COMPLETE).eligibleForPayout(CommonConstants.YES).message("EMI Loan Task completed").build();
+            }
+            boolean isNachTaskCompleted = isEmiNachTaskCompletedByFSE(emiTaskResult, taskStartTimestamp, taskEndTimestamp);
+            if (isNachTaskCompleted) {
+                return FosTaskStatusDto.EmiFosTaskStatusDto.builder().applicationId(emiTaskDetailsResponse.getResult().getApplicationId())
+                        .status(CommonConstants.COMPLETE).eligibleForPayout(CommonConstants.YES).message("EMI Nach Task completed").build();
+            }
+            return FosTaskStatusDto.EmiFosTaskStatusDto.builder().applicationId(emiTaskDetailsResponse.getResult().getApplicationId())
+                    .status(CommonConstants.INCOMPLETE).eligibleForPayout(CommonConstants.NO).message("EMI Task not completed").build();
+        } catch (Exception e) {
+            logger.error("Exception in getting emi task status details for merchantId : {}", merchantId, e);
+        }
+        return null;
+    }
+
+    private boolean isEmiNachTaskCompletedByFSE(EmiTaskDetailsResponse.Result emiTaskResult,
+                                                Date taskStartTimestamp,
+                                                Date taskEndTimestamp) {
+
+        if (!emiTaskResult.isNachDone() || ObjectUtils.isEmpty(emiTaskResult.getNachCompletionTime())) {
+            return false;
+        }
+
+        Instant nachCompletionInstant = emiTaskResult
+                .getNachCompletionTime()
+                .atZone(ZoneId.systemDefault())
+                .toInstant();
+        Instant startInstant = taskStartTimestamp.toInstant();
+        Instant endInstant = taskEndTimestamp.toInstant();
+
+        return !nachCompletionInstant.isBefore(startInstant) && !nachCompletionInstant.isAfter(endInstant);
+    }
+
+    private boolean isEmiLoanTaskCompletedByFSE(EmiTaskDetailsResponse.Result emiTaskResult, Date taskStartTimestamp, Date taskEndTimestamp) {
+        if (!emiTaskResult.isAgreementDone() || ObjectUtils.isEmpty(emiTaskResult.getAgreementDate())) {
+            return false;
+        }
+        Instant agreementInstant = emiTaskResult
+                .getAgreementDate()
+                .atZone(ZoneId.systemDefault())
+                .toInstant();
+
+        Instant startInstant = taskStartTimestamp.toInstant();
+        Instant endInstant = taskEndTimestamp.toInstant();
+        logger.info("taskStartTime: {}, taskEndTime: {}, agreementAt: {}", taskStartTimestamp, taskEndTimestamp, agreementInstant.getEpochSecond());
+        return !agreementInstant.isBefore(startInstant) && !agreementInstant.isAfter(endInstant);
+    }
+
+    private Long getApplicationIdForEmiNachSuccessTask(Long merchantId, Long visitTimestamp, Integer timeWindow) {
+        try {
+            Date taskStartTimestamp = dateTimeUtil.getDatePlusMinutes(new Date(visitTimestamp * 1000), -1 * timeWindow);
+            Date taskEndTimeStamp = DateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
+            logger.info("Calculated taskEndTimeStamp: {} for merchantId: {}", taskEndTimeStamp, merchantId);
+            EmiTaskDetailsResponse emiTaskDetailsResponse = emiDashboardService.getEmiApplicationTaskDetailsFromMerchantId(merchantId);
+            if (ObjectUtils.isEmpty(emiTaskDetailsResponse) || ObjectUtils.isEmpty(emiTaskDetailsResponse.getResult())) {
+                logger.info("Emi task details response or result is null for merchantId : {}", merchantId);
+                return null;
+            }
+            EmiTaskDetailsResponse.Result emiTaskResult = emiTaskDetailsResponse.getResult();
+            if (EmiApplicationStatus.REJECTED.name().equalsIgnoreCase(emiTaskResult.getStatus())
+                    || EmiApplicationStatus.EXPIRED.name().equalsIgnoreCase(emiTaskResult.getStatus())) {
+                logger.info("Emi application status is REJECTED/EXPIRED for merchantId : {}, {}", merchantId, emiTaskResult.getStatus());
+                return null;
+            }
+
+            return isEmiNachTaskCompletedByFSE(emiTaskResult, taskStartTimestamp, taskEndTimeStamp) ? emiTaskDetailsResponse.getResult().getApplicationId() : null;
+        } catch (Exception e) {
+            logger.error("Exception in getting emi task status details for merchantId : {}", merchantId, e);
+        }
+        return null;
+    }
+
+    private ResponseDTO getEmiTaskStatusForAttribution(EmiTaskDetailsResponse emiTaskDetailsResponse) {
+        if (ObjectUtils.isEmpty(emiTaskDetailsResponse) || ObjectUtils.isEmpty(emiTaskDetailsResponse.getResult())) {
+            logger.info("Emi task details response or result is null for emi application");
+            return new ResponseDTO(Boolean.FALSE, "application not found", null);
+        }
+        EmiTaskDetailsResponse.Result emiTaskResult = emiTaskDetailsResponse.getResult();
+
+        return createCompoundStatusForAttribution(getEmiDisbursalFlag(emiTaskResult), getEmiNachFlag(emiTaskResult));
+    }
+
+    private String getEmiNachFlag(EmiTaskDetailsResponse.Result emiTaskResult) {
+        if (emiTaskResult.isNachDone() && emiTaskResult.getAgreementDate() != null && ChronoUnit.DAYS.between(emiTaskResult.getAgreementDate(), LocalDateTime.now()) <= 7) {
+            return CommonConstants.YES;
+        }
+        if (!emiTaskResult.isNachDone() && emiTaskResult.getAgreementDate() != null && ChronoUnit.DAYS.between(emiTaskResult.getAgreementDate(), LocalDateTime.now()) <= 7) {
+            return CommonConstants.MAYBE;
+        }
+        return CommonConstants.NO;
+    }
+
+    private String getEmiDisbursalFlag(EmiTaskDetailsResponse.Result emiTaskResult) {
+        if (StringUtils.isNotEmpty(emiTaskResult.getStage()) && CommonConstants.DISBURSED.equalsIgnoreCase(emiTaskResult.getStage())
+                && !ObjectUtils.isEmpty(emiTaskResult.getDisbursalTimeStamp())) {
+            return CommonConstants.YES;
+        }
+        if (StringUtils.isNotEmpty(emiTaskResult.getStatus()) && !EmiApplicationStatus.REJECTED.name().equalsIgnoreCase(emiTaskResult.getStatus())
+                && !EmiApplicationStatus.EXPIRED.name().equalsIgnoreCase(emiTaskResult.getStatus())) {
+            return CommonConstants.MAYBE;
+        }
+        return CommonConstants.NO;
+    }
+
+    public UPIAutoPayResponseDto getAutoPayUPIStatus(Long merchantId, Long visitTimestamp, String loanId) {
+        UPIAutoPayResponseDto upiAutoPayResponseDto = new UPIAutoPayResponseDto();
+        if(merchantId != null && loanId != null){
+            logger.info("getAutoPayUpiStatus for merchantId: {} and loanId: {}", merchantId, loanId);
+            LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIAndExternalLoanId(merchantId, loanId);
+            if(ObjectUtils.isEmpty(lendingApplication)){
+                logger.info("No application found for merchantId: {} and loanId: {}", merchantId, loanId);
+                upiAutoPayResponseDto.setSuccess(false);
+                upiAutoPayResponseDto.setMessage("No application found");
+                return upiAutoPayResponseDto;
+            }
+            else{
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchantId, lendingApplication.getId());
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
+                    logger.info("No active loan found for merchantId: {} and applicationId: {}", merchantId, lendingApplication.getId());
+                    upiAutoPayResponseDto.setSuccess(false);
+                    upiAutoPayResponseDto.setMessage("No active loan for this merchant");
+                    return upiAutoPayResponseDto;
+                }
+                else{
+                    if(lendingPaymentSchedule.getStatus().equalsIgnoreCase("ACTIVE")){
+                        AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatus(lendingPaymentSchedule.getApplicationId(), "ACTIVE");
+                        if(ObjectUtils.isEmpty(autoPayUPI)) {
+                            logger.info("No active UPI auto pay mandate found for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                            upiAutoPayResponseDto.setSuccess(true);
+                            upiAutoPayResponseDto.setMessage("UPI autopay required");
+                            return upiAutoPayResponseDto;
+                        }else{
+                            logger.info("Active UPI auto pay mandate found for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                            upiAutoPayResponseDto.setSuccess(false);
+                            upiAutoPayResponseDto.setMessage("UPI autopay already done");
+                            return upiAutoPayResponseDto;
+                        }
+
+                    }else{
+                        logger.info("No active loan found for merchantId: {} and applicationId: {}", merchantId, lendingApplication.getId());
+                        upiAutoPayResponseDto.setSuccess(false);
+                        upiAutoPayResponseDto.setMessage("No active loan for this merchant");
+                        return upiAutoPayResponseDto;
+                    }
+                }
+            }
+
+        }else{
+            logger.info("getAutoPayUpiStatus for merchantId: {} taskStartTimeEpoch: {}", merchantId, visitTimestamp);
+
+            Date taskStartTime = new Date(visitTimestamp * 1000);
+
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
+            if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
+                logger.info("No active loan found for merchantId: {}", merchantId);
+                upiAutoPayResponseDto.setSuccess(false);
+                upiAutoPayResponseDto.setMessage("No active loan for this merchant");
+                return upiAutoPayResponseDto;
+            }
+            logger.info("Found active loan for merchantId: {} with applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+
+            AutoPayUPI autoPayUPI = autoPayUPIDao.findByApplicationIdAndStatusAndLender(lendingPaymentSchedule.getApplicationId(), "ACTIVE", lendingPaymentSchedule.getNbfc());
+            if(ObjectUtils.isEmpty(autoPayUPI)){
+                logger.info("No active UPI auto pay mandate found for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                upiAutoPayResponseDto.setSuccess(false);
+                upiAutoPayResponseDto.setMessage("UPI autopay not completed");
+                return upiAutoPayResponseDto;
+            }
+            else {
+                Date updatedAt = autoPayUPI.getUpdatedAt();
+                long diffInMillis = Math.abs(taskStartTime.getTime() - updatedAt.getTime());
+                long diffInMinutes = diffInMillis / (1000 * 60);
+                logger.info("diffInMinutes: {}", diffInMinutes);
+                if (diffInMinutes <= upiAutopayTimeThreshold) {
+                    logger.info("UPI autopay completed for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                    upiAutoPayResponseDto.setSuccess(true);
+                    upiAutoPayResponseDto.setMessage("UPI autopay completed");
+                    return upiAutoPayResponseDto;
+                } else {
+                    logger.info("UPI autopay Not completed for merchantId: {} and applicationId: {}", merchantId, lendingPaymentSchedule.getApplicationId());
+                    upiAutoPayResponseDto.setSuccess(false);
+                    upiAutoPayResponseDto.setMessage("UPI autopay not completed");
+                    return upiAutoPayResponseDto;
+                }
+            }
+        }
     }
 }

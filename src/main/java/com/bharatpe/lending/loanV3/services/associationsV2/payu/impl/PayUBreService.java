@@ -2,36 +2,40 @@ package com.bharatpe.lending.loanV3.services.associationsV2.payu.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingLoanInsuranceDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingLoanInsurance;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUAcceptOfferRequestDTO;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUBreRequestDTO;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayULoanPreviewRequestDTO;
-import com.bharatpe.lending.loanV3.dto.response.payu.*;
+import com.bharatpe.lending.loanV3.dto.response.payu.PayUAcceptOfferResponseDTO;
+import com.bharatpe.lending.loanV3.dto.response.payu.PayUBreCallbackResponseDTO;
+import com.bharatpe.lending.loanV3.dto.response.payu.PayUCommonResponseDTO;
+import com.bharatpe.lending.loanV3.dto.response.payu.PayULoanPreviewResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 
 @Slf4j
 @Service
@@ -56,8 +60,14 @@ public class PayUBreService {
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
+    @Autowired
+    LendingLoanInsuranceDao lendingloanInsuranceDao;
+
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
+
+    private static final String LOAN_INSURANCE = "LOAN_INSURANCE";
+    private static final List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 
     @Transactional
     public Boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -159,12 +169,11 @@ public class PayUBreService {
             if (nbfcResponseDTO.getSuccess() && Objects.nonNull(nbfcResponseDTO.getData())) {
                 PayUBreCallbackResponseDTO breCallbackResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), PayUBreCallbackResponseDTO.class);
                 log.info("Bre callback Response of PayU for {} {}", nbfcResponseDTO.getApplicationId(), breCallbackResponseDTO);
-                if(!ObjectUtils.isEmpty(breCallbackResponseDTO) && ("Approved".equalsIgnoreCase(breCallbackResponseDTO.getData().getEventDetails().getMessage()))) {
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
-                        commonService.manageApplicationState(lenderAssociationDetailsRequest);
-                        invokeAcceptOffer(lenderAssociationDetailsRequest, breCallbackResponseDTO);
-                        return true;
-
+                if (!ObjectUtils.isEmpty(breCallbackResponseDTO) && ("Approved".equalsIgnoreCase(breCallbackResponseDTO.getData().getEventDetails().getMessage()))) {
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsRequest);
+                    invokeLoanPreview(lenderAssociationDetailsRequest);
+                    return true;
                 }
             }
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
@@ -175,20 +184,10 @@ public class PayUBreService {
         return false;
     }
 
-    @Async("lenderPoolTaskExecutor")
-    public boolean invokeAcceptOffer(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, PayUBreCallbackResponseDTO callbackResponse) {
+    public boolean invokeAcceptOffer(LendingApplication lendingApplication, LendingApplicationLenderDetails lald) {
         try {
-            if (Objects.isNull(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails())
-                    || Objects.isNull(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadId())) {
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_FAILED.name());
-                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.ACCEPT_OFFER_FAILED);
-                return false;
-            }
-            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_PENDING.name());
-            commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
-            NBFCRequestDTO acceptOfferPayload = getAcceptOfferPayload(lenderAssociationDetailsRequestDto);
+            NBFCRequestDTO acceptOfferPayload = getAcceptOfferPayload(lendingApplication, lald);
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(acceptOfferPayload, LenderAssociationStages.ACCEPT_OFFER);
-            log.info("Accept Offer response of PayU from nbfc: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
 
             if (Objects.nonNull(nbfcResponseDto.getData()) && nbfcResponseDto.getSuccess()) {
 
@@ -197,38 +196,44 @@ public class PayUBreService {
                 PayUAcceptOfferResponseDTO acceptOfferResponseDTO =  objectMapper.convertValue(commonResponseDTO.getApiResponse(), PayUAcceptOfferResponseDTO.class);
 
                 if ("SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus())) {
-
-                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setOfferId(String.valueOf(acceptOfferResponseDTO.getOfferDetailList().get(0).getOfferId()));
-                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_SUCCESS.name());
-
-                    if(Boolean.FALSE.equals(invokeLoanPreview(lenderAssociationDetailsRequestDto))){
-                        return false;
-                    }
-
-                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
+                    lald.setOfferId(String.valueOf(acceptOfferResponseDTO.getOfferDetailList().get(0).getOfferId()));
+                    lald.setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_SUCCESS.name());
+                    lendingApplicationLenderDetailsDao.save(lald);
                     return true;
                 }
             }
         } catch (Exception e) {
-            log.error("error while invoking Accept Offer of PayU for  {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("error while invoking Accept Offer of PayU for  {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_FAILED.name());
-        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.ACCEPT_OFFER_FAILED);
+        lald.setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_PENDING.name());
+        lendingApplicationLenderDetailsDao.save(lald);
         return false;
     }
 
-    private NBFCRequestDTO getAcceptOfferPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
-        LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
+    private NBFCRequestDTO getAcceptOfferPayload(LendingApplication lendingApplication, LendingApplicationLenderDetails lald) {
         try {
-            PayUAcceptOfferRequestDTO requestData =  PayUAcceptOfferRequestDTO.builder()
-                    .applicationId(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())
+            boolean optedForInsurance = false;
+
+            // For topup loans, insurance is not opted
+            if (!topupLoans.contains(lendingApplication.getLoanType())) {
+                LendingLoanInsurance lendingLoanInsurance = lendingloanInsuranceDao.findByApplicationIdAndLenderAndStatus(
+                        lendingApplication.getId(), lendingApplication.getLender(), SELECTED);
+                optedForInsurance = !ObjectUtils.isEmpty(lendingLoanInsurance);
+            }
+            PayUAcceptOfferRequestDTO requestData = PayUAcceptOfferRequestDTO.builder()
+                    .applicationId(lald.getLeadId())
                     .amount(lendingApplication.getLoanAmount())
                     .tenure(lendingApplication.getTenureInMonths())
                     .tenureMetric("Months")
-                    .roi(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getAnnualRoi())
+                    .roi(lald.getAnnualRoi())
                     .roiType("REDUCING")
+                    .addOns(new ArrayList<>(Collections.singletonList(PayUAcceptOfferRequestDTO.AddOns.builder()
+                            .type(LOAN_INSURANCE)
+                            .opted(optedForInsurance)
+                            .build())))
                     .charges(getCharges(lendingApplication))
                     .build();
+
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
@@ -236,7 +241,7 @@ public class PayUBreService {
                     .payload(requestData)
                     .build();
         } catch (Exception e) {
-            log.error("exception occurred while getting acceptOfferPayload request payload for createLead for applicationId: {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("Exception occurred while building AcceptOfferPayload for applicationId: {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
@@ -283,6 +288,7 @@ public class PayUBreService {
                         commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.ACCEPT_OFFER_FAILED);
                         return false;
                     }
+                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
                     return true;
                 }
             }

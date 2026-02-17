@@ -71,7 +71,7 @@ public class LendingPancardDetails extends BaseEntity {
     public LendingPancardDetails() {
     }
 
-    public Long LendingPancardDetails() {
+    public Long getMerchantId() {
         return merchantId;
     }
 

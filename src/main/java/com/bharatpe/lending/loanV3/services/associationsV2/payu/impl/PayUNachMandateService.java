@@ -21,6 +21,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.BooleanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -106,7 +107,7 @@ public class PayUNachMandateService {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             PayUMandateRequestDTO mandateDetails = null;
 
-            Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
+            Long nachApplicationId = BooleanUtils.isTrue(lendingApplicationDetails.getIsNachSkip()) ? null : lendingApplication.getId();
                 MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, lendingApplication.getLender());
                 if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                     mandateDetails = PayUMandateRequestDTO.builder()

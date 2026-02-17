@@ -9,6 +9,7 @@ public class Constants {
     public static final String PROCESSING_FEE = "PROCESSING_FEE";
     public static final String ONE_LMS = "1LMS";
     public static final String NBFC_FUNDS = "NBFC_FUNDS";
+    public static final Long MONTH_IN_MILLIES = 30*24*60*60*1000L;
 
     private Constants() {
     }

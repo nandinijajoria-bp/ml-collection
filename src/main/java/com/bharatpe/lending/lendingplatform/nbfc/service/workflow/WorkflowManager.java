@@ -53,9 +53,9 @@ public class WorkflowManager {
 			case KYC:
 			case CKYC:
 			case EKYC:
-				return WorkflowStage.BRE;
-			case BRE:
 				return WorkflowStage.PENNY_DROP;
+			case BRE:
+				return WorkflowStage.KYC_DOCUMENT_UPLOAD;
 			case PENNY_DROP:
 				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
 			case LOAN_DOCUMENT_DOWNLOAD:

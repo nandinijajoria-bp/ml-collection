@@ -20,12 +20,10 @@ import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Constants.DeductionStatusEnum;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.FunnelEventDto;
-import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
-import com.bharatpe.lending.common.dto.NotificationPayloadDto;
-import com.bharatpe.lending.common.dto.SettleLoanPaymentDTO;
+import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.exception.DuplicateTransactionException;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
 import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
@@ -47,6 +45,7 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
@@ -84,7 +83,9 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import javax.transaction.Transactional;
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -92,6 +93,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.common.enums.CollectionTaskType.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.CommonConstants.OK;
@@ -107,6 +109,10 @@ public class PaymentService {
 
     private static final String UPI_AUTO_PAY = "UPI_AUTO_PAY";
     public static final Set<String> LENDER_FORECLOSURE_AGREEMENT_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
+    public static final String WARNING_RED_ICON = "https://d30gqtvesfc1d5.cloudfront.net/hubble/Home_PNG/alert-triangle-1759990132728.png";
+    public static final String LOAN_REPAY_IMAGE_ICON = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/pending_payment_banner-1769683731144.png";
+    public static final String NOTIFICATION_BOTTOM_SHEET = "BOTTOM_SHEET";
+    public static final String DPD_EVENT_CATEGORY = "LENDING_DPD";
     Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     @Autowired
@@ -248,6 +254,9 @@ public class PaymentService {
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
     int loanPaymentOrderPendingTransactionTimeWindow;
 
+    @Value("${loan.payment.order.pending.transaction.link.time.window:30}")
+    int loanPaymentOrderPendingTransactionTimeWindowViaLink;
+
     @Value("${nbfc.trillion.foreclosure.topic:trillion-foreclose-loan}")
     String nbfcTrillionForeclosureTopic;
 
@@ -259,6 +268,9 @@ public class PaymentService {
 
     @Value("${nbfc.baseurl.v3.foreclosure:api/v3/lender/foreclosure}")
     String nbfcURI;
+
+    @Value("${nbfc.collection.service.base.url:https://api-nbfc.bharatpemoney.com/}")
+    String nbfcCollectionServiceBaseUrl;
 
     @Value("${nbfc.foreclosure.charge:api/v3/lender/post-charges}")
     String nbfcForeClosureChargePosting;
@@ -304,6 +316,9 @@ public class PaymentService {
 
     @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
     String nbfcPayuForeclosureTopic;
+
+    @Value("${nbfc.muthoot.foreclosure.topic:muthoot-loan-receipt}")
+    String nbfcMuthootForeclosureTopic;
 
     @Lazy
     @Autowired
@@ -364,6 +379,17 @@ public class PaymentService {
     @Value("${lms.previous.mandate.failed:3}")
     private int lmsPreviousMandateFailed;
 
+    @Value("${extra.payment.max.edi.count:5}")
+    Integer extraPaymentEdiCount;
+
+    @Autowired
+    LendingNotificationService notificationService;
+
+    @Value("${dpd.notification.app.deeplink:}")
+    String dpdNotificationAppDeeplink;
+
+    @Autowired
+    PostDisbursalNotificationDao postDisbursalNotificationDao;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -536,6 +562,23 @@ public class PaymentService {
         data.setTotalExcessBalance(Math.min(excessCollectionBalance + advanceEdiAmount, data.getTotalDue()));
         data.setNetPayable(Math.max(data.getTotalDue() - data.getTotalExcessBalance(), 0));  // this is for today's due
 
+        // LC-2061
+        double maxPayable = data.getNetPayable();
+        if (loanPaymentUtil.checkExtraPaymentAfterRolloutDate(activeLoan.getCreatedAt())
+                && loanPaymentUtil.checkExtraPaymentRolloutPercentage(activeLoan.getId())) {
+            logger.info("Checking extra payment allowed for loanId: {}", activeLoan.getId());
+            maxPayable = calculateMaxAmount(activeLoan, maxPayable);
+            logger.info("Extra payment allowed. calculated maxPayable: {} for loanId: {}", maxPayable, activeLoan.getId());
+            if (maxPayable > data.getNetPayable()) {
+                maxPayable = Math.max(maxPayable - excessCollectionBalance, 0);
+                logger.info("Extra payment allowed after adjusting excess balance. maxPayable: {} and extrabalance:{} for loanId: {}", maxPayable, excessCollectionBalance, activeLoan.getId());
+            }
+            logger.info("Extra payment allowed. maxPayable after adjusting excess balance: {} for loanId: {}", maxPayable, activeLoan.getId());
+            maxPayable = Math.max(maxPayable, data.getNetPayable());
+            logger.info("Extra payment allowed. maxPayable: {} for loanId: {}", maxPayable, activeLoan.getId());
+        }
+
+        data.setMaxPayable(maxPayable);
         logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
         return new PaymentDetailsResponseDTO(data);
     }
@@ -550,6 +593,26 @@ public class PaymentService {
             }
         }
         return unpostedPenalty;
+    }
+
+    private double calculateMaxAmount(LendingPaymentSchedule activeLoan, double maxPayable) {
+        try {
+            if (activeLoan.getEdiRemainingCount() == 0) {
+                logger.info("No extra payment allowed as edi remaining count is 0 for loanId: {}", activeLoan.getId());
+                return maxPayable;
+            }
+            double maxExtraAllowedAmount = activeLoan.getEdiAmount() * extraPaymentEdiCount;
+            double duePenalty = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
+            double netReceivable = activeLoan.getTotalPayableAmount() + duePenalty - activeLoan.getPaidPrinciple() - activeLoan.getPaidInterest();
+            logger.info("Calculating max amount for extra payment for loanId: {}, maxExtraAllowedAmount: {}, netReceivable: {}", activeLoan.getId(), maxExtraAllowedAmount, netReceivable);
+
+            // note this can be greater than foreclosure amount - but we must ensure not foreclose the loan at our end
+            return Math.min(maxExtraAllowedAmount, netReceivable);
+        } catch (Exception e) {
+            logger.error("Error in calculating max amount for extra payment for loanId: {}, error: {} stack: {}", activeLoan.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+
+        return maxPayable;
     }
 
     public InitiatePaymentResponseDTO initiatePaymentV2(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request) {
@@ -567,10 +630,11 @@ public class PaymentService {
                 return new InitiatePaymentResponseDTO("Amount is less than 1");
             }
             String paymentType = request.getPayload().getPaymentType();
-            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > (activeLoan.getDueAmount().intValue() + penaltyFee)) {
-                logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
-                return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
-            }
+            // LC-2061 - surplus payment is allowed
+//            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > (activeLoan.getDueAmount().intValue() + penaltyFee)) {
+//                logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
+//                return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
+//            }
             if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > (activeLoan.getDueAmount().intValue() + penaltyFee)) {
                 logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("No dues left.");
@@ -642,8 +706,16 @@ public class PaymentService {
                 return new InitiatePaymentResponseDTO("Foreclosure not allowed");
             }
 
-            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) || PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
+            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType)
+                    || PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)
+            ) {
                 order.setDescription(paymentType);
+            }
+
+            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType)) {
+                boolean surplusAmount = amount - (activeLoan.getDueAmount().intValue() + penaltyFee) > 1;
+                String customDesc = PaymentType.CUSTOM_AMOUNT.name() + (surplusAmount ? "_SURPLUS" : "");
+                order.setDescription(customDesc);
             }
 
             order = loanPaymentOrderDao.save(order);
@@ -926,13 +998,29 @@ public class PaymentService {
                 loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
                 return "OK";
             }
-            adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
-                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getTerminalOrderId(), order.getId(),
-                    PaymentType.FORECLOSURE.name().equalsIgnoreCase(order.getDescription()));
-            order.setBankRefNo(request.getBankReferenceNumber());
-            order.setStatus("SUCCESS");
-            loanPaymentOrderDao.save(order);
-            loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
+
+            String transferType = null;
+            // we explicitly set nach lender in description in nach flow
+            if ("BHARATPE_NACH".equals(order.getSource()) && StringUtils.hasLength(order.getDescription())
+                    && !"BHARATPE".equalsIgnoreCase(order.getDescription())) {
+                transferType = "EXTERNAL";
+            }
+
+            try {
+                adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
+                        PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), transferType, request.getTerminalOrderId(), order.getId(),
+                        PaymentType.FORECLOSURE.name().equalsIgnoreCase(order.getDescription()));
+                order.setBankRefNo(request.getBankReferenceNumber());
+                order.setStatus("SUCCESS");
+                loanPaymentOrderDao.save(order);
+                loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
+            }  catch (DuplicateTransactionException e) {
+                logger.error("Duplicate transaction for order id {} : {}", request.getOrderId(), e.getMessage());
+                order.setStatus("DUPLICATE");
+                order.setTerminalOrderId(request.getTerminalOrderId());
+                order.setDescription("Duplicate transaction");
+                loanPaymentOrderDao.save(order);
+            }
         } catch(Exception ex) {
             logger.error("Exception in payment callback for order id {} {} {}", request.getOrderId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
@@ -948,7 +1036,10 @@ public class PaymentService {
             return "OK";
         }
         if (request.getEvent() != null && request.getMandate() !=null) {
-            if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
+            if ("MANDATE".equalsIgnoreCase(request.getEvent())
+                    || (request.getOrderId()!=null && request.getOrderId().startsWith("Auto-UPI"))
+                    || (request.getMandate().getOrderId() != null && request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId()))
+            ) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
                 return autoPayUPIService.handleMandatePgCallback(request, null);
             } else if ("transaction".equalsIgnoreCase(request.getEvent()) && !request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
@@ -1002,6 +1093,10 @@ public class PaymentService {
                                 lendingPullPayment.setStatus(request.getPaymentStatus());
                                 lendingPullPayment.setErrorDescription(request.getErrorDescription());
                                 lendingPullPaymentDao.save(lendingPullPayment);
+                                if("FAILURE".equalsIgnoreCase(request.getPaymentStatus()) && "AUTOPAYUPI".equalsIgnoreCase(lendingPullPayment.getMode())){
+                                    log.info("autoPay-upi payment failed for 1LMS lendingPullPayment id {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
+                                    lendingNotificationService.sendAutoPayUpiFailureComm(request.getOrderAmount(),lendingPullPayment.getMerchantId());
+                                }
                                 List<LendingPullPayment> lendingPullPaymentList =   lendingPullPaymentDao.findPaymentsForConsecutiveCheck(lendingPullPayment.getLoanId(),lendingPullPayment.getId(),lmsPreviousMandateFailed);
                                 log.info("consecutive records for id {} lendingPullPaymentList size is {}",lendingPullPayment.getId(),lendingPullPaymentList.size());
                                 if(checkConsecutiveFailures(lendingPullPaymentList,lmsPreviousMandateFailed) ){
@@ -1016,9 +1111,15 @@ public class PaymentService {
                             }
                             lendingPullPayment.setErrorDescription(request.getErrorDescription());
                             lendingPullPayment.setStatus("PENDING".equalsIgnoreCase(request.getPaymentStatus()) ? request.getPaymentStatus() : "FAILED");
-                            updateErrorCodeErrorDescription(request,lendingPullPayment);
+
+                            updateErrorCodeErrorDescription(request, lendingPullPayment);
+
                             lendingPullPaymentDao.save(lendingPullPayment);
-                            if(!"PENDING".equalsIgnoreCase(request.getPaymentStatus()) && autoPayUpiDpdPenaltyEnabled) confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                            if("FAILURE".equalsIgnoreCase(request.getPaymentStatus()) && "AUTOPAYUPI".equalsIgnoreCase(lendingPullPayment.getMode())){
+                                log.info("autoPay-upi payment failed for lendingPullPayment id {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
+                                lendingNotificationService.sendAutoPayUpiFailureComm(request.getOrderAmount(),lendingPullPayment.getMerchantId());
+                            }
+                            // if(!"PENDING".equalsIgnoreCase(request.getPaymentStatus()) && autoPayUpiDpdPenaltyEnabled) confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
                             List<LendingPullPayment> lendingPullPaymentList =   lendingPullPaymentDao.findPaymentsForConsecutiveCheck(lendingPullPayment.getLoanId(),lendingPullPayment.getId(),previouMandateFailed -1);
                             log.info("consecutive records for id {} lendingPullPaymentList size is {}",lendingPullPayment.getId(),lendingPullPaymentList.size());
                             if(checkConsecutiveFailures(lendingPullPaymentList,previouMandateFailed -1) ){
@@ -1112,10 +1213,16 @@ public class PaymentService {
                         order.setCheckoutType(request.getCheckoutType());
                         order.setBankRefNo(request.getPaymentRefId());
 
-                        adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
-                                PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType, terminalOrderId, order.getId(),
-                                PaymentType.FORECLOSURE.name().equalsIgnoreCase(order.getDescription()));
-
+                        try {
+                            adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
+                                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType, terminalOrderId, order.getId(),
+                                    PaymentType.FORECLOSURE.name().equalsIgnoreCase(order.getDescription()));
+                        }  catch (DuplicateTransactionException e) {
+                            logger.error("Duplicate transaction for order id {} : {}", request.getOrderId(), e.getMessage());
+                            order.setStatus("DUPLICATE");
+                            order.setTerminalOrderId(terminalOrderId);
+                            order.setDescription("Duplicate transaction");
+                        }
                     }
                 }
                 loanPaymentOrderDao.save(order);
@@ -1138,9 +1245,9 @@ public class PaymentService {
         if(request != null && !"PENDING".equalsIgnoreCase(request.getPaymentStatus())  && request.getInternalErrorCode() != null) {
             lendingPullPayment.setErrorCode(request.getInternalErrorCode());
         }
-        if(request != null && !"PENDING".equalsIgnoreCase(request.getPaymentStatus())  && request.getInternalErrorMessage() != null) {
-            lendingPullPayment.setErrorDescription(request.getInternalErrorMessage());
-        }
+//        if(request != null && !"PENDING".equalsIgnoreCase(request.getPaymentStatus())  && request.getInternalErrorMessage() != null) {
+//            lendingPullPayment.setErrorDescription(request.getInternalErrorMessage());
+//        }
     }
 
     private boolean checkIfPullPaymentInProcess(LendingPullPayment lendingPullPayment) {
@@ -1427,7 +1534,7 @@ public class PaymentService {
 
         if (loanPaymentUtil.checkIfNewSettlementAllowed(activeLoan.getCreatedAt())  && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
             log.info("NewSettlement# started the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
-            if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
+            if("BHARATPE_NACH".equals(source) && transferType == null && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
                     transferType = "EXTERNAL";
             }
 
@@ -1435,6 +1542,12 @@ public class PaymentService {
                 source = "UPI";
                 transferType = "EXTERNAL";
             }
+
+            if (transferType == null) {
+                logger.info("Setting transfer type as EXTERNAL for loanId: {}", activeLoan.getId());
+                transferType = "EXTERNAL";
+            }
+
             if("PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc())) imposePenalCharges(orderId,activeLoan);
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
                     .adjustExcessNach(false)
@@ -1455,7 +1568,7 @@ public class PaymentService {
             double finalAmount = amount;
             // Todo: fix when opening  for roll out
             notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, false));
-            lendingCollectionAuditService.sendReceiptPosting(activeLoan.getId());
+            lendingCollectionAuditService.sendReceiptPosting(activeLoan.getId(), activeLoan.getNbfc());
             log.info("NewSettlement# completed the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             return;
         }
@@ -1768,7 +1881,7 @@ public class PaymentService {
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 loanClosurePostingService.postForeclosureReceiptPiramal(activeLoan, lendingLedger, LoanClosureDTO.builder().foreclosureCharges(foreclosureChargesAmount).postCharges(postChargesToLender).build());
             }
-            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", Lender.UGRO.name()).contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", Lender.UGRO.name(), Lender.MUTHOOT.name()).contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
@@ -1873,6 +1986,8 @@ public class PaymentService {
                 return csConfig.getNbfcCreditsaisonForeclosureTopic();
             case "UGRO":
                 return ugroConfig.getForeclosureTopic();
+            case "MUTHOOT":
+                return nbfcMuthootForeclosureTopic;
             default:
                 return null;
         }
@@ -2372,7 +2487,7 @@ public class PaymentService {
                                          .build())
                         .build();
                 logger.info("ABFL: posting foreclosure charges to lender {}", foreclosureChargesRequestDto);
-                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcForeClosureChargePosting);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureChargesRequestDto), NbfcResponseDto.class, nbfcCollectionServiceBaseUrl + nbfcForeClosureChargePosting);
                 log.info("ABFL: response foreclosure charges posting request :{} and response : {}", objectMapper.writeValueAsString(foreclosureChargesRequestDto), nbfcResponseDto);
 
                 if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
@@ -2453,7 +2568,7 @@ public class PaymentService {
                                 .build())
                         .build();
                 logger.info("TrillionLoans: posting foreclosure charges to lender {}", trilionLoansForeclosureChargesRequestDto);
-                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(trilionLoansForeclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcForeClosureChargePosting);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(trilionLoansForeclosureChargesRequestDto), NbfcResponseDto.class, nbfcCollectionServiceBaseUrl + nbfcForeClosureChargePosting);
                 log.info("TrillionLoans: response foreclosure charges posting request :{} and response : {}", objectMapper.writeValueAsString(trilionLoansForeclosureChargesRequestDto), nbfcResponseDto);
 
                 if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
@@ -2626,7 +2741,7 @@ public class PaymentService {
 
         if (Objects.nonNull(activeLoan.getSettleAllPrinciple()) && activeLoan.getSettleAllPrinciple()) {
             // switch back to IPC if all due is paid
-            if (activeLoan.getDueAmount() <= 0) {
+            if (BigDecimal.valueOf(activeLoan.getDueAmount()).setScale(2, RoundingMode.HALF_UP).doubleValue() <= 0) {
                 activeLoan.setSettleAllPrinciple(false);
             }
         }
@@ -2673,7 +2788,7 @@ public class PaymentService {
             else if (Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc())) {
                 loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId, postChargesToLender, requestId);
             }
-            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", Lender.UGRO.name()).contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", Lender.UGRO.name(), Lender.MUTHOOT.name()).contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(activeLoan.getNbfc())
                     || Lender.LIQUILOANS_P2P_OF.name().equalsIgnoreCase(activeLoan.getNbfc())
@@ -2788,14 +2903,15 @@ public class PaymentService {
 //                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
 //                return new InitiatePaymentResponseDTO("No dues left.");
 //            }
-            // foreclosure and advance payment, extra payment not allowed
-            if (amount > (Math.ceil(activeLoan.getDueAmount()) + penaltyFee)) {
-                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, (Math.ceil(activeLoan.getDueAmount()) + penaltyFee), merchantId);
-                return new InitiatePaymentResponseDTO("Amount grater than current dues.");
-            }
+//            // foreclosure and advance payment, extra payment not allowed
+              // LC-2061 - surplus payment is allowed
+//            if (amount > (Math.ceil(activeLoan.getDueAmount()) + penaltyFee)) {
+//                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, (Math.ceil(activeLoan.getDueAmount()) + penaltyFee), merchantId);
+//                return new InitiatePaymentResponseDTO("Amount grater than current dues.");
+//            }
 
 
-            Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindow);
+            Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindowViaLink);
 
             // fetch pending transactions in the last loanPaymentOrderPendingTransactionTimeWindow minutes
             final LoanPaymentOrderSlave pendingTransaction =
@@ -2804,7 +2920,7 @@ public class PaymentService {
 
             if (!ObjectUtils.isEmpty(pendingTransaction)) {
                 logger.info("Already a pending transaction exist for loanId : {} with LPO id : {}", activeLoan.getId(), pendingTransaction.getId());
-                return new InitiatePaymentResponseDTO("Previous transaction is pending.");
+                return new InitiatePaymentResponseDTO("Previous transaction is pending. Try after " + loanPaymentOrderPendingTransactionTimeWindowViaLink + " minutes.");
             }
 
             if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
@@ -2986,9 +3102,11 @@ public class PaymentService {
 
 
                     if (!list.isEmpty()) {
+                        lendingPullPayment.setTerminalOrderId(list.get(0).getTerminalOrderId());
                         order.setTerminalOrderId(list.get(0).getTerminalOrderId());
                         order.setFinalGateway(list.get(0).getFinalGateway());
                     }
+                    lendingPullPaymentDao.save(lendingPullPayment);
                     order.setCheckoutType(request.getCheckoutType());
                     loanPaymentOrderDao.save(order);
 
@@ -3005,13 +3123,15 @@ public class PaymentService {
                 LoanPaymentOrder order = createOrder(lendingPaymentSchedule, orderAmount, request.getPaymentRefId(), UPI_AUTOPAY_ADJUSTMENT_MODE);
 
                 if (!list.isEmpty()) {
+                    lendingPullPayment.setTerminalOrderId(list.get(0).getTerminalOrderId());
                     order.setTerminalOrderId(list.get(0).getTerminalOrderId());
                     order.setFinalGateway(list.get(0).getFinalGateway());
                 }
                 order.setCheckoutType(request.getCheckoutType());
+                lendingPullPaymentDao.save(lendingPullPayment);
                 loanPaymentOrderDao.save(order);
                 // TODO : call handle callback method
-                log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
+                log.info("going to call handle callback method for order {} and loanDetails {} terminal_order_id: {},  pullPayment {}",order,lendingPaymentSchedule, order.getTerminalOrderId(), lendingPullPayment);
                 handleCallback(convertToPgPaymentCallbackDTO(order));
             }
         } catch (Exception ex) {
@@ -3235,5 +3355,157 @@ public class PaymentService {
         order.setOrderId(orderId);
         loanPaymentOrderDao.save(order);
         return order;
+    }
+
+    public void initiateOnDemandPresentment(long loanId) {
+        try {
+            CollectionTaskDto dto = CollectionTaskDto.builder()
+                    .loanId(loanId)
+                    .type(ON_DEMAND_AUTOPAY_PRESENTMENT)
+                    .build();
+            log.info("Sending on demand presentment for loan id {}", dto);
+            confluentKafkaTemplate.send("ondemand-collections-operations", objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
+        } catch (Exception e) {
+            log.error("initiateOnDemandPresentment exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void initiateOnDemandNachPresentment(long loanId) {
+        try {
+            CollectionTaskDto dto = CollectionTaskDto.builder()
+                    .loanId(loanId)
+                    .type(ON_DEMAND_NACH_PRESENTMENT)
+                    .build();
+            log.info("Sending on demand nach presentment for loan id {}", dto);
+            confluentKafkaTemplate.send("ondemand-collections-operations", objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
+        } catch (Exception e) {
+            log.error("initiateOnDemandNachPresentment exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void addLien(Long loanId) {
+        try {
+            CollectionTaskDto dto = CollectionTaskDto.builder()
+                    .loanId(loanId)
+                    .type(ON_DEMAND_LIEN_ADD)
+                    .build();
+            log.info("Adding lien for loan id {}", dto);
+            confluentKafkaTemplate.send("ondemand-collections-operations", objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
+        } catch (Exception e) {
+            log.error("Lien add exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void removeLien(Long loanId) {
+        try {
+            CollectionTaskDto dto = CollectionTaskDto.builder()
+                    .loanId(loanId)
+                    .type(ON_DEMAND_LIEN_REMOVE)
+                    .build();
+            log.info("Removing lien for loan id {}", dto);
+            confluentKafkaTemplate.send("ondemand-collections-operations", objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
+        } catch (Exception e) {
+            log.error("Lien remove exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void migrateAutopayMandate(long loanId) {
+        try {
+            CollectionTaskDto dto = CollectionTaskDto.builder()
+                    .loanId(loanId)
+                    .type(AUTOPAY_PRESENTMENT_MIGRATION)
+                    .build();
+            log.info("Sending autopay presentment for loan id {}", dto);
+            confluentKafkaTemplate.send("ondemand-collections-operations", objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
+        } catch (Exception e) {
+            log.error("migrateAutopayMandate exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void notifyViaAppBottomSheet(Long loanId, Long merchantId) {
+        try {
+            logger.info("Notifying merchant for loanId:{}", loanId);
+            long timeInMillis = Calendar.getInstance().getTimeInMillis();
+            String eventId = "LENDING_DPD_BS_" + loanId;
+//            String eventCategory = "LENDING_DPD";
+            String eventCategory = null;
+            String eventTag = eventId + "_" + timeInMillis;
+
+            KafkaAppBottomSheetNotificationDTO dto = KafkaAppBottomSheetNotificationDTO.builder()
+                    .eventId(eventId)
+                    .eventType("add")
+                    .client("LENDING")
+                    .image(LOAN_REPAY_IMAGE_ICON)
+                    .label("Action required")
+                    .labelIcon(WARNING_RED_ICON)
+                    .heading("Clear your dues immediately")
+                    .subHeadings(Arrays.asList(
+                            "Your loan payment is overdue.\n Continued delay may result in:\n  ● Negative impact on your Bureau score\n  ● Loss of top-up loan eligibility\n  ● Late payment charges"
+                    ))
+                    .submitCta(KafkaAppBottomSheetNotificationDTO.SubmitCta.builder()
+                            .text("Pay now")
+                            .deeplink(dpdNotificationAppDeeplink)
+                            .build())
+                    .priority(200)
+                    .startTime(timeInMillis)
+                    .frequency(0) // frequency in minutes - setting low value to visible on each launch
+                    .merchantId(merchantId)
+                    .storeId(null)
+                    .category(eventCategory)
+                    .eventTag(eventTag)
+                    .closeOnBackdrop(false)
+                    .build();
+            notificationService.sendBottomSheetNotificationOnHomepage(dto);
+            logIntoDbNotification(loanId, merchantId, dto);
+        } catch (Exception e) {
+            logger.error("Error occurred while notifying merchant for loanId:{}", loanId, e);
+        }
+    }
+
+    public void removeAppBottomSheet(Long loanId, Long merchantId) {
+        try {
+            logger.info("Removing DPD bottom sheet for loanId:{}", loanId);
+            removeAppBottomSheet(loanId);
+        } catch (Exception e) {
+            logger.error("Error occurred while notifying merchant for merchantId:{}, error:{}, stack:{}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    private void logIntoDbNotification(long loanId, long merchantId, KafkaAppBottomSheetNotificationDTO event) {
+        try {
+            PostDisbursalNotification notification = PostDisbursalNotification.builder()
+                    .loanId(loanId)
+                    .merchantId(merchantId)
+                    .active(true)
+                    .type(DPD_EVENT_CATEGORY)
+                    .mode(NOTIFICATION_BOTTOM_SHEET)
+                    .data(objectMapper.writeValueAsString(event))
+                    .build();
+            postDisbursalNotificationDao.save(notification);
+        } catch (Exception e) {
+            logger.error("Error occurred while logging notification into DB for loanId:{} error:{} and stack :{}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void removeAppBottomSheet(long loanId) {
+        try {
+            postDisbursalNotificationDao.findActiveByLoanIdAndType(loanId, DPD_EVENT_CATEGORY).stream()
+                    .filter(_event -> (_event != null && NOTIFICATION_BOTTOM_SHEET.equalsIgnoreCase(_event.getMode())))
+                    .forEach(notification -> {
+                        try {
+                            logger.info("Removing app bottom sheet for loanId:{} notificationId:{}", loanId, notification.getId());
+                            KafkaAppBottomSheetNotificationDTO dto = objectMapper.readValue(notification.getData(), KafkaAppBottomSheetNotificationDTO.class);
+                            dto.setEventType("remove");
+                            notificationService.sendBottomSheetNotificationOnHomepage(dto);
+                            notification.setActive(false);
+                            postDisbursalNotificationDao.save(notification);
+                            logger.info("Removed app bottom sheet for loanId:{} notificationId:{}", loanId, notification.getId());
+                        } catch (Exception e) {
+                            logger.error("Error occurred while removing app bottom sheet for loanId:{} notificationId:{}, error:{} stack:{}", loanId, notification.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+                        }
+                    });
+        } catch (Exception e) {
+            logger.error("Error occurred while removing app bottom sheet for loanId:{}, error:{} stack:{}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
     }
 }

@@ -2,15 +2,14 @@ package com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl;
 
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.Handler.EnachHandler;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.util.MandateUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -35,6 +34,8 @@ import javax.transaction.Transactional;
 import java.util.Arrays;
 import java.util.Collections;
 
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_PENNY_DROP_FAILED;
+
 @Slf4j
 @Service
 public class UgroPennyDropService {
@@ -58,10 +59,7 @@ public class UgroPennyDropService {
     ILenderAPIGateway lenderAPIGateway;
 
     @Autowired
-    LendingApplicationDetailsDao lendingApplicationDetailsDao;
-
-    @Autowired
-    EnachHandler enachHandler;
+    MandateUtil mandateUtil;
 
     @Autowired
     LoanUtil loanUtil;
@@ -111,12 +109,8 @@ public class UgroPennyDropService {
     private NBFCRequestDTO<?> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
-            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-            Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
-            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
-
+            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = mandateUtil.getMandateDetails(lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getLender());
             UgroPennyDropRequest updateLead = null;
-
             if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                 updateLead = UgroPennyDropRequest.builder()
                         .id(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
@@ -177,6 +171,8 @@ public class UgroPennyDropService {
                 if (!ObjectUtils.isEmpty(getLeadResponse) && Arrays.asList(ugroConfig.getClosedResponse(), ugroConfig.getRejectedResponse()).contains(getLeadResponse.getStatus())) {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
+                    lenderAssociationDetailsRequest.getLendingApplication().setRejectionReason(LENDER_PENNY_DROP_FAILED);
+                    lenderAssociationDetailsRequest.getLendingApplication().setRejectionStage(RejectionStage.PENNY_DROP);
                     commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
                     return false;
                 }

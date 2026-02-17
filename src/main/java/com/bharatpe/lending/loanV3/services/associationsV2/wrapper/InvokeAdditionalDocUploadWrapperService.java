@@ -142,7 +142,7 @@ public class InvokeAdditionalDocUploadWrapperService {
             case "PAYU":
                 return Collections.singletonList(DocType.LOAN_DOCS);
             case "SMFG":
-                return Arrays.asList(DocType.DIGILOCKER_AADHAAR_XML, DocType.SELFIE, DocType.BUSINESS_DOC, DocType.AUDIT_TRAIL_DOC);
+                return Arrays.asList(DocType.DIGILOCKER_AADHAAR_XML, DocType.SELFIE, DocType.BUSINESS_DOC, DocType.AUDIT_TRAIL_DOC, DocType.SHOP_PHOTO, DocType.SHOP_STOCK);
             case "UGRO":
                 return Collections.singletonList(DocType.LOAN_DOCUMENTS_MERGED);
             default:
@@ -155,11 +155,6 @@ public class InvokeAdditionalDocUploadWrapperService {
     }
 
     private void checkAndPostConsent(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
-        if(LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())) {
-            LendingApplication parentApplication = loanUtil.fetchParentApplication(lenderAssociationDetailsRequestDto.getLendingApplication().getId());
-            if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(parentApplication.getLender())) {
-                associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto);
-            }
-        }
+        associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto);
     }
 }

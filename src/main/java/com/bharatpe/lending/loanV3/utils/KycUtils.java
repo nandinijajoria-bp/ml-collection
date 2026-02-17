@@ -349,7 +349,10 @@ public class KycUtils {
         String dob = "";
 
         fullName =!ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ? cKycResponseDto.getPanName() : cKycResponseDto.getName();
-        dob =!ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ? cKycResponseDto.getPanDob() : cKycResponseDto.getDob();
+        if(!ObjectUtils.isEmpty(cKycResponseDto.getPanDob())) {
+            dob = cKycResponseDto.getPanDob();
+            log.info("setting dob {} from pan in nameAndDobDetailsDto for merchantId {}", dob, merchantId);
+        }
         if(ObjectUtils.isEmpty(cKycResponseDto.getPanDob())) {
             LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             if (!ObjectUtils.isEmpty(lendingPancardDetails)
@@ -358,7 +361,12 @@ public class KycUtils {
             ) {
                 dob = lendingPancardDetails.getDob();
                 fullName = lendingPancardDetails.getName();
+                log.info("setting dob {} from lendingPanCardDetails in nameAndDobDetailsDto for merchantId {}", dob, merchantId);
             }
+        }
+        if(ObjectUtils.isEmpty(dob)) {
+            dob = cKycResponseDto.getDob();
+            log.info("setting dob {} from aadhaar as default in nameAndDobDetailsDto for merchantId {}", dob, merchantId);
         }
         nameAndDobDetailsDto.setFullName(fullName);
         nameAndDobDetailsDto.setDob(dob);

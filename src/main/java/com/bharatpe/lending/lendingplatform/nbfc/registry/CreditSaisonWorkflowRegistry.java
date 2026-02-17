@@ -39,9 +39,9 @@ public class CreditSaisonWorkflowRegistry implements WorkflowRegistry {
 
     @PostConstruct
     private void initWorkflowStageMap() {
-        workflowStage.put(createLeadWorkflow, LenderAssociationStages.KYC);
-        workflowStage.put(kycDocumentWorkflow, LenderAssociationStages.BRE);
-        workflowStage.put(breWorkflow, LenderAssociationStages.PENNY_DROP);
+        workflowStage.put(createLeadWorkflow, LenderAssociationStages.BRE);
+        workflowStage.put(kycDocumentWorkflow, LenderAssociationStages.PENNY_DROP);
+        workflowStage.put(breWorkflow, LenderAssociationStages.KYC);
         workflowStage.put(pennyDropWorkflow, LenderAssociationStages.ASSC_COMPLETED);
         workflowStage.put(loanDocumentDownloadWorkflow, LenderAssociationStages.ASSC_COMPLETED);
         workflowStage.put(loanDocumentWorkflow, LenderAssociationStages.DRAWDOWN);

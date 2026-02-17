@@ -102,7 +102,12 @@ public class RolloutUtil {
     private int eligibleLendingPlatformTrillionloansMerchantRollout;
     @Value("${lending.platform.trillion.application.limit:0}")
     private int lendingPlatformTrillionloansApplicationLimit;
+    @Value("${lending.platform.lms.topup.eligibility:0}")
+    private int oneLmsTopupRolloutPercent;
 
+
+    @Value("${oxyzo.lending.platform.lms.application.limit:2}")
+    private int oxyzoLendingPlatformLmsApplicationLimit;
 
     private final LmsLoanStatusDao lmsLoanStatusDao;
     private final LendingApplicationLenderDetailsDao laldDao;
@@ -196,9 +201,11 @@ public class RolloutUtil {
         LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(bpLoanId);
         LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLoanByBpLoanIdAndStatus(lendingApplication.getExternalLoanId(), "FAILED");
         Long lmsLoanStatusCount = lmsLoanStatusDao.countAllLoanStatusRecords();
+        Long oxyzoLmsLoanStatusCount = lendingPaymentScheduleDao.countOxyzoLoansOn1LMS();
 
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),
-                lendingApplication.getLender(), Arrays.asList(AutoPayStatusEnum.ACTIVE.name()));
+         // Commenting at the moment as it might be required later.
+//        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),
+//                lendingApplication.getLender(), Arrays.asList(AutoPayStatusEnum.ACTIVE.name()));
 
         if (ObjectUtils.isEmpty(lendingApplication)) {
             return false;
@@ -222,9 +229,11 @@ public class RolloutUtil {
         if (!oneLmsFlowEnable) {
             return false;
         }
-        if(!ObjectUtils.isEmpty(autoPayUPI)){
-            return autoPayEligibleForOneLmsFlow(autoPayUPI, lendingApplication);
-        }
+
+        // Commenting at the moment as it might be required later.
+//       if(!ObjectUtils.isEmpty(autoPayUPI)){
+//            return autoPayEligibleForOneLmsFlow(autoPayUPI, lendingApplication);
+//       }
 
         int merchantIdPercentage = lendingApplication.getMerchantId().intValue() % 100;
         if (merchantIdPercentage > eligibleLendingPlatformLmsMerchantRollout) {
@@ -232,9 +241,23 @@ public class RolloutUtil {
             return false;
         }
 
-        if(lendingPlatformLmsApplicationLimit!=-1 && lmsLoanStatusCount>=lendingPlatformLmsApplicationLimit){
-            log.info("New flow for bpLoanId:{} is not eligible due to application limit", bpLoanId);
-            return false;
+        if("TRILLIONLOANS".equalsIgnoreCase(lendingApplication.getLender())) {
+            if(lendingPlatformLmsApplicationLimit!=-1 && lmsLoanStatusCount>=lendingPlatformLmsApplicationLimit){
+                log.info("New flow for bpLoanId:{} is not eligible due to application limit for TL", bpLoanId);
+                return false;
+            }
+        }
+        if("UGRO".equalsIgnoreCase(lendingApplication.getLender())) {
+            if(lendingPlatformLmsApplicationLimit!=-1 && lmsLoanStatusCount>=lendingPlatformLmsApplicationLimit){
+                log.info("New flow for bpLoanId:{} is not eligible due to application limit for UGRO", bpLoanId);
+                return false;
+            }
+        }
+        if("OXYZO".equalsIgnoreCase(lendingApplication.getLender())) {
+            if(oxyzoLendingPlatformLmsApplicationLimit!=-1 && oxyzoLmsLoanStatusCount>=oxyzoLendingPlatformLmsApplicationLimit){
+                log.info("New flow for bpLoanId:{} is not eligible due to application limit for OXYZO", bpLoanId);
+                return false;
+            }
         }
 
         log.info("New flow applicable for LMS");
@@ -363,5 +386,11 @@ public class RolloutUtil {
         int bucket = hash % 100;
 
         return bucket < percent;
+    }
+
+
+
+    public boolean isEligibleForTopupLoan(Long merchantId) {
+        return merchantId % 100 <= oneLmsTopupRolloutPercent;
     }
 }

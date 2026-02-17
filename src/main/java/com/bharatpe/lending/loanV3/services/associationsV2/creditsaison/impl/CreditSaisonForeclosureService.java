@@ -47,9 +47,8 @@ public class CreditSaisonForeclosureService {
     @Autowired
     ObjectMapper objectMapper;
 
-    @Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
-    String nbfcBaseUrl;
-
+    @Value("${nbfc.collection.service.base.url:https://api-nbfc.bharatpemoney.com/}")
+    String nbfcCollectionServiceBaseUrl;
 
     @Value("${nbfc.foreclosure.charge:api/v3/lender/post-charges}")
     String nbfcForeClosureChargePosting;
@@ -92,7 +91,7 @@ public class CreditSaisonForeclosureService {
                                     .build())
                             .identifier(identifier)
                             .build();
-                    nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDTO), NbfcResponseDto.class,nbfcBaseUrl+nbfcForeClosureChargePosting);
+                    nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDTO), NbfcResponseDto.class, nbfcCollectionServiceBaseUrl + nbfcForeClosureChargePosting);
                 } catch (Exception ex) {
                     log.info("CS: Exception while posting charges for foreclosure applicationId {}", lendingApplication.getId());
                 }

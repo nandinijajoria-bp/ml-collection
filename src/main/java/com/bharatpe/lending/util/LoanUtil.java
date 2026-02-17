@@ -6,6 +6,7 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.MerchantScoreSnapshotDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.EnachHandler;
@@ -34,13 +35,11 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 
 import com.bharatpe.lending.entity.LmsStageHistory;
+import com.bharatpe.lending.entity.MerchantAggregateData;
 import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
 import com.bharatpe.lending.enums.*;
-import com.bharatpe.lending.handlers.DsHandler;
-import com.bharatpe.lending.handlers.LaunchLabsHandler;
-import com.bharatpe.lending.handlers.MerchantScoreException;
-import com.bharatpe.lending.handlers.MerchantScoreHandler;
-import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.handlers.*;
+import com.bharatpe.lending.lendingplatform.lms.service.LmsLoanDetailsService;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
@@ -49,6 +48,7 @@ import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
@@ -59,6 +59,7 @@ import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
 import com.bharatpe.lending.service.PaymentBankService;
+import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -79,6 +80,7 @@ import org.springframework.util.StringUtils;
 
 
 import javax.annotation.PostConstruct;
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.io.FileReader;
 import java.io.InputStream;
@@ -102,6 +104,7 @@ import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.enums.MandatesInJourney.*;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
@@ -113,7 +116,7 @@ public class LoanUtil {
 	public static final int COOL_OFF_PERIOD_DAYS = 3;
 	public static final String CLOSURE = "ANY";
 	private static final String RECEIVABLE = "RECEIVABLE";
-	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name()));
+	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name(), CREDITSAISON.name(), MUTHOOT.name(), SMFG.name(), TRILLIONLOANS.name(), LIQUILOANS_P2P.name(), LIQUILOANS_P2P_OF.name()));
 	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
 	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.UGRO.name(), Lender.PAYU.name()));
 
@@ -168,9 +171,6 @@ public class LoanUtil {
 	@Autowired
 	LendingPincodesDao lendingPincodesDao;
 
-//	@Autowired
-//	MerchantSummaryDao merchantSummaryDao;
-
 	@Autowired
 	MerchantSummarySnapshotDao merchantSummarySnapshotDao;
 
@@ -191,9 +191,6 @@ public class LoanUtil {
 
 	@Autowired
 	LaunchLabsHandler launchLabsHandler;
-
-//	@Autowired
-//	MerchantScoreDao merchantScoreDao;
 
 	@Autowired
 	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
@@ -357,6 +354,9 @@ public class LoanUtil {
 	@Autowired
 	LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
+	@Autowired
+	MerchantAggregateDataDao merchantAggregateDataDao;
+
 
 	@Value("${fore.closure.charges.rollout.date:2024-04-10 00:00}")
 	String foreClosureChargesRolloutDate;
@@ -417,18 +417,6 @@ public class LoanUtil {
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
 
-	@Value("${enable.autopayupi.registration:false}")
-	private Boolean enableAutopayUPIRegistration;
-
-	@Value("${merchant.plugin.rollout.percent:0}")
-	Integer merchantPluginRolloutPercent;
-
-	@Value("${upiautopay.dedicated.screen.rollout.percent:0}")
-	Integer upiAutoPayDedicatedScreenRolloutPercent;
-
-	@Value("${upiautopay.topup.dedicated.screen.rollout.percent:0}")
-	Integer upiAutoPayTopupDedicatedScreenRolloutPercent;
-
 	@Value("${deprecated.merchant.references:true}")
     private boolean hasDeprecatedMerchantReferences;
 	@Autowired
@@ -440,6 +428,8 @@ public class LoanUtil {
 	String nbfcChargePosting;
 	@Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
 	String nbfcBaseUrl;
+	@Value("${nbfc.collection.service.base.url:https://api-nbfc.bharatpemoney.com/}")
+	String nbfcCollectionServiceBaseUrl;
 	@Value("${fore.closure.charges.rollout.date.PIRAMAL:2025-02-20 00:00}")
 	String piramalForeClosureChargesRolloutDate;
 
@@ -455,9 +445,6 @@ public class LoanUtil {
 
 	@Value("${pricing.experiment.enable:false}")
 	boolean pricingExpEnabled;
-
-	@Value("${mandate.switch.rollout.percent:10}")
-	Integer mandateSwitchRolloutPercent;
 
 	@Value("${fore.closure.charges.rollout.date.ugro:2026-02-20 00:00:00}")
 	String ugroForeClosureChargesRolloutDate;
@@ -488,6 +475,30 @@ public class LoanUtil {
 
 	@Value("${payment.lock.rollout.date:}")
 	public String paymentLockRolloutDate;
+
+	@Autowired
+	private LmsLoanDetailsService lmsLoanDetailsService;
+
+	@Value("#{${digio.upi.lender.wise.rollout.percentage:{}}}")
+	private Map<String,Integer> digioUpiLenderWiseRolloutPercentage = new HashMap<>();
+
+	@Value("${digio.upi.supported.ios.version:312}")
+	private String digioUpiSupportedIosVersion;
+
+	@Autowired
+	private MandateRegistrationHelper mandateRegistrationHelper;
+
+	@Autowired
+	private S3BucketHandler s3BucketHandler;
+
+	@Value("${aws.merchant.aggregate.data.bucket:underwriting-merchant-aggregates-prod}")
+	private String merchantAggregateDataBucket;
+
+	@Value("${merchant.aggregate.data.s3.rollout.percent:0}")
+	Integer merchantAggregateDataS3RolloutPercent;
+
+	@Value("${max.mandate.rollout.percent:0}")
+	Integer maxMandateAmountRolloutPercent;
 
 	@PostConstruct
 	public void init(){
@@ -891,9 +902,9 @@ public class LoanUtil {
 	 */
 
 	public String getApplicationTatMessage(LendingApplication lendingApplication) {
-		if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
-				&& (ObjectUtils.isEmpty(lendingApplication.getNachStatus())
-				|| !"approved".equalsIgnoreCase(lendingApplication.getNachStatus()))) {
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+		boolean isMandateDone = Objects.nonNull(lendingApplicationDetails) && isMandateDone(lendingApplication, lendingApplicationDetails);
+		if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus()) && !isMandateDone) {
 			return PENDING_APPLICATION_TAT_TEXT;
 		}
 
@@ -928,7 +939,7 @@ public class LoanUtil {
 
 	public int getApplicationTAT(LendingApplication lendingApplication) {
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-		if ("approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+		if (Objects.nonNull(lendingApplicationDetails) && isMandateDone(lendingApplication, lendingApplicationDetails)) {
 			if (!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime())) {
 				return (int) getDateDiffInDays(lendingApplicationDetails.getLeadAcceptanceTime(), new Date());
 			} else if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
@@ -1192,8 +1203,8 @@ public class LoanUtil {
 
 	public boolean isOGL(Integer pincode) {
 		if (pincode == null) return false;
-		PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(pincode);
-		if (pincodeCityStateMapping == null) return true;
+//		PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(pincode);
+//		if (pincodeCityStateMapping == null) return true;
 		LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
 		return lendingPincodes == null || lendingPincodes.getColor().equals(PincodeColor.RED);
 	}
@@ -1570,6 +1581,16 @@ public class LoanUtil {
 		return lendingNachBank != null;
 	}
 
+	public boolean isEnachBank(Long merchantId, String mode) {
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
+		if (merchantBankDetail == null) return true;
+		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfscAndMode(merchantBankDetail.getIfsc().substring(0, 4), mode);
+		return lendingNachBank != null;
+	}
+
 	public LendingNachBankResponseDTO getEnachBankMode(Long merchantId) {
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
@@ -1675,10 +1696,19 @@ public class LoanUtil {
 		Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
 		Double extraInterestofPerpetualDpdLoan = fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
 
-		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount()
+		int foreclosureAmount =  (int) Math.ceil(lendingPaymentSchedule.getLoanAmount()
 				- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
 				+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
 				- advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
+
+		logger.info(
+				"[FORECLOSURE] Calculated foreclosureAmount={} for merchantId={}, loanId={}",
+				foreclosureAmount,
+				lendingPaymentSchedule.getMerchantId(),
+				lendingPaymentSchedule.getApplicationId()
+		);
+
+		return foreclosureAmount;
 	}
 
 	//This method returns the foreclosure amount in Big Decimal and take argument lendingPaymentScheduleSlave Object
@@ -1741,12 +1771,61 @@ public class LoanUtil {
 		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
 	}
 
+	public BigDecimal getForeclosureAmountBD(LendingPaymentScheduleDTO lendingPaymentSchedule) {
+		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+			return BigDecimal.ZERO;
+		}
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		BigDecimal advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ?
+				BigDecimal.valueOf(lendingPrepayment.getAdvanceEdiAmount()) : BigDecimal.ZERO;
+
+		BigDecimal excessCollectionBalance = new BigDecimal(excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId()).toString());
+		BigDecimal extraInterestofPerpetualDpdLoan = BigDecimal.valueOf(fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId()));
+
+		BigDecimal loanAmount = BigDecimal.valueOf(lendingPaymentSchedule.getLoanAmount());
+
+		BigDecimal paidPrinciple = lendingPaymentSchedule.getPaidPrinciple() != null ?
+				BigDecimal.valueOf(lendingPaymentSchedule.getPaidPrinciple()) : BigDecimal.ZERO;
+
+		BigDecimal dueInterest = lendingPaymentSchedule.getDueInterest() != null ?
+				BigDecimal.valueOf(lendingPaymentSchedule.getDueInterest()) : BigDecimal.ZERO;
+
+
+		BigDecimal foreclosureAmount = loanAmount.subtract(paidPrinciple)
+				.add(dueInterest)
+				.subtract(advanceEdiAmount)
+				.subtract(excessCollectionBalance)
+				.subtract(extraInterestofPerpetualDpdLoan);
+
+		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
+	}
+
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
 
 		double prevLoanUnpaidAmount = 0;
 
 		final LdcForeclosureDetailsApiResponseDTO ldcForeclosureDetails =
 		apiGatewayService.getLdcForeclosureDetails(lendingPaymentSchedule.getApplicationId());
+
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+
+		String dateString = format.format(addDays(new Date(), ldcForecloseAmountDateDiff));
+
+		final LdcForeclosureDetailsApiResponseDTO.ForeclosureData foreclosureData = ldcForeclosureDetails.getData().getData().get(dateString);
+
+		logger.info("foreclosure amount picked for date : {} {}", dateString, foreclosureData);
+
+		prevLoanUnpaidAmount = foreclosureData.getTotalOutstandingAmount();
+		return prevLoanUnpaidAmount;
+	}
+
+
+	public double getForeclosureAmountForLdc (LendingPaymentScheduleDTO lendingPaymentSchedule) {
+
+		double prevLoanUnpaidAmount = 0;
+
+		final LdcForeclosureDetailsApiResponseDTO ldcForeclosureDetails =
+				apiGatewayService.getLdcForeclosureDetails(lendingPaymentSchedule.getApplicationId());
 
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -1781,9 +1860,21 @@ public class LoanUtil {
 	}
 
 	public double getForeClosureAmountForLender(LendingPaymentSchedule lendingPaymentSchedule) {
+		if (LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+			return getForeclosureAmountForLdc(lendingPaymentSchedule);
+		}
 		Double netForeclosureAtLender = 0d;
 		if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
 			netForeclosureAtLender = (double) getForeclosureAmount(lendingPaymentSchedule);
+			return netForeclosureAtLender;
+		}
+		if (ONE_LMS.equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())) {
+			LendingApplication lendingApplication = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId()).orElse(null);
+			if (ObjectUtils.isEmpty(lendingApplication)) {
+				logger.error("Empty lending application for application id : {}", lendingPaymentSchedule.getApplicationId());
+				return netForeclosureAtLender;
+			}
+			netForeclosureAtLender = (double) lmsLoanDetailsService.getForeclosureAmount(lendingApplication.getMerchantId(), lendingApplication.getExternalLoanId());
 			return netForeclosureAtLender;
 		}
 		LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = lenderForeclosureCachingService.getLenderForeclosureAmount(lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchantId());
@@ -1860,6 +1951,11 @@ public class LoanUtil {
 
 	//This method returns the PF value in Big Decimal
 	public BigDecimal getIoHalfPFBD(LendingPaymentSchedule lendingPaymentSchedule) {
+		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
+		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
+	}
+
+	public BigDecimal getIoHalfPFBD(LendingPaymentScheduleDTO lendingPaymentSchedule) {
 		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
 		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
 	}
@@ -2222,6 +2318,11 @@ public class LoanUtil {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
+
+		if(mandateRegistrationHelper.isDigioUpiCase(lendingApplication)){
+			return false;
+		}
+
 		BankAccountDetails accountDetails = getAccountDetails(lendingApplication.getMerchantId());
 		if (accountDetails == null) {
 			logger.error("Account details are null for merchant {}", lendingApplication.getMerchantId());
@@ -2329,7 +2430,6 @@ public class LoanUtil {
 			resubmitTask.setResignDone(Boolean.FALSE);
 			resubmitTask.setResignReason("LENDER_CHANGE_FROM_" + lendingApplication.getLender() + "_TO_" + newLender);
 			Boolean renach = apiGatewayService.cancelEnach(lendingApplication.getMerchantId(), lendingApplication.getId());
-			
 
 			logger.info("changing lender from : {} to {}", lendingApplication.getLender(), newLender);
 			lendingApplication.setLender(newLender);
@@ -2691,58 +2791,66 @@ public class LoanUtil {
 		);
 	}
 
-	public boolean verifyPennyDrop(Long merchantId, Map<String, Object> response) {
+	public boolean verifyPennyDropForTopup(Long merchantId, Map<String, Object> response) {
 		try {
 			logger.info("Checking penny drop for merchant:{}", merchantId);
 
-			MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId);
-			BasicDetailsDto basicDetailsDto = merchantDetailsDto.getMerchantDetail();
-			if (ObjectUtils.isEmpty(basicDetailsDto)) {
+			Optional<BankDetailsDto> bankDetailsDto = merchantService.fetchMerchantBankDetails(merchantId);
+			if (!bankDetailsDto.isPresent()) {
 				return false;
 			}
-			BankDetailsDto bankDetailsDto = merchantDetailsDto.getBankDetail();
-			if (ObjectUtils.isEmpty(bankDetailsDto)) {
-				return false;
-			}
-
 			final LendingPennydrop pennydropInLast15Days = lendingPennydropDao.findByMerchantIdAndAccountNumberInLast15Days(merchantId,
-					bankDetailsDto.getAccountNumber());
+					bankDetailsDto.get().getAccountNumber());
 
 			if (!ObjectUtils.isEmpty(pennydropInLast15Days)) {
 				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("SUCCESS")) {
 					logger.info("Penny drop success for merchant:{}", merchantId);
-					response.put("penny_drop_failed", false);
+					response.put("penny_drop_status", "SUCCESS");
 					response.put("message", "penny drop success");
 					return true;
 				}
 
 				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("PENDING")) {
 					logger.info("Penny drop is pending for merchant:{} and penny dropId : {}", merchantId, pennydropInLast15Days.getId());
-					response.put("penny_drop_failed", false);
+					response.put("penny_drop_status", "PENDING");
 					response.put("message", "penny drop pending, please try again after sometime");
-					return false;
+					return true;
 				}
 
 				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("FAILED")) {
-					logger.info("Penny drop failed for merchant:{}", merchantId);
-					response.put("penny_drop_failed", true);
-					response.put("message", "We are unable to verify your bank account. Re-apply after confirming that your bank account is working and your information is correct.");
+					if (!ObjectUtils.isEmpty(pennydropInLast15Days.getRetryCount()) && pennydropInLast15Days.getRetryCount() < LendingConstants.PENNYDROP_MAX_ATTEMPTS) {
+						logger.info("Penny drop FAILED but retry attempts are remaining for merchant:{}", merchantId);
+						response.put("message", "Penny drop to be retried");
+						return true;
+					} else {
+						logger.info("Penny drop failed for merchant:{}", merchantId);
+						response.put("penny_drop_status", "FAILED");
+						response.put("message", "We are unable to verify your bank account. Re-apply after confirming that your bank account is working and your information is correct.");
 
-					LendingApplication lendingApplication = lendingApplicationDao.findLatestDraftApplication(merchantId, "draft");
-					lendingApplication.setStatus("deleted");
-					lendingApplication.setManualCibilReason("PENNY_DROP_FAILED");
-					lendingApplicationDao.save(lendingApplication);
+						LendingApplication lendingApplication = lendingApplicationDao.findLatestDraftApplication(merchantId, "draft");
+						if (ObjectUtils.isEmpty(lendingApplication)) {
+							logger.error("No draft application found for penny drop failure for merchant:{}", merchantId);
+							return false;
+						}
+						lendingApplication.setStatus("rejected");
+						lendingApplication.setManualCibilReason("PENNY_DROP_FAILED");
+						lendingApplication.setRejectionReason("PENNY_DROP_FAILED");
+						lendingApplication.setRejectionStage(RejectionStage.PENNY_DROP);
+						lendingApplicationDao.save(lendingApplication);
 
-					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-					lendingAuditTrial.setApplicationId(lendingApplication.getId());
-					lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-					lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
-					lendingAuditTrial.setUserId(Long.parseLong("0"));
-					lendingAuditTrial.setOldStatus("draft");
-					lendingAuditTrial.setNewStatus("deleted");
-					lendingAuditTrial.setType("APP_STATUS");
-					lendingAuditTrialDao.save(lendingAuditTrial);
-					return false;
+						LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+						lendingAuditTrial.setApplicationId(lendingApplication.getId());
+						lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+						lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+						lendingAuditTrial.setUserId(0L);
+						lendingAuditTrial.setOldStatus("draft");
+						lendingAuditTrial.setNewStatus("rejected");
+						lendingAuditTrial.setType("APP_STATUS");
+						lendingAuditTrialDao.save(lendingAuditTrial);
+
+						return false;
+					}
+
 				}
 			}
 		} catch (Exception e) {
@@ -2908,7 +3016,7 @@ public class LoanUtil {
 			if(foreClosureConfig != null) {
                 foreClosureDetailDTO.setId(foreClosureConfig.getId());
 				foreClosureDetailDTO.setPrincipalOutstanding(foreclosureAmount);
-				Double minAmount = foreClosureConfig.getMinAmount();
+				Double minAmount = getMinAmountForForeclosure(foreClosureConfig.getMinAmount(), activeLoan.getLoanApplication().getId());
 				if(minAmount == null) minAmount = 0.0;
                 logger.info("loan is {} and min amount is {} and foreclosure config rate  is {}  ",activeLoan,minAmount, foreClosureConfig.getRate());
                 foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( principleOutstanding * foreClosureConfig.getRate())/100.0) , minAmount));
@@ -2920,6 +3028,28 @@ public class LoanUtil {
 		logger.info("fore closure charges not applicable for loanId {} and nbfc {}",activeLoan.getId(),activeLoan.getNbfc());
         return null;
 	}
+
+    public double getMinAmountForForeclosure(double minAmountDb, Long applicationId) {
+        if (minAmountDb <= 0) {
+            return 0;
+        }
+        LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
+        if (Objects.isNull(lendingApplication)) {
+            logger.info("Lending application not found for id: {}", applicationId);
+            return 0;
+        }
+        try {
+            // 1 Jan 2026 RBI circular date No min amount on foreclosure after this date
+            Date cutOffDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse("2026-01-01 00:00:00");
+            if (!Objects.isNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().after(cutOffDate)) {
+                return 0;
+            }
+        } catch (Exception e) {
+            logger.error("Error parsing cut off date for min amount foreclosure check for application id: {}", applicationId, e);
+            return 0;
+        }
+        return minAmountDb;
+    }
 
 	private  ForeClosureConfig getApplicableForeclosureConfig(List<ForeClosureConfig> foreClosureConfigList, double duration) {
 		for (ForeClosureConfig foreClosureConfig : foreClosureConfigList) {
@@ -2984,6 +3114,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(CREDITSAISON.name(), "CREDITSAISON");
 		rejectedLenderMapping.put(SMFG.name(), "SMFG");
 		rejectedLenderMapping.put(OXYZO.name(), "OXYZO");
+		rejectedLenderMapping.put(TRILLIONLOANS.name(), "TRILLIONLOANS");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
@@ -3109,6 +3240,11 @@ public class LoanUtil {
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreensV2.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
 				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
+					if(!ObjectUtils.isEmpty(lendingApplication) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+						logger.info("lender aggregation flow not applicable for merchantId {} as loan type is {}", merchantId, lendingApplication.getLoanType());
+						return null;
+					}
 					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 					lendingAuditTrial.setApplicationId(applicationId);
 					lendingAuditTrial.setMerchantId(merchantId);
@@ -3214,7 +3350,7 @@ public class LoanUtil {
 		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
 		PricingExperiment pricingExperiment = null;
 		if(pricingExpEnabled) {
-			pricingExperiment =pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
+			pricingExperiment =pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, String.valueOf(lendingRiskVariables.getMerchantId()), pincodeColor, "ACTIVE");
 		}
 		if(!ObjectUtils.isEmpty(pricingExperiment)) {
             logger.info("experiment available for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
@@ -3416,7 +3552,7 @@ public class LoanUtil {
 		PiramalForeclosureChargesRequestDto piramalForeclosureChargesRequestDto = createPiramalPostChargesDto(lendingApplicationLenderDetails, penaltyFeeLedger,amount,type);
 		logger.info("Piramal: posting penalty  to lender {}", piramalForeclosureChargesRequestDto);
 		try {
-			NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(piramalForeclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcChargePosting);
+			NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(piramalForeclosureChargesRequestDto), NbfcResponseDto.class, nbfcCollectionServiceBaseUrl + nbfcChargePosting);
 			logger.info("Piramal: response penalty  posting request :{} and response : {}", objectMapper.writeValueAsString(piramalForeclosureChargesRequestDto), nbfcResponseDto);
 			if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
 				logger.info("Piramal: penalty charges posted to lender{}",nbfcResponseDto);
@@ -3616,65 +3752,39 @@ public class LoanUtil {
 
 		return relation1.compareTo(relation2);
 	}
+	public boolean isMandateDone(@NotNull LendingApplication lendingApplication, @NotNull LendingApplicationDetails lendingApplicationDetails){
+		if(lendingApplicationDetails.isAutoPayUpiEligible() && lendingApplicationDetails.isNachEligible()){
+			return NachStatus.APPROVED.name().equals(lendingApplication.getUpiAutopayStatus())
+						&& NachStatus.APPROVED.name().equals(lendingApplication.getNachStatus());
+		}else if(lendingApplicationDetails.isAutoPayUpiEligible()){
+			return NachStatus.APPROVED.name().equals(lendingApplication.getUpiAutopayStatus());
+		}else {
+			return NachStatus.APPROVED.name().equals(lendingApplication.getNachStatus());
+		}
+	}
 
 	public boolean isEligibleForUpiAutopayDedicatedScreen(LendingApplication lendingApplication){
 		logger.info("Checking if UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
-		return enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
-				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && isUpiDedicatedScreenEligible(lendingApplication);
+		return isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
+				&& !checkIfUpiAutoPayNotRequired(lendingApplication);
 	}
 
 	public boolean isEligibleForUpiAutopayTopupDedicatedScreen(LendingApplication lendingApplication){
-		logger.info("Checking if UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
-		return enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
-				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
-	}
-
-	public LendingViewStates getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(LendingApplication lendingApplication){
-		logger.info("Deciding next lending view state for UPI Autopay dedicated screen for topup for applicationId: {}", lendingApplication.getId());
-		if(enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
-				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent)) {
-			return LendingViewStates.UPI_AUTOPAY_PAGE;
-		}
-		return LendingViewStates.ENACH_PAGE;
+		logger.info("Checking if UPI Autopay dedicated screen is applicable for topup applicationId: {}", lendingApplication.getId());
+		return isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())
+				&& !checkIfUpiAutoPayNotRequired(lendingApplication);
 	}
 
 	public LendingViewStates getNextLendingViewStateForTopup(LendingApplicationDetails lendingApplicationDetails, LendingApplication lendingApplication) {
-		logger.info("Deciding next lending view state for topup for applicationId: {} with lendingApplication Details: {}", lendingApplication.getId(), lendingApplicationDetails);
-		if(isMandateSwitchEnabled(lendingApplication)) {
-			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
-
-			updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
-			logger.info("Updated LendingApplicationDetails for applicationId: {}: {}", lendingApplication.getId(), lendingApplicationDetails);
-
-			LendingViewStates nextLendingViewStateForTopup;
-			if (lendingApplicationDetails.isAutoPayUpiEligible()) {
-				logger.info("Autopay UPI is eligible for applicationId: {}", lendingApplication.getId());
-				if(isEligibleForUpiAutopayTopupDedicatedScreen(lendingApplication)){
-					logger.info("UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
-					nextLendingViewStateForTopup = LendingViewStates.UPI_AUTOPAY_PAGE;
-				}
-				else if (lendingApplicationDetails.isNachEligible()) {
-					logger.info("UPI Autopay dedicated screen is not applicable, but NACH is eligible for applicationId: {}", lendingApplication.getId());
-                    nextLendingViewStateForTopup = LendingViewStates.ENACH_PAGE;
-                } else {
-					logger.info("Neither UPI Autopay dedicated screen nor NACH is eligible for applicationId: {}", lendingApplication.getId());
-                    nextLendingViewStateForTopup = LendingViewStates.AGREEMENT_PAGE;
-                }
-			} else if (lendingApplicationDetails.isNachEligible()) {
-				logger.info("NACH is eligible for applicationId: {}", lendingApplication.getId());
-				nextLendingViewStateForTopup = LendingViewStates.ENACH_PAGE;
-			} else {
-				logger.info("Neither UPI Autopay nor NACH is eligible for applicationId: {}", lendingApplication.getId());
-				nextLendingViewStateForTopup = LendingViewStates.AGREEMENT_PAGE;
-			}
-			logger.info("Next lending view state for topup for applicationId: {} is {}", lendingApplication.getId(), nextLendingViewStateForTopup);
-			return nextLendingViewStateForTopup;
+		logger.info("deciding next lending view state for topup for applicationId: {}", lendingApplication.getId());
+		LendingViewStates nextLendingViewState = LendingViewStates.ENACH_PAGE;
+		updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
+		if(MandateType.BOTH.equals(lendingApplicationDetails.getMandateType())
+				|| MandateType.UPIAUTOPAY.equals(lendingApplicationDetails.getMandateType())){
+			return LendingViewStates.UPI_AUTOPAY_PAGE;
 		}
-		else	return getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
-	}
-
-	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount) {
-		return getMandatesRequiredForApplication(lender, loanAmount, null);
+		logger.info("next lending view state for topup for applicationId: {} is {}", lendingApplication.getId(), nextLendingViewState);
+		return nextLendingViewState;
 	}
 
 	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount, String loanSegment) {
@@ -3684,7 +3794,10 @@ public class LoanUtil {
 		}
 		try {
 			List<NachMandateEligibilityConfig> nachMandateEligibilityConfigList = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigByLender(lender);
-
+			if(CollectionUtils.isEmpty(nachMandateEligibilityConfigList)){
+				logger.warn("No nachMandateEligibilityConfig found for lender: {}", lender);
+				return NACH;
+			}
 			for(NachMandateEligibilityConfig mandateEligibilityConfig: nachMandateEligibilityConfigList) {
 				boolean amountInRange = checkIfAmountInRange(mandateEligibilityConfig, loanAmount);
 				boolean loanSegmentValid = checkIfLoanSegmentValid(mandateEligibilityConfig, loanSegment);
@@ -3785,6 +3898,8 @@ public class LoanUtil {
 				logger.info("Mandate flags already toggled on for applicationId: {}, skipping update", lendingApplicationDetails.getApplicationId());
 				return;
 			}
+			logger.info("deciding next lending view state for applicationId: {}, loanAmount: {}",
+					lendingApplicationDetails.getApplicationId(), loanAmount);
 
 			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplicationDetails.getApplicationId());
 			if (lendingRiskVariablesSnapshot == null) {
@@ -3798,24 +3913,29 @@ public class LoanUtil {
 				logger.info("Using forced mandatesInJourney: {} for applicationId: {}, lender: {}, loanAmount: {}",
 						mandatesInJourney, lendingApplicationDetails.getApplicationId(), lender, loanAmount);
 			}
-			Map<String, Object> metaData = lendingApplicationDetails.getMetaData();
-			if(Objects.isNull(metaData)){
-				metaData=new HashMap<>();
-			}
 			if (NACH_UPIAUTOPAY.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(true);
 				lendingApplicationDetails.setNachEligible(true);
-				metaData.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.BOTH);
+				lendingApplicationDetails.setMandateType(MandateType.BOTH);
 			} else if (UPIAUTOPAY.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(true);
 				lendingApplicationDetails.setNachEligible(false);
-				metaData.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.UPIAUTOPAY);
+				lendingApplicationDetails.setMandateType(MandateType.UPIAUTOPAY);
 			} else if (NACH.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(false);
 				lendingApplicationDetails.setNachEligible(true);
-				metaData.put(LendingConstants.MANDATE_TYPE_KEY, MandateType.ENACH);
+				lendingApplicationDetails.setMandateType(MandateType.ENACH);
 			}
-			lendingApplicationDetails.setMetaData(metaData);
+			if (!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)
+					&& (NACH_UPIAUTOPAY.equals(mandatesInJourney) || UPIAUTOPAY.equals(mandatesInJourney))
+						&& easyLoanUtil.percentScaleUp(lendingRiskVariablesSnapshot.getMerchantId(), digioUpiLenderWiseRolloutPercentage.getOrDefault(lender, 0))) {
+				logger.info("Setting mandate type to DIGIO_UPI for merchantId: {}, applicationId: {} as merchant is NACHable for UPI mode",
+						lendingRiskVariablesSnapshot.getMerchantId(), lendingApplicationDetails.getApplicationId());
+				lendingApplicationDetails.setNachEligible(false);
+				lendingApplicationDetails.setAutoPayUpiEligible(true);
+				lendingApplicationDetails.setMandateType(MandateType.DIGIO_UPI);
+			}
+
 			lendingApplicationDetails.setMandateFlagsToggledOn(new Date());
 			logger.info("Mandate flags toggled on for applicationId: {}, setting autoPayUpiEligible: {}, nachEligible: {}",
 					lendingApplicationDetails.getApplicationId(), lendingApplicationDetails.isAutoPayUpiEligible(), lendingApplicationDetails.isNachEligible());
@@ -3827,18 +3947,6 @@ public class LoanUtil {
 		}
 	}
 
-	public void updateNachDetailsIfNachIneligible(LendingApplication lendingApplication) {
-		if(StringUtils.isEmpty(lendingApplication.getNachType())) {
-			logger.info("Nach Type is empty, means UPI Autopay is not done, setting Nach Type to ENACH even though Nach is not eligible for applicationId: {}", lendingApplication.getId());
-			lendingApplication.setNachType("ENACH");
-		}
-		lendingApplication.setNachLender(enachServiceLenderMapper(lendingApplication.getLender()));
-		lendingApplication.setNachReferenceNumber(null);
-		lendingApplication.setNachStatus("APPROVED");
-
-		lendingApplicationDao.save(lendingApplication);
-	}
-
 	public boolean isLendingApplicationIneligibleForNach(LendingApplication lendingApplication){
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 		if(!ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()) {
@@ -3848,15 +3956,8 @@ public class LoanUtil {
 		return false;
 	}
 
-	public boolean isUpiDedicatedScreenEligible(LendingApplication lendingApplication){
-		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-			return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
-		}
-		return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent);
-	}
-
 	public boolean isMandateSwitchEnabled(LendingApplication lendingApplication){
-		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent);
+		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication);
 	}
 
 	/**
@@ -3962,23 +4063,27 @@ public class LoanUtil {
 	}
 
 	private AddressDetails fetchAddress(String token, Long merchantId, LendingApplication lendingApplication, String pincode) {
-		AddressDetails addressDetails = new AddressDetails();
 		if (lendingApplication == null) {
 			logger.info("Lending application is null. Fetching address from merchant service for merchant: {}", merchantId);
-			addressDetails = getAddressOfMerchant(token, merchantId, pincode);
+			return getAddressOfMerchant(token, merchantId, pincode);
 		} else {
-			if(loanDetailsV3Service.isAddressComplete(lendingApplication)) {
-				addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
-				addressDetails.setArea(lendingApplication.getArea());
-				addressDetails.setLandmark(lendingApplication.getLandmark());
-				addressDetails.setAddress2(lendingApplication.getStreetAddress());
-				addressDetails.setAddress1(lendingApplication.getShopNumber());
-				addressDetails.setCity(lendingApplication.getCity());
-				addressDetails.setState(lendingApplication.getState());
-				return addressDetails;
-			}
+			return merchantAddress(lendingApplication);
 		}
-		return addressDetails;
+	}
+
+	public AddressDetails merchantAddress(LendingApplication lendingApplication) {
+		AddressDetails addressDetails = new AddressDetails();
+		if(loanDetailsV3Service.isAddressComplete(lendingApplication)) {
+			addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
+			addressDetails.setArea(lendingApplication.getArea());
+			addressDetails.setLandmark(lendingApplication.getLandmark());
+			addressDetails.setAddress2(lendingApplication.getStreetAddress());
+			addressDetails.setAddress1(lendingApplication.getShopNumber());
+			addressDetails.setCity(lendingApplication.getCity());
+			addressDetails.setState(lendingApplication.getState());
+			return addressDetails;
+		}
+		return null;
 	}
 
 	public String getBusinessName(Long merchantId, LendingApplication lendingApplication) {
@@ -4002,48 +4107,191 @@ public class LoanUtil {
 
 
 	public AddressDetails getAddressOfMerchant(String token, Long merchantId,String pincode) {
-		MerchantDto merchantDto = new MerchantDto();
-		merchantDto.setMerchantId(merchantId);
-		ListMerchantAddressResponseDto addressResponse = merchantService.getAddress(merchantDto, token);
-		logger.info("Address response from Merchant Service: {}", addressResponse);
+		try {
+			MerchantDto merchantDto = new MerchantDto();
+			merchantDto.setMerchantId(merchantId);
+			ListMerchantAddressResponseDto addressResponse = merchantService.getAddress(merchantDto, token);
+			logger.info("Address response from Merchant Service: {}", addressResponse);
 
-		if (!ObjectUtils.isEmpty(addressResponse) && !CollectionUtils.isEmpty(addressResponse.getAddress())) {
-			// Filter addresses that have required fields and matching pincode
-			Optional<Long> validAddressId = addressResponse.getAddress().stream()
-					.filter(address -> address.getAddress() != null &&
-							address.getAdd2() != null &&
-							address.getArea() != null &&
-							address.getPincode() != null &&
-							address.getPincode().equals(pincode))
-					.max(Comparator.comparing(ListMerchantAddressResponseDto.Address::getId))
-					.map(ListMerchantAddressResponseDto.Address::getId);
-			logger.info("Valid address ID with matching pincode: {}", validAddressId);
+			if (!ObjectUtils.isEmpty(addressResponse) && !CollectionUtils.isEmpty(addressResponse.getAddress())) {
+				// Filter addresses that have required fields and matching pincode
+				Optional<Long> validAddressId = addressResponse.getAddress().stream()
+						.filter(address -> address.getAddress() != null &&
+								address.getAdd2() != null &&
+								address.getArea() != null &&
+								address.getPincode() != null &&
+								address.getPincode().equals(pincode))
+						.max(Comparator.comparing(ListMerchantAddressResponseDto.Address::getId))
+						.map(ListMerchantAddressResponseDto.Address::getId);
+				logger.info("Valid address ID with matching pincode: {}", validAddressId);
 
-			if (!validAddressId.isPresent()) {
-				logger.info("No valid address found with matching pincode: {}", pincode);
-				return null;
+				if (!validAddressId.isPresent()) {
+					logger.info("No valid address found with matching pincode: {}", pincode);
+					return null;
+				}
+
+				ListMerchantAddressResponseDto.Address latestAddress = addressResponse.getAddress().stream()
+						.filter(address -> address.getId().equals(validAddressId.get()))
+						.findFirst()
+						.orElse(null);
+				logger.info("Latest address: {}", latestAddress);
+
+				if (!ObjectUtils.isEmpty(latestAddress)) {
+					AddressDetails addressDetails = new AddressDetails();
+					addressDetails.setPincode(latestAddress.getPincode());
+					addressDetails.setAddress2(latestAddress.getAdd2());
+					addressDetails.setAddress1(latestAddress.getAddress());
+					addressDetails.setLandmark(latestAddress.getLandmark());
+					addressDetails.setCity(latestAddress.getCity());
+					addressDetails.setState(latestAddress.getState());
+					addressDetails.setArea(latestAddress.getArea());
+					return addressDetails;
+				}
 			}
-
-			ListMerchantAddressResponseDto.Address latestAddress = addressResponse.getAddress().stream()
-					.filter(address -> address.getId().equals(validAddressId.get()))
-					.findFirst()
-					.orElse(null);
-			logger.info("Latest address: {}", latestAddress);
-
-			if (!ObjectUtils.isEmpty(latestAddress)) {
-				AddressDetails addressDetails = new AddressDetails();
-				addressDetails.setPincode(latestAddress.getPincode());
-				addressDetails.setAddress2(latestAddress.getAdd2());
-				addressDetails.setAddress1(latestAddress.getAddress());
-				addressDetails.setLandmark(latestAddress.getLandmark());
-				addressDetails.setCity(latestAddress.getCity());
-				addressDetails.setState(latestAddress.getState());
-				addressDetails.setArea(latestAddress.getArea());
-				return addressDetails;
-			}
+		}catch (Exception e) {
+			logger.error("Exception while fetching merchant address for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
 		}
 		return null;
 	}
 
+	public MerchantAggregateData getMerchantAggregateData(Long merchantId, String aggregateId) {
+		if (easyLoanUtil.percentScaleUp(merchantId, merchantAggregateDataS3RolloutPercent)) {
+			logger.info("Fetching MerchantAggregateData from S3 for merchantId={}", merchantId);
+			return fetchMerchantAggregateDataFromS3(merchantId, aggregateId);
+		} else {
+			logger.info("Fetching MerchantAggregateData from DB for merchantId={}", merchantId);
+			return fetchMerchantAggregateDataFromDb(merchantId, aggregateId);
+		}
+	}
+
+	private MerchantAggregateData fetchMerchantAggregateDataFromS3(Long merchantId, String aggregateId) {
+
+		String key = String.format("merchant-aggregates/%s/%s.json", merchantId, aggregateId);
+
+		try (InputStream inputStream = s3BucketHandler.getObject(key, merchantAggregateDataBucket)) {
+			if (inputStream == null) {
+				logger.warn("S3 getObject returned null for merchantId={}, aggregateId={}, falling back to DB.",
+						merchantId, aggregateId);
+				return fetchMerchantAggregateDataFromDb(merchantId, aggregateId);
+			}
+			MerchantAggregateDataS3 s3Data =
+					objectMapper.readValue(inputStream, MerchantAggregateDataS3.class);
+
+			MerchantAggregateData entity = new MerchantAggregateData();
+			entity.setMerchantId(s3Data.getMerchantId());
+			entity.setApplicationType(s3Data.getApplicationType());
+			entity.setAggregateId(s3Data.getAggregateId());
+			entity.setSources(s3Data.getSources() != null ? s3Data.getSources().toString() : null);
+			entity.setScienapticProperties(
+					s3Data.getScienapticProperties() != null ? s3Data.getScienapticProperties().toString() : null
+			);
+
+			return entity;
+
+		} catch (Exception e) {
+			logger.error(
+					"Failed to fetch MerchantAggregateData from S3 for merchantId={}, aggregateId={}. Falling back to DB.",
+					merchantId, aggregateId, e
+			);
+
+			return merchantAggregateDataDao.findByMerchantIdAndAggregateId(merchantId, aggregateId);
+		}
+	}
+
+	private MerchantAggregateData fetchMerchantAggregateDataFromDb(Long merchantId, String aggregateId) {
+		MerchantAggregateData data = merchantAggregateDataDao.findByMerchantIdAndAggregateId(merchantId, aggregateId);
+		if (data == null) {
+			logger.error("MerchantAggregateData not found in DB for merchantId={}, aggregateId={}", merchantId, aggregateId);
+		} else {
+			logger.info("Fetched MerchantAggregateData from DB for merchantId={}", merchantId);
+		}
+		return data;
+	}
+	public boolean isTopupOfferValid(LendingRiskVariables lrv) {
+		boolean valid = true;
+
+		if (!"TOPUP".equals(lrv.getRiskSegment())) {
+			logger.info("Topup invalid: riskSegment != TOPUP for merchantId={}", lrv.getMerchantId());
+			valid = false;
+		}
+
+		if (Objects.nonNull(lrv.getRiskRejection())) {
+			logger.info("Topup invalid: riskRejection present={} for merchantId={}",
+					lrv.getRiskRejection(), lrv.getMerchantId());
+			valid = false;
+		}
+
+		if (Objects.isNull(lrv.getFinalOffer())) {
+			logger.info("Topup invalid: finalOffer is null for merchantId={}", lrv.getMerchantId());
+			valid = false;
+		}
+		return valid;
+	}
+
+	public int getEdiMultiplier(int dpd) {
+		if (dpd == 0) return 1;
+		if (dpd >= 1 && dpd <= 7) return 2;
+		if (dpd >= 8 && dpd <= 30) return 5;
+		if (dpd >= 31 && dpd <= 60) return 10;
+		if (dpd >= 61 && dpd <= 90) return 20;
+
+		// dpd > 90 → trigger fallback
+		return -1;
+	}
+
+	public Double getMaxMandateAmount(Long merchantId) {
+		if(!easyLoanUtil.percentScaleUp(merchantId, maxMandateAmountRolloutPercent)) {
+			return null;
+		}
+		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList(LoanStatus.ACTIVE.name()));
+		if (ObjectUtils.isEmpty(lendingPaymentSchedule) || lendingPaymentSchedule.getApplicationId() == null) {
+			logger.info("No active loan found for merchant id {}", merchantId);
+			return null;
+		}
+
+		int maxDpd = loanDpdDao.findMaxDpdOfMerchant(merchantId).intValue();
+		logger.info("maxDpd for merchant: {} {}", merchantId, maxDpd);
+
+		int multiplier = getEdiMultiplier(maxDpd);
+		// ✅ If dpd > 90 → fallback to existing logic
+		if (multiplier == -1) {
+			logger.info("DPD > 90 for merchantId {}, returning default 15000.0", merchantId);
+			return LendingConstants.MAX_MANDATE_AMOUNT;
+		}
+		double calculated = multiplier * lendingPaymentSchedule.getEdiAmount();
+		logger.info("calculated amount: {}, multiplier: {}, ediAmount: {}, applicationId: {}", calculated, multiplier, lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getApplicationId());
+		// Cap at 15,000
+		return Math.min(calculated, LendingConstants.MAX_MANDATE_AMOUNT);
+	}
+
+	public void updateEligibleLoan(LendingEligibleLoan target, LendingEligibleLoan source) {
+		if (target == null || source == null) {
+			return;
+		}
+
+		target.setAmount(source.getAmount());
+		target.setEdi(source.getEdi());
+		target.setIoEdi(source.getIoEdi());
+		target.setRepayment(source.getRepayment());
+
+		target.setProcessingFee(source.getProcessingFee());
+		target.setProcessingFeeRate(source.getProcessingFeeRate());
+
+		target.setRateOfInterest(source.getRateOfInterest());
+		target.setApr(source.getApr());
+		target.setIrr(source.getIrr());
+
+		target.setClubV2Amount(source.getClubV2Amount());
+	}
+
+	public LendingEligibleLoan copyEligibleLoan(LendingEligibleLoan source) {
+		if (source == null) {
+			return null;
+		}
+		LendingEligibleLoan target = new LendingEligibleLoan(source);
+		target.setApr(source.getApr());
+		target.setIrr(source.getIrr());
+		return target;
+	}
 }
 

@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LeadSubStatus;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.callback.BRECallback;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
@@ -73,7 +74,7 @@ public class BRECallbackProcessingService {
                     List<Workflow> workflows = workflowRegistry.getStageWorkflow(nextStage);
                     WorkflowUtil.invokeWorkflows(workflows, lendingApplication.getId());
                 } else {
-                    updateLad(lendingApplication.getId());
+                    updateLad(lendingApplication.getId(), lendingApplication.getLender());
                 }
             } else {
                 updateLaldForFailedCallback(breCallbackResponse, lald, lendingApplication);
@@ -86,9 +87,9 @@ public class BRECallbackProcessingService {
         }
     }
 
-    private void updateLad(Long id) {
+    private void updateLad(Long id, String lender) {
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(String.valueOf(id));
-        lendingApplicationDetails.setStage(ASSC_COMPLETED.name());
+        lendingApplicationDetails.setStage(getStageByLender(lender));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
     }
 
@@ -104,10 +105,18 @@ public class BRECallbackProcessingService {
         log.info("BRE Approved for applicationId: {}, updating statuses", breCallbackResponse.getApplicationId());
         lald.setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
-        lald.setStage(ASSC_COMPLETED.name());
+        lald.setStage(getStageByLender(lald.getLender()));
         Optional.ofNullable(breCallbackResponse.getData().getLeadId())
                 .ifPresent(lald::setLeadId);
         laldDao.save(lald);
+    }
+
+    private String getStageByLender(String lender) {
+        if(Lender.CREDITSAISON.name().equalsIgnoreCase(lender)) {
+            return LenderAssociationStages.KYC.name();
+        }
+
+        return ASSC_COMPLETED.name();
     }
 
     private boolean isApplicationApproved(LenderApiResponse<BRECallback> breCallbackResponse) {

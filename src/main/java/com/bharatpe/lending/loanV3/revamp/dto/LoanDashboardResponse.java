@@ -12,6 +12,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDate;
+import java.util.Date;
+
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -22,6 +25,7 @@ public class LoanDashboardResponse {
     private boolean activeLoan = false;
     private Boolean activeEMILoan;
     private String ineligible;
+    private LocalDate derogMerchantReapplyDate;
 
     private boolean changeBankAccount;
     private Eligibility eligibility;
@@ -34,6 +38,7 @@ public class LoanDashboardResponse {
     private boolean isDummyMerchant = false;
     private String source;
     private Long merchantId;
+    private Long applicationId;
     private Double excessNachAmount;
     private Double excessCollectionAmount;
     private Double excessCollectionAdjusted;
@@ -57,6 +62,6 @@ public class LoanDashboardResponse {
     private boolean sliderEnrolled;
     private boolean rteEnrolled;
     private boolean isAutopayRequiredForActiveLoan;
-
+    private boolean isNachMandateRequiredForActiveLoan;
 }
 

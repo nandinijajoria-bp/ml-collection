@@ -85,7 +85,7 @@ public class LendingEdiScheduleService {
                 double interest = round(lendingApplication.getEdi().intValue() - principal);
 
                 if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())
-                        && ! ediUtil.isRoundDownEligibleLender(lendingApplication.getLender())) {
+                        && ! ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.getLender())) {
                     interest = roundToWhole(interest);
                     principal = lendingApplication.getEdi().intValue() - interest;
                 }
@@ -225,7 +225,7 @@ public class LendingEdiScheduleService {
                 double interest = round(lendingApplication.getEdi().intValue() - principal);
 
                 if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())
-                        && ! ediUtil.isRoundDownEligibleLender(lendingApplication.getLender())) {
+                        && ! ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.getLender())) {
                     interest = roundToWhole(interest);
                     principal = lendingApplication.getEdi().intValue() - interest;
                 }
@@ -382,7 +382,7 @@ public class LendingEdiScheduleService {
                 double interest = round(edi.intValue() - principal);
 
                 if (Lender.PIRAMAL.name().equalsIgnoreCase(loanApplicationDetailsDto.getLender())
-                        && ! ediUtil.isRoundDownEligibleLender(loanApplicationDetailsDto.getLender())) {
+                        && ! ediUtil.isEligibleForRoundingUpAnnualRoi(loanApplicationDetailsDto.getLender())) {
                     interest = roundToWhole(interest);
                     principal = edi.intValue() - interest;
                 }

@@ -21,6 +21,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.BooleanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -87,7 +88,7 @@ public class CapriNachMandateService {
         try {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             CapriMandateRequestDTO mandateDetails = null;
-            if (lendingApplicationDetails.getIsNachSkip()) {
+            if (BooleanUtils.isTrue(lendingApplicationDetails.getIsNachSkip())) {
                 MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), lendingApplication.getLender());
                 if(!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                     mandateDetails = CapriMandateRequestDTO.builder()

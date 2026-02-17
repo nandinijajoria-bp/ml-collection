@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.lending.common.enums.MandateType;
 import lombok.*;
 
 @Data
@@ -17,7 +18,8 @@ public class KFSStateDTO {
     private Boolean agreementDone;
     private String lender;
     private Long merchantId;
-    private boolean dedicatedUpiAutoPayScreenEligible;
-    private boolean isUpiAutopayMandateEligible;
-    private boolean isEnachEligible;
+
+    private MandateType mandateType;
+    private boolean isUpiAutoPayDone;
+    private boolean isNachDone;
 }

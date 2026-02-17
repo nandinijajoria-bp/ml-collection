@@ -10,6 +10,7 @@ import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.MuthootDedupeService;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.oxyzo.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
@@ -163,6 +164,7 @@ public class AssociationServiceUtil {
     PayUDocUploadService payUDocUploadService;
 
     @Autowired
+    @Lazy
     PayUBreService payUBreService;
 
     @Autowired
@@ -176,6 +178,9 @@ public class AssociationServiceUtil {
 
     @Autowired
     PayURepaymentScheduleService payURepaymentScheduleService;
+
+    @Autowired
+    PayUInsuranceService payUInsuranceService;
 
     @Autowired
     CreditSaisonForeclosureService creditSaisonForeclosureService;
@@ -288,6 +293,12 @@ public class AssociationServiceUtil {
 
     @Autowired
     TLRetryService tlRetryService;
+
+    @Autowired
+    private MuthootDedupeService muthootDedupeService;
+
+    @Autowired
+    MFInsuranceService mfInsuranceService;
 
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
@@ -489,7 +500,7 @@ public class AssociationServiceUtil {
             case "TRILLIONLOANS":
                 return trillionRepaymentService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "MUTHOOT":
-                return null;
+                return mfForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "CAPRI":
                 return capriForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "PAYU":
@@ -772,6 +783,10 @@ public class AssociationServiceUtil {
         switch (lendingApplication.getLender()) {
             case "PIRAMAL" :
                 return piramalInsuranceService.getInsurancePremiums(lendingApplication);
+            case "PAYU":
+                return payUInsuranceService.getInsurancePremiums(lendingApplication);
+            case "MUTHOOT":
+                    return mfInsuranceService.getInsurancePremiums(lendingApplication);
             default:
                 return null;
         }
@@ -822,6 +837,43 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlKycService.skipKyc(lenderAssociationDetailsRequest);
+            default:
+                return false;
+        }
+    }
+    public Boolean invokeAcceptOffer(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "PAYU":
+                return payUBreService.invokeAcceptOffer(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
+            case "MUTHOOT":
+                return mfBreService.invokeAcceptOffer(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
+            default:
+                return false;
+        }
+    }
+
+    public Boolean invokeDedupeCheck(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "MUTHOOT":
+                return muthootDedupeService.invokeDedupeCheck(lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public Boolean handleDedupeCallback(String lender, NBFCResponseDTO nbfcResponseDTO) {
+        switch (lender) {
+            case "MUTHOOT":
+                return muthootDedupeService.processDedupeCallback(nbfcResponseDTO);
+            default:
+                return false;
+        }
+    }
+
+    public Boolean invokeUpdateClient(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlCreateClientService.updateClient(lenderAssociationDetailsRequest);
             default:
                 return false;
         }

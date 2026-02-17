@@ -40,6 +40,7 @@ public class ReceiverConfig {
 
   @Bean
   public Map<String, Object> confluentConsumerConfigs() {
+    log.info("consumer confluent configuration STARTED");
     Map<String, Object> props = new HashMap<>();
     // list of host:port pairs used for establishing the initial connections to the Kafka cluster
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
@@ -54,6 +55,8 @@ public class ReceiverConfig {
       props.put("acks", "all");
       props.put("client.dns.lookup", "use_all_dns_ips");
       props.put("session.timeout.ms", 45000);
+    } else {
+      log.info("SKIPPED consumer confluent configuration");
     }
 
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
@@ -66,11 +69,14 @@ public class ReceiverConfig {
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5000);
     props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2);
+
+    log.info("consumer confluent configuration returned with {}", props);
     return props;
   }
 
   @Bean
   public ConsumerFactory<String, String> confluentConsumerFactory() {
+    log.info("consumer confluentConsumerFactory");
     return new DefaultKafkaConsumerFactory<>(confluentConsumerConfigs());
   }
 

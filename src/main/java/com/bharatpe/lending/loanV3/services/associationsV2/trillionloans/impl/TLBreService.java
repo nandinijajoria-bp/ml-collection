@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
@@ -49,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.TlBreExceptionEnum.*;
+import static com.bharatpe.lending.constant.RejectionReasons.*;
 
 @Slf4j
 @Service
@@ -202,6 +204,8 @@ public class TLBreService {
                                 log.info("topup new Amount after subtracting nbfcAmount and foreclosure amount {} is less than threshold {}, rejecting applicationId: {}", newAmount, topupForecosureThreshodAmountCheck, lendingApplication.getId());
                                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
                                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                                lenderAssociationDetailsRequest.getLendingApplication().setRejectionReason(BELOW_FORECLOURE_THRESHOLD_BRE_REJECTED);
+                                lenderAssociationDetailsRequest.getLendingApplication().setRejectionStage(RejectionStage.BRE);
                                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
                             }
                             return false;
@@ -263,7 +267,7 @@ public class TLBreService {
                 throw new RuntimeException("Lending Risk variable and/or snapshot not found for application id: " + lendingApplication.getId() +", merchant id: " + lendingApplication.getMerchantId());
             }
 
-            MerchantAggregateData merchantAggregateData = merchantAggregateDataDao.findByMerchantIdAndAggregateId(lendingApplication.getMerchantId(), lendingRiskVariablesSnapshot.getAggregateId());
+            MerchantAggregateData merchantAggregateData = loanUtil.getMerchantAggregateData(lendingApplication.getMerchantId(), lendingRiskVariablesSnapshot.getAggregateId());
             if (ObjectUtils.isEmpty(merchantAggregateData)) {
                 throw new RuntimeException("Merchant Aggregate Data not found for merchant id: " + lendingApplication.getId() + ", aggregate id : " + lendingRiskVariablesSnapshot.getAggregateId());
             }
@@ -367,6 +371,8 @@ public class TLBreService {
         if (attempt >= trillionBreRetryIntervals.size()) {
             log.info("Max retries reached for BRE invocation. Stopping further attempts.");
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+            lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionReason(MAX_BRE_RETRY);
+            lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionStage(RejectionStage.BRE);
             commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
             scheduler.shutdown();
             return;

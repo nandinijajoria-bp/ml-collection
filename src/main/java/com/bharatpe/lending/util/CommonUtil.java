@@ -9,14 +9,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
 
@@ -203,6 +202,13 @@ public class CommonUtil {
         }
     }
 
+    public static Double convertBigDecimalToDouble (BigDecimal value) {
+        if (value == null) {
+            return 0.0;
+        }
+        return value.doubleValue();
+    }
+
     public boolean doesApplicationHaveCompleteAddress(LendingApplication lendingApplication) {
         return lendingApplication.getPincode() != null &&
                 lendingApplication.getStreetAddress() != null &&
@@ -211,5 +217,37 @@ public class CommonUtil {
                 lendingApplication.getCity() != null &&
                 lendingApplication.getState() != null;
     }
+
+    public static boolean isVersionGreaterOrEqual(String version1, String version2) {
+        if(Objects.isNull(version1) || Objects.isNull(version2)){
+            return false;
+        }
+        if (!version1.contains(".") && !version2.contains(".")) {
+            int v1 = Integer.parseInt(version1);
+            int v2 = Integer.parseInt(version2);
+            return v1 >= v2;
+        }
+        String[] parts1 = version1.split("\\.");
+        String[] parts2 = version2.split("\\.");
+
+        int length = Math.max(parts1.length, parts2.length);
+        for (int i = 0; i < length; i++) {
+            int v1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            int v2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            if (v1 < v2) {
+                return false;
+            } else if (v1 > v2) {
+                return true;
+            }
+        }
+        return true;
+    }
+
+    public static void logDataMismatchIfApplicable(String fieldName, Long merchantId, String text1, String text2) {
+        if (!Objects.equals(text1, text2)) {
+            log.warn("Data mismatch for field '{}' for merchantId {}: '{}' != '{}'", fieldName, merchantId, text1, text2);
+        };
+    }
+
 
 }

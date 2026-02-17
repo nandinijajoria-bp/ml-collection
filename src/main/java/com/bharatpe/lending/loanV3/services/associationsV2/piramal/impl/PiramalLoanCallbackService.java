@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
@@ -32,6 +33,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_FAILED_DISBURSAL;
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_FAILED_TOPUP_DISBURSAL;
 
 @Service
 @Slf4j
@@ -136,6 +140,9 @@ public class PiramalLoanCallbackService {
                 LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = LenderAssociationDetailsRequestDto.builder()
                         .applicationId(lendingApplication.get().getId()).merchantId(lendingApplication.get().getMerchantId())
                         .lendingApplication(lendingApplication.get()).lendingApplicationLenderDetails(lendingApplicationLenderDetails).build();
+                lendingApplication.get().setRejectionReason(LENDER_FAILED_TOPUP_DISBURSAL);
+                lendingApplication.get().setRejectionStage(RejectionStage.DRAWDOWN);
+                lenderAssociationDetailsRequestDto.setLendingApplication(lendingApplication.get());
                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
                 markPreviousLoanActive(lendingApplication.get());
         }
@@ -146,6 +153,8 @@ public class PiramalLoanCallbackService {
             switch (DisbursalStatus.valueOf(piramalDisbursalResponse.getStatus())) {
                 case FAILED:
                     lendingApplication.get().setLoanDisbursalStatus("FAILED");
+                    lendingApplication.get().setRejectionReason(LENDER_FAILED_DISBURSAL);
+                    lendingApplication.get().setRejectionStage(RejectionStage.DRAWDOWN);
                     lendingApplicationDao.save(lendingApplication.get());
                 case REVERSED:
                     LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(lendingApplication.get().getId());

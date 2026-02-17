@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associations.piramal;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -92,7 +93,7 @@ public class CommonService {
 
     public void manageApplicationStateAndModifyLender(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LenderAssociationStatus lenderAssociationStatus) {
         manageApplicationState(lenderAssociationDetailsDto);
-        if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()) && Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender()))
+        if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()) && Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name(), Lender.PAYU.name(), Lender.MUTHOOT.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender()))
             manageApplicationStateAndRejectApplication(lenderAssociationDetailsDto);
         else
             modfifyApplicationLender(lenderAssociationDetailsDto, lenderAssociationStatus);
@@ -158,7 +159,7 @@ public class CommonService {
             pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
                     lendingRiskVariablesSnapshot.getRiskGroup(),
                     lendingRiskVariablesSnapshot.getTenure(),
-                    (int) (lendingApplication.getMerchantId()%10),
+                    String.valueOf(lendingApplication.getMerchantId()),
                     lendingRiskVariablesSnapshot.getPincodeColor().name(),
                     lendingApplication.getCreatedAt()
             );

@@ -41,8 +41,8 @@ public class CreditSaisonPostChargeService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
-    private String nbfcBaseUrl;
+    @Value("${nbfc.collection.service.base.url:https://api-nbfc.bharatpemoney.com/}")
+    private String nbfcCollectionServiceBaseUrl;
 
     public void postPendingChargesToLender(LendingPaymentSchedule activeLoan, Map<PenaltyFeeLedger, Double> paidNachBounceMap,
                                            Map<PenaltyFeeLedger, Double> paidPenalChargeMap) {
@@ -84,7 +84,7 @@ public class CreditSaisonPostChargeService {
     private boolean postToLender(LendingPaymentSchedule activeLoan, List<CreditSasionCreateChargeRequestDTO.PartnerCharges> partnerChargesList) {
         log.info("In postToLender with loanId: {}, partnerChargesList: {}", activeLoan.getId(), partnerChargesList);
         int retryCount = 0;
-        int maxRetryAttempts = 3;
+        int maxRetryAttempts = 1;
         try{
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(activeLoan.getApplicationId(), activeLoan.getMerchantId());
 
@@ -106,7 +106,7 @@ public class CreditSaisonPostChargeService {
                 retryCount++;
                 String request = objectMapper.writeValueAsString(nbfcRequestDTO);
 
-                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(request, NbfcResponseDto.class, nbfcBaseUrl + NBFC_POST_CHARGE_URI);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(request, NbfcResponseDto.class, nbfcCollectionServiceBaseUrl + NBFC_POST_CHARGE_URI);
                 log.info("CreditSaison: response penalty charges posting request :{} and response : {}", request, nbfcResponseDto);
 
                 if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {

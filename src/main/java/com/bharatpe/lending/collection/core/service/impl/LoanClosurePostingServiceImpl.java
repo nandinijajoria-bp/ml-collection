@@ -5,14 +5,8 @@ import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dao.LendingCollectionAuditDao;
-import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
-import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.LendingCollectionAudit;
-import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
-import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.Status;
@@ -89,6 +83,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
+    LendingPayinDetailsDao lendingPayinDetailsDao;
+
+    @Autowired
     LoanUtil loanUtil;
 
     @Lazy
@@ -114,6 +111,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     @Value("${nbfc.capri.foreclosure.topic:capri-foreclose-loan}")
     String nbfcCapriForeclosureTopic;
 
+    @Value("${nbfc.muthoot.foreclosure.topic:muthoot-loan-receipt}")
+    String nbfcMuthootForeclosureTopic;
+
     @Value("${nbfc.trillion.foreclosure.topic:trillion-foreclose-loan}")
     String nbfcTrillionForeclosureTopic;
     @Value("${nbfc.foreclosure.charge:api/v3/lender/post-charges}")
@@ -122,6 +122,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     String nbfcLiquiLoansForeclosureTopic;
     @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
     String nbfcPayuForeclosureTopic;
+
+    @Value("${nbfc.collection.service.base.url:https://api-nbfc.bharatpemoney.com/}")
+    String nbfcCollectionServiceBaseUrl;
 
     @Autowired
     SmfgConfig smfgConfig;
@@ -153,7 +156,17 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 logger.error("no lending application record found for the app {}", applicationId);
                 return;
             }
-            String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+
+            String ledgerId = String.valueOf(lendingLedger.getId());
+
+            LendingPayinDetails lendingPayinDetails = lendingPayinDetailsDao.findByMerchantIdAndLoanIdAndTerminalOrderId(lendingApplication.get().getMerchantId(), lendingLedger.getLendingPaymentSchedule().getId(), lendingLedger.getTerminalOrderId());
+
+            if(!ObjectUtils.isEmpty(lendingPayinDetails)){
+                logger.info("Lending Payin Details found for applicationId: {}, lendingPayinDetails: {}", applicationId, lendingPayinDetails);
+                ledgerId = lendingPayinDetails.getId() + "P";
+            }
+
+            String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(ledgerId);
             Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
 
             if(loanForeClosureCharges != null) {
@@ -167,7 +180,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                                          .uniqueId("ABFL_FC_" + txnId)
                                          .dealNo(lendingApplicationLenderDetails.getDealNo())
                                          .loanNo(lendingApplicationLenderDetails.getLan())
-                                         .transactionId(String.valueOf(lendingLedger.getId()))
+                                         .transactionId(ledgerId)
                                          .chargeType("R")
                                          .businessPartnerType("CS")
                                          .chargeAmount(String.valueOf(loanForeClosureCharges.getAmount() + loanForeClosureCharges.getTax()))
@@ -177,7 +190,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                                          .build())
                         .build();
                 logger.info("ABFL: posting foreclosure charges to lender {}", foreclosureChargesRequestDto);
-                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcForeClosureChargePosting);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureChargesRequestDto), NbfcResponseDto.class, nbfcCollectionServiceBaseUrl + nbfcForeClosureChargePosting);
                 log.info("ABFL: response foreclosure charges posting request :{} and response : {}", objectMapper.writeValueAsString(foreclosureChargesRequestDto), nbfcResponseDto);
 
                 if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
@@ -206,7 +219,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                             .loanReceiptDetails(ForeclosureRequestDto.LoanReceiptDetails.builder()
                                     .receiptAmount(lendingLedger.getAmount())
                                     .paidByContactNo(mobile.substring(2))
-                                    .transactionRefNumber(String.valueOf(lendingLedger.getId()))
+                                    .transactionRefNumber(ledgerId)
                                     .receiptDateTime(txnDate)
                                     .build())
                             .build())
@@ -243,7 +256,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         PiramalChargesRequestDto piramalChargesRequestDto = createPiramalPostChargesDto(lendingApplicationLenderDetails, penaltyFeeLedger,amount,type);
         log.info("Piramal: posting penalty  to lender {}", piramalChargesRequestDto);
         try {
-            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(piramalChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcChargePosting);
+            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(piramalChargesRequestDto), NbfcResponseDto.class,nbfcCollectionServiceBaseUrl+nbfcChargePosting);
             log.info("Piramal: response penalty  posting request :{} and response : {}", objectMapper.writeValueAsString(piramalChargesRequestDto), nbfcResponseDto);
             setPostingStatus(nbfcResponseDto, penaltyFeeLedger);
         } catch (Exception e) {
@@ -333,7 +346,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             logger.info("resquest dto {}",dtoNbfcRequestDto);
             LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
             try {
-                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(dtoNbfcRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(dtoNbfcRequestDto), NbfcResponseDto.class,nbfcCollectionServiceBaseUrl+nbfcURI);
                 logger.info("Successfully hit the api for foreclosure {}",nbfcResponseDto);
                 if(nbfcResponseDto != null && nbfcResponseDto.getSuccess()){
                     lendingCollectionAudit.setStatus("SUCCESS");
@@ -401,7 +414,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                                 .build())
                         .build();
                 logger.info("TrillionLoans: posting foreclosure charges to lender {}", trilionLoansForeclosureChargesRequestDto);
-                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(trilionLoansForeclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcForeClosureChargePosting);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(trilionLoansForeclosureChargesRequestDto), NbfcResponseDto.class,nbfcCollectionServiceBaseUrl+nbfcForeClosureChargePosting);
                 log.info("TrillionLoans: response foreclosure charges posting request :{} and response : {}", objectMapper.writeValueAsString(trilionLoansForeclosureChargesRequestDto), nbfcResponseDto);
 
                 if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
@@ -508,7 +521,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
             log.info("PayU: posting penalty charges to lender {}", payUChargesRequestDto);
 
-            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(payUChargesRequestDto), NbfcResponseDto.class, nbfcBaseUrl + nbfcChargePosting);
+            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(payUChargesRequestDto), NbfcResponseDto.class, nbfcCollectionServiceBaseUrl + nbfcChargePosting);
 
             log.info("PayU: response penalty charges posting request :{} and response : {}", objectMapper.writeValueAsString(payUChargesRequestDto), nbfcResponseDto);
             PenaltyFeeLedger penaltyFeeLedger = penaltyFeeLedgerDao.findNachBounceCharge(activeLoan.getId(),postChargesToLenderDTO.getChargeId());
@@ -634,6 +647,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return ugroConfig.getForeclosureTopic();
             case "OXYZO":
                 return oxyzoConfig.getForeclosureTopic();
+            case "MUTHOOT":
+                return nbfcMuthootForeclosureTopic;
             default:
                 return null;
         }

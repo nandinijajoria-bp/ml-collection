@@ -14,14 +14,17 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Objects;
 
 @Slf4j
 @Service
 public class TLConsentPostingService {
+
+    private static final String CONSENT_POST_SUCCESS = "CONSENT_POST_SUCCESS";
+    private static final String CONSENT_POST_FAILED = "CONSENT_POST_FAILED";
 
     @Autowired
     CommonService commonService;
@@ -37,63 +40,59 @@ public class TLConsentPostingService {
             NBFCRequestDTO<?> consentPostingRequest = getPayload(lenderAssociationDetailsRequestDto);
             if (Objects.isNull(consentPostingRequest)) {
                 log.info("error in consent posting payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(getLeadStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), false));
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(CONSENT_POST_FAILED);
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return true;
             }
             NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(consentPostingRequest, LenderAssociationStages.POST_CONSENT, trillionLoansConfig.getPostConsentTimeoutThreshold());
             log.info("Post Consent response of TrillionLoans from nbfc : {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess()) {
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(getLeadStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), true));
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(CONSENT_POST_SUCCESS);
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
             }
             return true;
         } catch (Exception e) {
             log.error("exception occurred while invoking Post Consent of TrillionLoans for {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(getLeadStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), false));
+        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(CONSENT_POST_FAILED);
         commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
         return true;
     }
 
-    private NBFCRequestDTO<?> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
-        LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
-
-        if(ObjectUtils.isEmpty(lendingApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)){
-            log.error("Lending Application / Lending Application Lender Details not found for application id : {}", lenderAssociationDetailsRequest.getApplicationId());
-            return null;
-        }
+    private NBFCRequestDTO<?> getPayload(LenderAssociationDetailsRequestDto request) {
+        LendingApplication app = request.getLendingApplication();
+        LendingApplicationLenderDetails details = request.getLendingApplicationLenderDetails();
 
         try {
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+            String createdAtJson = "{\"timestamp\":\"" + formatter.format(app.getCreatedAt()) + "\"}";
+            String agreementAtJson = "{\"timestamp\":\"" + formatter.format(app.getAgreementAt()) + "\"}";
+
             return NBFCRequestDTO.builder()
-                    .applicationId(lendingApplication.getId())
-                    .lender(lendingApplication.getLender())
+                    .applicationId(app.getId())
+                    .lender(app.getLender())
                     .productName("LENDING")
                     .payload(TLConsentRequestDto.builder()
-                            .clientId(Long.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId()))
-                            .leadId(Long.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId()))
-                            .consentKey(ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()) ? "TRILLION_BUREAU_CKYC_CONSENT" : "TRILLION_AGREEMENT_CONSENT")
-                            .ipAddress(lendingApplication.getIp())
-                            .isAccepted(Boolean.TRUE)
+                            .clientId(Long.valueOf(details.getCccId()))
+                            .leadId(Long.valueOf(details.getLeadId()))
+                            .consents(Arrays.asList(
+                                new TLConsentRequestDto.Consent("PAN_PIN_PAGE_KYC_BPML", app.getIp(), Boolean.TRUE, createdAtJson),
+                                new TLConsentRequestDto.Consent("PAN_PIN_PAGE_CREDIT_INFO_BPML", app.getIp(), Boolean.TRUE, createdAtJson),
+                                new TLConsentRequestDto.Consent("PAN_PIN_PAGE_PEP_BPML", app.getIp(), Boolean.TRUE, createdAtJson),
+                                new TLConsentRequestDto.Consent("PAN_PIN_PAGE_T&C_BPML", app.getIp(), Boolean.TRUE, createdAtJson),
+                                new TLConsentRequestDto.Consent("PAN_PIN_PAGE_MFI_BPML", app.getIp(), Boolean.TRUE, createdAtJson),
+                                new TLConsentRequestDto.Consent("KEY_FACTOR_STATEMENT_PAGE_BPML", app.getIp(), Boolean.TRUE, agreementAtJson),
+                                new TLConsentRequestDto.Consent("REFERENCE_PAGE_BPML", app.getIp(), Boolean.TRUE, agreementAtJson),
+                                new TLConsentRequestDto.Consent("ENACH_PAGE_BPML", app.getIp(), Boolean.TRUE, agreementAtJson),
+                                new TLConsentRequestDto.Consent("Data sharing consent_BPML", app.getIp(), Boolean.TRUE, createdAtJson),
+                                new TLConsentRequestDto.Consent("Current address_PA_BPML", app.getIp(), Boolean.TRUE, agreementAtJson)
+                            ))
                             .build())
                     .build();
         } catch (Exception e) {
-            log.info("Exception in creating payload of Post Consent of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.info("Exception in creating payload of Post Consent of TrillionLoans for {} {} {}", app.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
-    }
-
-    private String getLeadStatus(LendingApplicationLenderDetails lendingApplicationLenderDetails, Boolean success) {
-        if (success && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
-            return LenderAssociationStatus.BRE_CONSENT_SUCCESS.name();
-        else if (!success && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
-            return LenderAssociationStatus.BRE_CONSENT_FAILED.name();
-        else if (success && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
-            return LenderAssociationStatus.AGREEMENT_CONSENT_SUCCESS.name();
-        else if (!success && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
-            return LenderAssociationStatus.AGREEMENT_CONSENT_FAILED.name();
-        else
-            return "";
     }
 }

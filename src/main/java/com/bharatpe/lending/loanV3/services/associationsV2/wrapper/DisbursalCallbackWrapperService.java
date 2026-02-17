@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.wrapper;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
@@ -31,6 +32,9 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Optional;
+
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_FAILED_DRAWDOWN;
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_FAILED_TOP_DRAWDOWN;
 
 @Slf4j
 @Service
@@ -98,9 +102,13 @@ public class DisbursalCallbackWrapperService {
                 LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = LenderAssociationDetailsRequestDto.builder()
                         .applicationId(lendingApplication.get().getId()).merchantId(lendingApplication.get().getMerchantId())
                         .lendingApplication(lendingApplication.get()).lendingApplicationLenderDetails(lendingApplicationLenderDetails).build();
+                lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionReason(LENDER_FAILED_TOP_DRAWDOWN);
+                lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionStage(RejectionStage.DRAWDOWN);
                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
                 markPreviousLoanActive(lendingApplication.get());
             }
+            lendingApplication.get().setRejectionReason(LENDER_FAILED_DRAWDOWN);
+            lendingApplication.get().setRejectionStage(RejectionStage.DRAWDOWN);
             lendingApplicationDao.save(lendingApplication.get());
             log.info("Disbursal callback consumed successfully of lender {} for {}", nbfcResponse.getLender(), nbfcResponse.getApplicationId());
         } catch (Exception e) {

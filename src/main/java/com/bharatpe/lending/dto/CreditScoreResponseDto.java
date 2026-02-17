@@ -51,6 +51,8 @@ public class CreditScoreResponseDto {
 
     private String tenure;
 
+    private Object media;
+
     public String getPanNumber() {
         return panNumber;
     }
@@ -85,6 +87,14 @@ public class CreditScoreResponseDto {
 
     public String getPanName() {
         return panName;
+    }
+
+    public Object getMedia() {
+        return media;
+    }
+
+    public void setMedia(Object media) {
+        this.media = media;
     }
 
     public void setPanName(String panName) {

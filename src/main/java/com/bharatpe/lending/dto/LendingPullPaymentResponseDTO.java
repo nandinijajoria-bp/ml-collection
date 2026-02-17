@@ -27,6 +27,7 @@ public class LendingPullPaymentResponseDTO {
     private String mode;
     private Long loanId;
     private String status;
+    private String errorDescription;
     private Long ownerId;
     private String txnDate;
 
@@ -48,6 +49,7 @@ public class LendingPullPaymentResponseDTO {
           .mode(lendingPullPayment.getMode())
           .loanId(lendingPullPayment.getLoanId())
           .status(lendingPullPayment.getStatus())
+          .errorDescription(lendingPullPayment.getErrorDescription())
           .ownerId(lendingPullPayment.getOwnerId())
           .txnDate(lendingPullPayment.getTxnDate())
           .build();

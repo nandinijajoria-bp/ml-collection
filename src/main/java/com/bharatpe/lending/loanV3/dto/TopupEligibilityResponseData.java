@@ -23,5 +23,5 @@ public class TopupEligibilityResponseData {
     private Double maximumAllowedAmount;
     private List<String> tenures;
     private boolean isTopupV2FlowEnabled = false;
-
+    private boolean showTopupSlider = false;
 }

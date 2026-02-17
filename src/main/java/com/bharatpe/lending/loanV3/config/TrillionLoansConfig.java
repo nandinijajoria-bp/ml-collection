@@ -50,4 +50,5 @@ public class TrillionLoansConfig {
     private String skipKycConsentSource = "mobile_app";
     private String skipKycSuccessMessage = "KYC Completed";
     private Boolean kycCtaEnabledForTopup = false;
+    private String beneficiaryType = "SELF";
 }

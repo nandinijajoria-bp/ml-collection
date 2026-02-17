@@ -5,6 +5,8 @@ import com.bharatpe.lending.loanV3.consumer.*;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 
+import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.MuthootDedupeService;
+import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.MFLeadService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.InsurancePolicyDocService;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.ESignDocService;
@@ -74,6 +76,11 @@ public class NbfcCallbackControllerV3 {
 
     @Autowired
     RetryCallbackWrapperService retryCallbackWrapperService;
+
+    @Autowired
+    private MuthootDedupeService muthootDedupeService;
+    @Autowired
+    private DedupeCheckWrapperService dedupeCheckWrapperService;
 
     @PostMapping("bre")
     public ResponseEntity<ApiResponse<?>> listenBreCallback(@RequestBody BreCallbackResponseDto breCallbackResponseDto) throws JsonProcessingException {
@@ -210,5 +217,12 @@ public class NbfcCallbackControllerV3 {
         log.info("Retry callback received via controller {}", nbfcResponseDTO);
         retryCallbackWrapperService.retryCallback(nbfcResponseDTO);
         return ResponseEntity.ok(new ApiResponse<>(true,"Retry async callback handled"));
+    }
+
+    @PostMapping("dedupe")
+    public ResponseEntity<ApiResponse<?>> dedupeCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) {
+        log.info("dedupe callback received via controller {}", nbfcResponseDTO);
+        dedupeCheckWrapperService.dedupeCallback(nbfcResponseDTO);
+        return ResponseEntity.ok(new ApiResponse<>(true,"dedupe async callback handled"));
     }
 }

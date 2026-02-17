@@ -2,20 +2,20 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.BharatSwipeHandler;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.Handler.FinanceUtilsCommonHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.dto.*;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 //import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 //import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 //import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
-import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
-import com.bharatpe.lending.common.dto.BharatSwipeAccountDTO;
-import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.PincodeColor;
@@ -33,11 +33,19 @@ import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 //import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
 //import com.bharatpe.lending.common.slave.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.constant.CommonConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dao.underwriting.CriteriaValidator;
+import com.bharatpe.lending.dao.underwriting.DynamicFieldValidator;
+import com.bharatpe.lending.dao.underwriting.GenericCriteriaRepository;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LendingPancardDetails;
+import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.dto.underwriting.SearchRequestDTO;
+import com.bharatpe.lending.dto.underwriting.read.LendingApplicationReadDTO;
+import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
+import com.bharatpe.lending.exceptions.DataApiException;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -52,6 +60,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -64,8 +73,14 @@ import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import com.bharatpe.lending.dto.underwriting.AggregateConditionDTO;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 
 import static com.bharatpe.lending.constant.LendingConstants.PAYTM;
 import static com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2.getDateInFormat;
@@ -97,6 +112,9 @@ public class LendingApplicationService {
 
     @Autowired
     LendingDisbursalStageDao lendingDisbursalStageDao;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     @Autowired
     LendingGstDao lendingGstDao;
@@ -196,16 +214,113 @@ public class LendingApplicationService {
     MerchantSummaryHandler merchantSummaryHandler;
 
     @Autowired
+    NachMandateEligibilityConfigDao nachMandateEligibilityConfigDao;
+
+    @Autowired
     MerchantService merchantService;
 
     @Autowired
     LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
 
     @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
 
     @Autowired
     KycUtils kycUtils;
+
+    @Autowired
+    private GenericCriteriaRepository criteriaRepository;
+
+    @Autowired
+    private CriteriaValidator criteriaValidator;
+
+    @Autowired
+    private FinanceUtilsCommonHandler financeUtilsCommonHandler;
+
+    // Inject both master and query entity managers
+    @PersistenceContext(unitName = "entityManagerFactory")
+    private EntityManager masterEntityManager;
+
+    @PersistenceContext(unitName = "query")
+    private EntityManager queryEntityManager;
+
+    public com.bharatpe.lending.dto.underwriting.ApiResponse<Object> searchDynamic(SearchRequestDTO request, boolean useStrongConsistency) {
+        logger.info("searchDynamic called with request: {}", request);
+
+        if (request == null || request.getCriteriaList() == null || request.getCriteriaList().isEmpty()) {
+            throw new DataApiException.InvalidInputException("Invalid request body");
+        }
+
+        // Check if this is an aggregate query
+        boolean isAggregateQuery = request.getAggregateConditions() != null && !request.getAggregateConditions().isEmpty();
+
+        // Choose entity and entity manager based on consistency
+        Class<?> entityClass = useStrongConsistency ? LendingApplication.class : LendingApplicationSlave.class;
+        EntityManager entityManager = useStrongConsistency ? masterEntityManager : queryEntityManager;
+
+        logger.info("Using {} consistency for LendingApplication search", useStrongConsistency ? "strong" : "eventual");
+
+        // Validate fields dynamically
+        DynamicFieldValidator fieldValidator = new DynamicFieldValidator(entityManager, entityClass);
+        try {
+            criteriaValidator.validateAndCoerce(request, fieldValidator);
+            fieldValidator.validateRequestExtras(request);
+        } catch (IllegalArgumentException ex) {
+            throw new DataApiException.InvalidInputException(ex.getMessage());
+        }
+
+        // Perform search
+        List<?> result = criteriaRepository.searchEntities(entityClass, request, useStrongConsistency);
+
+        // Handle aggregate queries
+        if (isAggregateQuery) {
+            List<Object[]> aggregateResults = (List<Object[]>) result;
+
+            Map<String, Object> responseMap = new HashMap<>();
+            List<AggregateConditionDTO> conditions = request.getAggregateConditions();
+
+            Object[] row = aggregateResults.get(0);
+            for (int i = 0; i < conditions.size(); i++) {
+                responseMap.put(conditions.get(i).getAlias(), row[i]);
+            }
+
+            return com.bharatpe.lending.dto.underwriting.ApiResponse.<Object>builder()
+                    .success(true)
+                    .message("Aggregate data fetched successfully")
+                    .data(responseMap)
+                    .build();
+        }
+
+        // Handle normal entity fetch
+        List<LendingApplicationReadDTO> dtos = mapEntitiesToDto(result, LendingApplicationReadDTO.class);
+
+        return com.bharatpe.lending.dto.underwriting.ApiResponse.<Object>builder()
+                .success(true)
+                .message("Records fetched successfully")
+                .data(dtos)
+                .build();
+    }
+
+    private <E, D> List<D> mapEntitiesToDto(List<E> entities, Class<D> dtoClass) {
+        return entities.stream()
+                .map(entity -> {
+                    try {
+                        D dto = dtoClass.getDeclaredConstructor().newInstance();
+                        BeanUtils.copyProperties(entity, dto);
+                        return dto;
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to map entity to DTO: " + e.getMessage(), e);
+                    }
+                })
+                .collect(Collectors.toList());
+    }
+
+
+
+
 
 //    public LendingApplicationResponseDTO createApplication(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 //        LendingApplicationResponseDTO lendingApplicationResponse = null;
@@ -2222,13 +2337,14 @@ public class LendingApplicationService {
 
     public ResponseDTO bankAccountChange(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null, null);
+        Map<String, Object> data = new HashMap<>();
+
         try {
-            Map<String, Object> data = new HashMap<>();
-//            Optional<Merchant> merchant = merchantDao.findById(merchantId);
-
-            MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId, Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(
+                    merchantId,
+                    Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL)
+            );
             BasicDetailsDto merchant = merchantDetailsDto.getMerchantDetail();
-
 
             data.put("bankAccountChange", Boolean.TRUE);
             if (ObjectUtils.isEmpty(merchant)) {
@@ -2247,26 +2363,30 @@ public class LendingApplicationService {
                 return responseDTO;
             }
 
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
-            if (lendingPaymentSchedule != null) {
-                data.put("bankAccountChange", Boolean.FALSE);
-                data.put("message", "Already Loan Active");
+            LendingPaymentSchedule activeLoan =
+                    lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
+            if (activeLoan != null) {
+                Long applicationId = activeLoan.getApplicationId();
+                AutoPayUPI autopayUpi = autoPayUPIDao.findByApplicationIdAndStatus(applicationId, "ACTIVE");
+
+                if (!ObjectUtils.isEmpty(autopayUpi)) {
+                    data.put("bankAccountChange", Boolean.FALSE);
+                    data.put("message", "Active loan with active Autopay UPI - bank change not allowed");
+                } else {
+                    data.put("bankAccountChange", Boolean.TRUE);
+                    data.put("message", "Active loan but Autopay not active - allowed to change bank");
+                }
                 responseDTO.setData(data);
                 return responseDTO;
             }
 
             boolean d2RMerchant = partnersApiHandler.getNachBank(merchantId);
-//			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchantId);
-//			if (d2RMerchant == null) {
-//				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchantId);
-//			}
             if (d2RMerchant) {
                 data.put("bankAccountChange", Boolean.FALSE);
                 data.put("message", "Merchant Has a D2R Loan");
                 responseDTO.setData(data);
                 return responseDTO;
             }
-
 
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
             if (lendingApplication == null) {
@@ -2275,26 +2395,57 @@ public class LendingApplicationService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            if ("approved".equalsIgnoreCase(lendingApplication.getStatus()) && lendingApplication.getDisburseTimestamp() == null) {
+
+            String status = lendingApplication.getStatus();
+
+            if ("draft".equalsIgnoreCase(status)) {
+                data.put("bankAccountChange", Boolean.TRUE);
+                data.put("message", "Draft application - allowed to change bank");
+            } else if ("pending_verification".equalsIgnoreCase(status)) {
+                LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+                NachMandateEligibilityConfig config =
+                        nachMandateEligibilityConfigDao.findByLenderAndLoanSegmentAndStatus(
+                                lendingApplication.getLender(),
+                                lendingRiskVariablesSnapshot.getLoanSegment(),
+                                true
+                        );
+                AutoPayUPI autopayUpi =
+                        autoPayUPIDao.findByApplicationIdAndStatus(lendingApplication.getId(), "ACTIVE");
+
+                boolean canChangeBankAccount = evaluateBankChangeEligibility(config, lendingApplication, autopayUpi);
+                data.put("bankAccountChange", canChangeBankAccount);
+                data.put("message", canChangeBankAccount
+                        ? "Pending verification - allowed to change bank"
+                        : "Pending verification - required mandates already done");
+            } else if ("approved".equalsIgnoreCase(lendingApplication.getStatus()) && lendingApplication.getDisburseTimestamp() == null) {
                 data.put("bankAccountChange", Boolean.FALSE);
                 data.put("message", "Application is Under Process!");
             }
-            if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
-                data.put("bankAccountChange", Boolean.FALSE);
-                data.put("message", "Application Is Pending Verification State!");
-            }
-            if ("draft".equalsIgnoreCase(lendingApplication.getStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
-                data.put("bankAccountChange", Boolean.FALSE);
-                data.put("message", "Application is in draft state!");
-            }
+
             responseDTO.setData(data);
             return responseDTO;
+
         } catch (Exception ex) {
             logger.error("Error In Bank Account Change API", ex);
             responseDTO.setSuccess(Boolean.FALSE);
             responseDTO.setMessage(ex.toString());
             return responseDTO;
         }
+    }
+
+    private static boolean evaluateBankChangeEligibility(NachMandateEligibilityConfig config,
+                                       LendingApplication lendingApplication,
+                                       AutoPayUPI autopayUpi) {
+        boolean nachRequired = config != null && Boolean.TRUE.equals(config.getNachRequired());
+        boolean upiRequired = config != null && Boolean.TRUE.equals(config.getUpiAutopayRequired());
+        boolean nachDone = "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus());
+        boolean upiDone = !ObjectUtils.isEmpty(autopayUpi);
+
+        if ((upiRequired && upiDone)
+                || (nachRequired && nachDone)) {
+            return false;
+        }
+        return true;
     }
 
     public ResponseDTO checkDeleteEligible(Long merchantId) {
@@ -2436,4 +2587,17 @@ public class LendingApplicationService {
         }
     }
 
+    public ValidIfscResponseDTO validateIfsc(String ifsc, Long merchantId) {
+        logger.info("Validate IFSC request for merchantId: {}, IFSC: {}", merchantId, ifsc);
+        IfscValidationResponseDTO ifscValidationResponse = financeUtilsCommonHandler.validateIfsc(ifsc);
+        ValidIfscResponseDTO.Data data;
+        if (ifscValidationResponse != null && ifscValidationResponse.getSuccess() &&
+                ifscValidationResponse.getData() != null && ifscValidationResponse.getData().getValidated()) {
+            data = new ValidIfscResponseDTO.Data(true, CommonConstants.VALID_IFSC);
+        } else {
+            data = new ValidIfscResponseDTO.Data(false,CommonConstants.INVALID_IFSC);
+        }
+        logger.info("IFSC validation result for merchantId:{}, response:{}", merchantId, data);
+        return new ValidIfscResponseDTO(true, data);
+    }
 }

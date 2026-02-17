@@ -8,16 +8,21 @@ import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.Response;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpClientErrorException.Unauthorized;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
@@ -46,6 +51,9 @@ public class CommonInterceptor implements HandlerInterceptor {
 
     @Autowired
     MerchantService merchantService;
+
+    @Value("${token.failure.screen.rollout.percent:0}")
+    private Integer tokenFailureScreenPercent;
 
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -102,7 +110,13 @@ public class CommonInterceptor implements HandlerInterceptor {
             if(StringUtils.isEmpty(token)) {
                 InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper(request);
                 logger.error("Token Value is Blank or Empty for request {}", interceptorRequestWrapper.getRequestURI());
-                sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+                long millis = System.currentTimeMillis();
+                if((millis % 100) < tokenFailureScreenPercent) {
+                    logger.error("Token Value is Blank or Empty for request - Error 511");
+                    sendFailureResponse(response, String.valueOf(HttpStatus.NETWORK_AUTHENTICATION_REQUIRED.value()));
+                } else {
+                    sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+                }
                 return false;
             } else {
                 //String normalized = Normalizer.normalize(token, Normalizer.Form.NFD);
@@ -133,10 +147,22 @@ public class CommonInterceptor implements HandlerInterceptor {
                     return true;
                 }
             }
-        } catch(Throwable th) {
-            logger.error("Exception occurred in Pre handle Interceptor ValidateTokenInterceptor {}", th);
+        } catch (Unauthorized e){
+            logger.error("Unauthorized Exception occurred in Pre handle CommonInterceptor : {}", e.getMessage(), e);
+            sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+        } catch (HttpClientErrorException.Forbidden e){
+            logger.error("Forbidden Exception occurred in CommonInterceptor : {}", e.getMessage(), e);
+            sendFailureResponse(response, String.valueOf(HttpStatus.FORBIDDEN.value()));
+        } catch (Throwable e) {
+            long millis = System.currentTimeMillis();
+            if((millis % 100) < tokenFailureScreenPercent) {
+                logger.error("Exception occurred in Pre handle CommonInterceptor - Error 511, token : {}, {}", token, e.getMessage(), e);
+                sendFailureResponse(response, String.valueOf(HttpStatus.NETWORK_AUTHENTICATION_REQUIRED.value()));
+            } else {
+                logger.error("Exception occurred in Pre handle CommonInterceptor: {}", e.getMessage(), e);
+                sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+            }
         }
-        sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
         return false;
     }
 

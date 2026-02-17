@@ -1,8 +1,14 @@
 package com.bharatpe.lending.constant;
 
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class PaymentConstants {
 
@@ -10,15 +16,46 @@ public class PaymentConstants {
     public static final String PG_PAGE_NARRATION="Payment for Order No {}";
     public static final String EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX = "_adjust_";
     public static final String UPI_AUTOPAY_EXCESS_CREDIT_MODE = "EXCESS_AUTOPAYUPI_CREDIT";
+    public static final String TAT_EXCEEDED_ERROR_CODE = "TAT_EXCEEDED";
     public static final String INPROGRESS = "INPROGRESS";
     public static final String SUCCESS = "SUCCESS";
     public static final String FAILED = "FAILED";
+    public static final String INIT = "INIT";
+
+    public static final Map<String, AutoPayStatusEnum> NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP = new HashMap<>();
+    public static final List<AutoPayStatusEnum> AUTOPAY_TERMINAL_STATUS = new ArrayList<>();
+    static {
+        NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP.put(NachStatus.INPROCESS.name(), AutoPayStatusEnum.PENDING);
+        NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP.put(NachStatus.FAILED.name(), AutoPayStatusEnum.FAILED);
+        NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP.put(NachStatus.APPROVED.name(), AutoPayStatusEnum.ACTIVE);
+        NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP.put(NachStatus.CANCELLED.name(), AutoPayStatusEnum.CANCELLED);
+        NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP.put(NachStatus.REJECTED.name(), AutoPayStatusEnum.FAILED);
+        NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP.put(NachStatus.DEACTIVATED.name(), AutoPayStatusEnum.INACTIVE);
+        NACH_STATUS_AUTO_PAY_STATUS_ENUM_MAP.put(NachStatus.REVOKED.name(), AutoPayStatusEnum.REVOKED);
+
+        AUTOPAY_TERMINAL_STATUS.add(AutoPayStatusEnum.CANCELLED);
+        AUTOPAY_TERMINAL_STATUS.add(AutoPayStatusEnum.FAILED);
+        AUTOPAY_TERMINAL_STATUS.add(AutoPayStatusEnum.FAILURE);
+        AUTOPAY_TERMINAL_STATUS.add(AutoPayStatusEnum.INACTIVE);
+        AUTOPAY_TERMINAL_STATUS.add(AutoPayStatusEnum.REVOKED);
+    }
 
     public static HashMap<AutoPayStatusEnum, String> UPI_AUTOPAY_MANDATE_STATUS_MAP = new HashMap<AutoPayStatusEnum, String>() {{
+        put(AutoPayStatusEnum.INIT, INIT);
         put(AutoPayStatusEnum.PENDING, INPROGRESS);
+        put(AutoPayStatusEnum.SUCCESS, SUCCESS);
         put(AutoPayStatusEnum.ACTIVE, SUCCESS);
         put(AutoPayStatusEnum.FAILED, FAILED);
         put(AutoPayStatusEnum.FAILURE, FAILED);
+        put(AutoPayStatusEnum.CANCELLED, FAILED);
+        put(AutoPayStatusEnum.INACTIVE, FAILED);
+        put(AutoPayStatusEnum.REVOKED, FAILED);
+    }};
+
+    public static final Set<AutoPayStatusEnum> UPI_AUTOPAY_TERMINAL_STATES = new HashSet<AutoPayStatusEnum>() {{
+        add(AutoPayStatusEnum.ACTIVE);
+        add(AutoPayStatusEnum.FAILED);
+        add(AutoPayStatusEnum.FAILURE);
     }};
 
     public static HashMap<String, String> UPI_AUTOPAY_ERROR_CODE_TO_DISPLAY_MESSAGE_MAP = new HashMap<String, String>() {{

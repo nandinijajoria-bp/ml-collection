@@ -1,122 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loan Application Details</title>
     <style>
-        .fw400 {
-            font-weight: 400;
+        body {
+          margin: 0;
+          padding: 0;
         }
-
-        .width-100 {
-            width: 100%;
+        .container {
+          max-width: 800px;
+          margin: 50px auto;
+          padding: 20px 30px;
         }
-
-        .word-wrap {
-            overflow-wrap: anywhere;
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
         }
-
-        .text-left {
-            text-align: left;
+        th, td {
+          border: 1px solid #333;
+          padding: 6px 16px;
+          word-wrap: break-word;
+          vertical-align: top;
         }
-
-        .m-auto {
-            margin: auto;
-        }
-
-        .mb20 {
-            margin-bottom: 20px;
-        }
-
-        .width-auto {
-            width: -moz-fit-content;
-            width: fit-content;
+        .fw400 { font-weight: 400; }
+        .fw600 { font-weight: 600; }
+        .text-left { text-align: left; }
+        .section-heading td {
+          background-color: #f5f5f5;
+          font-weight: 600;
+          text-transform: uppercase;
         }
     </style>
 </head>
 <body>
-<div style="padding: 20px 30px; margin-top: 50px">
-    <table id="repayment" border="1" cellspacing="0" class="word-wrap m-auto mb20"
-           style="table-layout: fixed;">
+<div class="container">
+    <table>
         <tbody>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left"> OTP verified date & timestamp </p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{otp_date_with_timestamp}}
-                </p>
-            </td>
+        <tr>
+            <td class="fw400 text-left">T&amp;C consent date and timestamp</td>
+            <td class="fw400 text-left">{{tc_consent_timestamp}}</td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">DOB received in PAN is validated against KYC</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">{{dob}}</p>
-            </td>
+        <tr>
+            <td class="fw400 text-left">Device Id</td>
+            <td class="fw400 text-left">{{device_id}}</td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left"> DOB_PAN_isMatch_KYC </p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{pan_dob_match_kyc}}
-                </p>
-            </td>
+        <tr>
+            <td class="fw400 text-left">Lead creation date and timestamp in Partner’s system</td>
+            <td class="fw400 text-left">{{lead_creation_timestamp}}</td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">Aadharlinked_status_with_PAN</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{aadhar_linked_status_with_pan}}
-                </p>
-            </td>
+        <tr>
+            <td class="fw400 text-left">Bureau consent date &amp; time stamp</td>
+            <td class="fw400 text-left">{{bureau_consent_timestamp}}</td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">KYC_name_match_score_Pennydrop</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{kyc_name_match_score_pennydrop}}
-                </p>
-            </td>
+        <tr>
+            <td class="fw400 text-left">KYC consent date &amp; time stamp</td>
+            <td class="fw400 text-left">{{kyc_consent_timestamp}}</td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">selfie match score with KYC_source</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{selfie_match_score}}
-                </p>
-            </td>
+        <tr>
+            <td class="fw400 text-left">Aadhar PAN linkage</td>
+            <td class="fw400 text-left">{{aadhar_pan_linkage_status}}</td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">liveliness check score</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{liveliness_score}}
-                </p>
-            </td>
+        <!-- NSDL validated PAN data section -->
+        <tr class="section-heading">
+            <td colspan="2">NSDL Validated PAN Data</td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">liveliness_check</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{liveliness_check}}
-                </p>
-            </td>
+        <tr>
+            <td class="fw400 text-left">PAN number</td>
+            <td class="fw400 text-left">{{pan_number}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Customer's name as per PAN API response</td>
+            <td class="fw400 text-left">{{pan_api_customer_name}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">NSDL PAN Response date and timestamp</td>
+            <td class="fw400 text-left">{{pan_api_response_timestamp}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">PAN status</td>
+            <td class="fw400 text-left">{{pan_status}}</td>
+        </tr>
+        <!-- Penny drop data section -->
+        <tr class="section-heading">
+            <td colspan="2">Penny Drop Data</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Disbursement Bank Account</td>
+            <td class="fw400 text-left">{{disbursement_bank_account}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">IFSC</td>
+            <td class="fw400 text-left">{{ifsc_code}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Penny drop name match score</td>
+            <td class="fw400 text-left">{{penny_drop_name_match_score}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Penny Drop date and timestamp</td>
+            <td class="fw400 text-left">{{penny_drop_timestamp}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Penny Drop Status</td>
+            <td class="fw400 text-left">{{penny_drop_status}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Penny Drop Name as per bank</td>
+            <td class="fw400 text-left">{{penny_drop_bank_name}}</td>
+        </tr>
+        <!-- Selfie and e-NACH section -->
+        <tr>
+            <td class="fw400 text-left">Selfie match score</td>
+            <td class="fw400 text-left">{{selfie_match_score}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">e-NACH registration date &amp; time stamp</td>
+            <td class="fw400 text-left">{{e_nach_registration_timestamp}}</td>
+        </tr>
+        <!-- Acceptance timestamps section -->
+        <tr class="section-heading">
+            <td colspan="2">Acceptance Timestamps</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">KFS Acceptance Time Stamp</td>
+            <td class="fw400 text-left">{{kfs_acceptance_timestamp}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Sanction Letter Acceptance Time Stamp</td>
+            <td class="fw400 text-left">{{sanction_letter_acceptance_timestamp}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Loan Agreement Acceptance Time Stamp</td>
+            <td class="fw400 text-left">{{loan_agreement_acceptance_timestamp}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Loan Agreement IP Address</td>
+            <td class="fw400 text-left">{{loan_agreement_ip_address}}</td>
+        </tr>
+        <!-- Disbursement Account section -->
+        <tr class="section-heading">
+            <td colspan="2">Disbursement Account</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Account Number</td>
+            <td class="fw400 text-left">{{account_number}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">IFSC</td>
+            <td class="fw400 text-left">{{account_ifsc_code}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Customer Name</td>
+            <td class="fw400 text-left">{{account_customer_name}}</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Bank Name</td>
+            <td class="fw400 text-left">{{account_bank_name}}</td>
+        </tr>
+        <!-- Business details section -->
+        <tr class="section-heading">
+            <td colspan="2">Business Details (wherever applicable)</td>
+        </tr>
+        <tr>
+            <td class="fw400 text-left">Business proof (Udyam number) or GST certificate</td>
+            <td class="fw400 text-left">{{business_proof_document}}</td>
         </tr>
         </tbody>
     </table>

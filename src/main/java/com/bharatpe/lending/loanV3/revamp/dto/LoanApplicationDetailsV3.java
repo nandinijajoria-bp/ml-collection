@@ -55,6 +55,7 @@ public class LoanApplicationDetailsV3 {
     private Long nachStartedAt;
 
     private UpiAutopayApplicationDetailsDTO upiAutopayDetails;
+    private NachDetail nachDetails;
 
     private List<LoanApplicationStage> loanApplicationStageList=new ArrayList<>();
 
@@ -63,5 +64,6 @@ public class LoanApplicationDetailsV3 {
     private Double apr;
 
     private Double annualRoi;
+    private boolean mandatePending;
 }
 

@@ -7,7 +7,6 @@ import com.bharatpe.lending.service.AutoPayUPIService;
 import com.bharatpe.lending.service.validator.AutoPayUPIServiceValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,10 +17,6 @@ import java.util.Optional;
 @Slf4j
 public class AutoPayUPIController {
 
-    private static final String DEFAULT_PAGE_NUMBER = "0";
-    private static final String DEFAULT_PAGE_SIZE = "10";
-    private static final String DEFAULT_SORT_BY = "id";
-    private static final String DEFAULT_SORT_DIRECTION = "asc";
     @Autowired
     AutoPayUPIService autoPayUPIService;
 
@@ -42,16 +37,22 @@ public class AutoPayUPIController {
     public UPIRegisterResponseDto registerAutoPayForMerchantForNewApplication(
       @RequestAttribute BasicDetailsDto merchant,
       @RequestBody RequestDTO<AutoUPIMandateRegisterRequestDto> requestDTO) {
-        return autoPayUPIService.registerMandate(merchant, requestDTO);
+        log.info("Received request for autopay mandate registration for merchant: {} with payload: {}", merchant.getId(), requestDTO);
+        UPIRegisterResponseDto response = autoPayUPIService.registerMandate(merchant, requestDTO);
+        log.info("Response for autopay mandate registration for merchant: {} is: {}", merchant.getId(), response);
+        return response;
     }
-
 
     @GetMapping(value = "/mandate/status")
     public MandateUPIStatusResponse statusCheckMandate(
             @RequestAttribute BasicDetailsDto merchant,
             @RequestParam (required = true) String orderId
     ) {
-        return autoPayUPIService.checkStatus(merchant, orderId);
+        log.info("received request for status check for orderId: {}", orderId);
+        MandateUPIStatusResponse response = autoPayUPIService.checkStatus(merchant, orderId);
+        log.info("response for status check for merchant: {} and orderId: {}, is: {}",merchant.getId(),orderId,response);
+        return response;
+
     }
 
     @GetMapping(value = "/mandate/transaction")
@@ -73,6 +74,7 @@ public class AutoPayUPIController {
         return ResponseEntity.ok(autoPayUPIService.updateFrequencyForMandate(merchant, dto));
     }
 
+
     @GetMapping(value = "/mandate/need-alt-account")
     public ResponseEntity<NewAccountRequiredResponseDto> checkConsecutiveError(
             @RequestAttribute BasicDetailsDto merchant,
@@ -87,5 +89,26 @@ public class AutoPayUPIController {
                 .message(message)
                 .build();
         return ResponseEntity.ok(response);
+
+    @GetMapping(value = "/required")
+    public ResponseEntity<AutoPayRequiredDto> upiAutoPayRequired(@RequestAttribute BasicDetailsDto merchant){
+        return ResponseEntity.ok(autoPayUPIService.isUPIAutoPayRequired(merchant));
+    }
+
+    @GetMapping(value = "/alt-mandate-eligibility")
+    public ResponseEntity<UPIAltEligibilityDto> checkAltAccountEligibility(@RequestHeader String token,
+                                                                           @RequestAttribute BasicDetailsDto merchant, @RequestParam Long applicationId) {
+        log.info("Received request for alt mandate eligibility check for merchantId: {}, applicationId: {}", merchant.getId(), applicationId);
+        return ResponseEntity.ok(autoPayUPIService.checkAltMandateEligibility(applicationId, merchant.getId(), token));
+    }
+
+    @PostMapping(value = "/register/alt-mandate")
+    public UPIRegisterResponseDto registerAutoPayForAltMandate(@RequestAttribute BasicDetailsDto merchant,
+                                                               @RequestBody AutoPayUPIAltMandateRegisterRequest requestDto) {
+        log.info("Received request for alt mandate registration for merchantId: {} with payload: {}", merchant.getId(), requestDto);
+        UPIRegisterResponseDto response = autoPayUPIService.registerAltMandate(merchant, requestDto);
+        log.info("Response for alt mandate registration for merchantId: {} is: {}", merchant.getId(), response);
+        return response;
+
     }
 }

@@ -23,6 +23,9 @@ public class MFDisbursalCallbackService {
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
+    @Autowired
+    MFInsuranceDocAsyncService mfInsuranceDocAsyncService;
+
     public DisbursalCallbackCommonDTO handleCallbackResponse(NBFCResponseDTO nbfcResponseDTO) {
         try {
             if(!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDTO.getData())) {
@@ -30,6 +33,12 @@ public class MFDisbursalCallbackService {
                 MFDisbursalCallbackDTO.CallbackDTO callbackData = mfDisbursalCallbackDTO.getData();
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(Long.valueOf(nbfcResponseDTO.getApplicationId()),nbfcResponseDTO.getLender());
                 Boolean status = "SUCCESS".equalsIgnoreCase(callbackData.getStatus());
+
+                if(!ObjectUtils.isEmpty(callbackData.getInsurance())){
+                    log.info("Received insurance data in disbursal callback for applicationId: {}, add policy doc in Lending Loan Insurance table", nbfcResponseDTO.getApplicationId());
+                    mfInsuranceDocAsyncService.addInsurancePolicyDocInDB(callbackData.getInsurance(), nbfcResponseDTO.getApplicationId());
+                }
+
                 DisbursalCallbackCommonDTO disbursalCallbackCommonDTO = DisbursalCallbackCommonDTO.builder()
                         .applicationId(Long.parseLong(nbfcResponseDTO.getApplicationId()))
                         .leadId(lendingApplicationLenderDetails.getLeadId())

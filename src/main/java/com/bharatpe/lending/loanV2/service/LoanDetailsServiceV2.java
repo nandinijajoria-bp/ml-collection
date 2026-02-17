@@ -55,7 +55,6 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
-import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
@@ -70,6 +69,8 @@ import com.bharatpe.lending.util.ValidationUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -248,6 +249,9 @@ public class LoanDetailsServiceV2 {
 
     @Value("${abfl.rollout.percent:10}")
     Integer rolloutAbflPercent;
+
+    @Value("${topupv2.homepage.banner.rollout.percent:10}")
+    Integer topupV2HomepageBannerRolloutPercent;
 
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
@@ -1118,9 +1122,10 @@ public class LoanDetailsServiceV2 {
             }
             applicationDetails.setRejectReason(getRejectionReason(openApplication,merchant));
             applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchantId()));
-            
+            boolean isMandateDone = loanUtil.isMandateDone(openApplication, lendingApplicationDetails);
             if (applicationDetails.getEnachBank()) {
-                applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
+                String nachDeepLink = isMandateDone ? null : getEnachDeeplink(openApplication, token, isIOS);
+                applicationDetails.setEnachDeeplink(nachDeepLink);
                 if(loanUtil.isInternalMerchant(openApplication.getMerchantId()) || easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), aadharNachRolloutPercent)){
                     String lender = openApplication.getLender();
                     if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
@@ -1158,19 +1163,7 @@ public class LoanDetailsServiceV2 {
                     }
                 }
             }
-
-            if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
-                applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()) || "PENDING_VERIFICATION".equalsIgnoreCase(openApplication.getNachStatus()));
-            }
-
-            if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())){
-                applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
-            }
-
-            
-//            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
-//                applicationDetails.setSkipEnach(Boolean.TRUE);
-//            }
+            applicationDetails.setEnachDone(isMandateDone);
             applicationDetails.setAddressDetails(getShopAddress(openApplication));
             applicationDetails.setProfessionalDetails(getProfessionalDetails(openApplication));
             applicationDetails.setAdditionalDetails(new AdditionalDetails(openApplication.getEmail(), openApplication.getAlternateMobile()));
@@ -1377,22 +1370,6 @@ public class LoanDetailsServiceV2 {
         if (!"TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && !ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             return null;
         }
-        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender(), true)) {
-            if(ObjectUtils.isEmpty(openApplication.getNachStatus())){
-                loanDashboardService.deleteLoanDashboardCache(openApplication.getMerchantId());
-            }
-            log.info("marking nach status approved for {}, {}", openApplication.getMerchantId(), openApplication.getId());
-            openApplication.setNachStatus("APPROVED");
-            openApplication.setNachType("ENACH");
-            openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
-            lendingApplicationDao.save(openApplication);
-            return null;
-        }
-//        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
-//        if (bharatPeEnach != null && BooleanUtils.isTrue(bharatPeEnach.getSkip())) {
-//            return null;
-//        }
         if (isIOS) return Deeplink.TECHPROCESS;
         return apiGatewayService.getEnachProvider(token, openApplication.getLender(),openApplication.getMerchantId());
     }
@@ -1945,7 +1922,9 @@ public class LoanDetailsServiceV2 {
                 funnelService.submitEvent(merchant.getId(), null, applicationId,
                         FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             }
-            LendingViewStates nextPage = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? LendingViewStates.ENACH_PAGE : LendingViewStates.AGREEMENT_PAGE;
+            LendingViewStates nextPage = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())
+                    ? loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication)
+                    : LendingViewStates.AGREEMENT_PAGE;
             loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, nextPage);
             return new ApiResponse<>(true, "Successfully updated merchant References!");
         } catch (Exception e) {
@@ -1987,6 +1966,8 @@ public class LoanDetailsServiceV2 {
         lendingApplication.setStatus("rejected");
         lendingApplication.setManualCibil("REJECTED");
         lendingApplication.setManualCibilReason(rejection_reason);
+        lendingApplication.setRejectionReason(rejection_reason);
+        lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.REFERENCES);
         lendingApplication.setCibilApprovedDate(new Date());
         if(Objects.nonNull(lendingRiskVariablesSnapshot)) {
             lendingRiskVariablesSnapshot.setExperianRejection(rejection_reason);
@@ -2997,6 +2978,37 @@ public class LoanDetailsServiceV2 {
         }
     }
 
+    public void saveMerchantPspInMongoV2(SendMoneyRequestDTO<SyncPspDTO> requestDTO, BasicDetailsDto merchantUser){
+
+        try{
+            List<PspDTO> pspDTOList = requestDTO.getPayload().getPspList();
+            if(pspDTOList == null || pspDTOList.isEmpty()) {
+                log.info("PSP List is Empty for Merchant : {}", merchantUser.getId());
+                return;
+            }
+            List<MerchantPSPMongo> psps = new ArrayList<>();
+
+            MerchantPSPMongo merchantPsps = new MerchantPSPMongo();
+            List<MerchantPSPMongo.AppDetails> appDetailList = new ArrayList<>();
+
+            merchantPsps.setMerchantId((merchantUser.getId()));
+            for (PspDTO pspDTO : pspDTOList) {
+                MerchantPSPMongo.AppDetails appDetails = merchantPsps.new AppDetails();
+                appDetails.setAppName(pspDTO.getAppName());
+                appDetails.setPackageName(pspDTO.getPackageName());
+                appDetailList.add(appDetails);
+            }
+
+            merchantPsps.setAppDetails(appDetailList);
+            psps.add(merchantPsps);
+            mongoPublisherUtil.publish("SendMoney", "merchant_psp_dump", merchantUser.getId().toString(), psps);
+
+        }catch (Exception ex){
+            log.error("Exception while saving Merchant PSP in Mongo, Exception is :{}", Arrays.asList(ex.getStackTrace()));
+
+        }
+    }
+
     private Pair<Boolean,String> hasValidUniqueRelations(List<MerchantReference> references) {
         Map<ReferenceRelation, Integer> relationCount = new HashMap<>();
 
@@ -3029,7 +3041,7 @@ public class LoanDetailsServiceV2 {
         return Pair.of(true,"");
     }
 
-    public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId) {
+    public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId, String version) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
             if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -3050,7 +3062,7 @@ public class LoanDetailsServiceV2 {
                     .applicationId(lendingApplication.getId())
                     .build();
             List<AdditionalLoanDetailsDTO.Input> inputs = new ArrayList<>();
-            List<String> requiredInputs = getInputsByLender(lendingApplication.getLender());
+            List<String> requiredInputs = getInputsByLender(lendingApplication.getLender(), version);
             if (requiredInputs.contains("FATHER_NAME") && ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName())) {
                 inputs.add(AdditionalLoanDetailsDTO.Input.builder()
                         .inputType("FATHER_NAME")
@@ -3084,12 +3096,16 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(false, "something went wrong while getting additional loan details");
     }
 
-    private List<String> getInputsByLender(String lender) {
+    private List<String> getInputsByLender(String lender, String version) {
         switch (lender) {
             case "IIFL":
                 return Arrays.asList("FATHER_NAME");
             case "SMFG":
-                return Arrays.asList("FATHER_NAME", "EMAIL", "MFI_DECLARATION");
+                return Arrays.asList("FATHER_NAME", "MFI_DECLARATION");
+            case "ABFL":
+                if ("v2".equalsIgnoreCase(version)) {
+                    return Arrays.asList("MFI_DECLARATION");
+                }
         }
         return new ArrayList<>();
     }
@@ -3117,8 +3133,9 @@ public class LoanDetailsServiceV2 {
                             return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").errorCode("APP_NOT_FOUND").detailSaved(false).applicationRejected(applicationRejected).build());
                         }
                         lendingApplicationLenderDetails.setAccountState("MFI_" + input.getValue());
-                        if (UPTO_3_LAKH.equalsIgnoreCase(input.getValue())) {
+                        if (UPTO_3_LAKH.equalsIgnoreCase(input.getValue()) && Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
                             lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.ValidationStatus.MFI_DECLARATION_FAILED.name());
+                            lendingApplication.setRejectionReason(LenderAssociationStatus.ValidationStatus.MFI_DECLARATION_FAILED.name());
                             commonService.rejectApplication(lendingApplication, lendingApplicationLenderDetails);
                             applicationRejected = true;
                             break;
@@ -3303,7 +3320,19 @@ public class LoanDetailsServiceV2 {
             //case:16
             LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
             if(!ObjectUtils.isEmpty(lendingPaymentSchedule1)){
-                List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
+                List<LoanEligibilityDTO> loans = null;
+                long startTime = System.currentTimeMillis();
+                if(easyLoanUtil.percentScaleUp(merchantId, topupV2HomepageBannerRolloutPercent)){
+                    loans = merchantLoansService.topupLoanV2(lendingPaymentSchedule1, false);
+                    long endTime = System.currentTimeMillis();
+                    long duration = endTime - startTime;
+                    log.info("Merchant {} in topupV2 flow for homepage card timeTakenMs : {}", merchantId, duration);
+                } else {
+                    loans = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
+                    long endTime = System.currentTimeMillis();
+                    long duration = endTime - startTime;
+                    log.info("Merchant {} in topup flow for homepage card timeTakenMs : {}", merchantId, duration);
+                }
                 List<LoanEligibilityDTO> topUpcheck = loans.stream()
                         .filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
                         .collect(Collectors.toList());
@@ -3458,8 +3487,13 @@ public class LoanDetailsServiceV2 {
                         .body(new ApiResponse<>(false, LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage()));
             }
 
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+            if (Objects.isNull(lendingApplicationDetails)) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ApiResponse<>(false, LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorMessage()));
+            }
             MerchantRedirectToNewRefResponseDto merchantRedirectToNewRefResponseDto = new MerchantRedirectToNewRefResponseDto();
-            merchantRedirectToNewRefResponseDto.setVersion(loanUtil.showShopDetailsOnBankDisbursementPage(token, merchantId, lendingApplication, new HashMap<>()) ? "v2" : "v1");
+            merchantRedirectToNewRefResponseDto.setVersion(BooleanUtils.isTrue(MapUtils.getBoolean(lendingApplicationDetails.getMetaData(), "skipShopDetails")) ? "v2" : "v1");
             return ResponseEntity.ok(new ApiResponse<>(merchantRedirectToNewRefResponseDto));
         }catch (Exception e) {
             log.error("Error while fetching additional-details version for merchantId: {}", merchantId, e);

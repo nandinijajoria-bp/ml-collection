@@ -1,7 +1,10 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.enums.RejectionStage;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dao.LendingKfsDao;
@@ -20,7 +23,6 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.text.DocumentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_FAILED_DOC_UPLOAD;
 
 @Slf4j
 @Service
@@ -59,6 +63,9 @@ public class UgroDocUploadService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    private LendingShopDocumentsDao lendingShopDocumentsDao;
+
     @Transactional
     public boolean invokeDocUpload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String docType) {
         DocType docName = null;
@@ -69,10 +76,10 @@ public class UgroDocUploadService {
             }
 
             docName = getDocName(docType);
-            if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if (!Arrays.asList(DocType.SHOP_PHOTO, DocType.SHOP_STOCK).contains(docName) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getLendingApplication().getMerchantId()));
             }
-            if (payloadValidation.isInValidDocUploadPayload(lenderAssociationDetailsDto.getCKycResponseDto()) || ObjectUtils.isEmpty(docName)) {
+            if (ObjectUtils.isEmpty(docName) || (!Arrays.asList(DocType.SHOP_PHOTO, DocType.SHOP_STOCK).contains(docName) && payloadValidation.isInValidDocUploadPayload(lenderAssociationDetailsDto.getCKycResponseDto()))) {
                 log.error("UGRO: CKyc/DocName not available for applicationId: {}, {}", lenderAssociationDetailsDto.getApplicationId(), docName);
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "FAILED").name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, getStatusforDocumentUpload(docName, "FAILED"));
@@ -108,14 +115,23 @@ public class UgroDocUploadService {
 
     private NBFCRequestDTO<?> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, DocType docName) {
         try {
+            LendingShopDocuments lendingShopDocument = null;
+            if (Arrays.asList(DocType.SHOP_PHOTO, DocType.SHOP_STOCK).contains(docName)) {
+                LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
+                lendingShopDocument = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication.getId(), getShopProofType(docName));
+                if (ObjectUtils.isEmpty(lendingShopDocument) || ObjectUtils.isEmpty(lendingShopDocument.getProofFrontSide())) {
+                    log.error("UGRO: Unable to fetch shop photo document for application " + lendingApplication.getId());
+                    return null;
+                }
+            }
             UgroDocumentUploadRequest docUploadRequest = UgroDocumentUploadRequest.builder()
                     .leadId(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadId())
                     .documentType(getDocumentId(docName))
                     .metaData(UgroDocumentUploadRequest.MetaData.builder()
                             .docType(docName.getContentType())
                             .fileName(docName.name() + docName.getFileExtension())
-                            .url("URL".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lenderAssociationDetailsRequestDto.getApplicationId(), docName, lenderAssociationDetailsRequestDto.getCKycResponseDto(), null) : null)
-                            .data("RAW_DATA".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lenderAssociationDetailsRequestDto.getApplicationId(), docName, lenderAssociationDetailsRequestDto.getCKycResponseDto(), null) : null)
+                            .url("URL".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lenderAssociationDetailsRequestDto.getApplicationId(), docName, lenderAssociationDetailsRequestDto.getCKycResponseDto(), null, lendingShopDocument) : null)
+                            .data("RAW_DATA".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lenderAssociationDetailsRequestDto.getApplicationId(), docName, lenderAssociationDetailsRequestDto.getCKycResponseDto(), null, lendingShopDocument) : null)
                             .build())
                     .build();
             return NBFCRequestDTO.builder()
@@ -130,6 +146,17 @@ public class UgroDocUploadService {
         return null;
     }
 
+    private String getShopProofType(DocType docName) {
+        switch (docName) {
+            case SHOP_PHOTO:
+                return "SHOP-FRONT";
+            case SHOP_STOCK:
+                return "SHOP-STOCK";
+            default:
+                return null;
+        }
+    }
+
     private String getDocumentId(DocType docType) {
         switch (docType) {
             case SELFIE:
@@ -138,6 +165,9 @@ public class UgroDocUploadService {
                 return "LOAN_AGREEMENT";
             case DIGILOCKER_AADHAAR_XML:
                 return "AADHAAR_XML";
+            case SHOP_PHOTO:
+            case SHOP_STOCK:
+                return "SHOP_PHOTO";
             default:
                 return null;
         }
@@ -149,6 +179,10 @@ public class UgroDocUploadService {
                 return DocType.SELFIE;
             case "AADHAR_UPLOAD":
                 return DocType.DIGILOCKER_AADHAAR_XML;
+            case "SHOP_PHOTO_UPLOAD":
+                return DocType.SHOP_PHOTO;
+            case "SHOP_STOCK_PHOTO_UPLOAD":
+                return DocType.SHOP_STOCK;
             default:
                 return null;
         }
@@ -174,13 +208,23 @@ public class UgroDocUploadService {
                     default:
                         return LenderAssociationStatus.AADHAR_UPLOAD_PENDING;
                 }
+            case "SHOP_PHOTO":
+            case "SHOP_STOCK":
+                switch (currentStage) {
+                    case "FAILED":
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_FAILED;
+                    case "SUCCESS":
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_SUCCESS;
+                    default:
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_PENDING;
+                }
             default:
                 return null;
         }
     }
 
-    private String getFileBlob(Long applicationId, DocType fileBlob, CKycResponseDto cKycResponseDto, LendingKfs lendingKfs)
-            throws DocumentException, IOException {
+    private String getFileBlob(Long applicationId, DocType fileBlob, CKycResponseDto cKycResponseDto, LendingKfs lendingKfs, LendingShopDocuments lendingShopDocuments)
+            throws IOException {
         String key = null;
         switch (fileBlob) {
             case SELFIE:
@@ -202,6 +246,10 @@ public class UgroDocUploadService {
             case LOAN_AGREEMENT:
                 key = lendingKfs.getSanctionLoanAgreementDocFile();
                 break;
+            case SHOP_PHOTO:
+            case SHOP_STOCK:
+                key = lendingShopDocuments.getProofFrontSide();
+                break;
             default:
                 return null;
         }
@@ -221,6 +269,8 @@ public class UgroDocUploadService {
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 UgroDocUploadResponse docUploadResponse = objectMapper.convertValue(nbfcResponseDto.getData(), UgroDocUploadResponse.class);
                 if(!ObjectUtils.isEmpty(docUploadResponse) && !ObjectUtils.isEmpty(docUploadResponse.getMsg()) && ugroConfig.getLeadExpiryResponse().equalsIgnoreCase(docUploadResponse.getMsg())){
+                    lenderAssociationDetailsRequest.getLendingApplication().setRejectionReason(LENDER_FAILED_DOC_UPLOAD);
+                    lenderAssociationDetailsRequest.getLendingApplication().setRejectionStage(RejectionStage.DOC_UPLOAD);
                     commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
                     return false;
                 }
@@ -246,8 +296,8 @@ public class UgroDocUploadService {
                     .metaData(UgroDocumentUploadRequest.MetaData.builder()
                             .docType(docName.getContentType())
                             .fileName(docName.name() + docName.getFileExtension())
-                            .url("URL".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lendingApplication.getId(), docName, null, lendingKfs) : null)
-                            .data("RAW_DATA".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lendingApplication.getId(), docName, null, lendingKfs) : null)
+                            .url("URL".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lendingApplication.getId(), docName, null, lendingKfs, null) : null)
+                            .data("RAW_DATA".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(lendingApplication.getId(), docName, null, lendingKfs, null) : null)
                             .build())
                     .build();
             return NBFCRequestDTO.builder()

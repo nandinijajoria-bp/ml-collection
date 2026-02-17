@@ -23,10 +23,10 @@ public class LoanAndRTEELigibilityComputeConsumer {
     @Autowired
     LoanAndRTEEligibilityComputeService loanAndRTEEligibilityComputeService;
 
-    @KafkaListener(
-            topics = "kyc_doc_approved",
-            containerFactory = "ConfluentKafkaListenerContainer",
-            autoStartup = "${compute.loan_rte_eligibility.enabled:false}")
+//    @KafkaListener(
+//            topics = "kyc_doc_approved",
+//            containerFactory = "ConfluentKafkaListenerContainer",
+//            autoStartup = "${compute.loan_rte_eligibility.enabled:false}")
     public void computeLoanAdnRTEEligibliity(@Payload  String rawData, @Header(KafkaHeaders.RECEIVED_PARTITION_ID) String partition
             , @Header(KafkaHeaders.OFFSET) String offset) {
         log.info("Start computing loan & rte eligibility for : {}, partition: {}, offset: {}", rawData, partition, offset);
