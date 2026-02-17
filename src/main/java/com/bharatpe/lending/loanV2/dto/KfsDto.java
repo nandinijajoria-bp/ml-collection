@@ -1,13 +1,18 @@
 package com.bharatpe.lending.loanV2.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 @Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class KfsDto {
     private long merchantId;
     private long applicationId;
@@ -40,7 +45,7 @@ public class KfsDto {
     private String ediOffData;
     private String nbfcId;
     private String locationLatLong;
-    private boolean isTopUpLoan;
+    private boolean topUpLoan;
     private long ediDays;
     private Date agreementAt;
     private String shopName;
@@ -67,14 +72,19 @@ public class KfsDto {
     private LanguageData languageData;
     private String selectedLanguage;
     private Boolean showVernacKFSLanguage;
+
     @Data
     @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class LanguageData {
         private Map<String, List<DocumentLanguageInfo>> languageList;
     }
 
     @Data
     @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class DocumentLanguageInfo {
         private String lender;
         private String languageLabel;

@@ -54,6 +54,7 @@ import java.util.*;
 
 import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_PERCENTAGE;
 import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_THRESHOLD;
+import static com.bharatpe.lending.constant.RejectionReasons.NULLABLE_LENDER;
 
 @Component
 @Slf4j
@@ -164,6 +165,8 @@ public class NbfcUtils {
                     || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                 log.info("skipping lender change and rejecting application as agreement already done / lendingViewState {} for application is not correct for applicationId {}", lendingApplicationDetails.getApplicationViewState(), lendingApplication.getId());
                 lendingApplication.setStatus("rejected");
+                lendingApplication.setRejectionReason("skipping lender change and rejecting application as agreement already done / lendingViewState " + lendingApplicationDetails.getApplicationViewState() + " not correct");
+                lendingApplication.setRejectionStage(RejectionStage.AGREEMENT);
                 lendingApplicationDao.save(lendingApplication);
                 lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
                 return;
@@ -179,6 +182,7 @@ public class NbfcUtils {
                         lendingApplication.setRejectionReason(existingLendingApplicationLenderDetails.getBreRejectionReason());
                     } else {
                         lendingApplication.setManualKyc("rejected");
+                        lendingApplication.setRejectionReason(NULLABLE_LENDER);
                     }
                     lendingApplication.setStatus("rejected");
                     lendingApplicationDao.save(lendingApplication);
@@ -330,6 +334,12 @@ public class NbfcUtils {
                 return associationServiceUtil.invokeKycValidity(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             case "SKIP_KYC":
                 return associationServiceUtil.invokeSkipKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "ACCEPT_OFFER":
+                return associationServiceUtil.invokeAcceptOffer(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "DEDUPE_CHECK":
+                return associationServiceUtil.invokeDedupeCheck(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "UPDATE_CLIENT":
+                return associationServiceUtil.invokeUpdateClient(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return false;
         }

@@ -353,6 +353,7 @@ public class DocUploadUtils {
                         return LenderAssociationStatus.SELFIE_UPLOAD_PENDING;
                 }
             case "SHOP_PHOTO":
+            case "SHOP_STOCK":
                 switch (currentStage) {
                     case "FAILED":
                         return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_FAILED;
@@ -398,6 +399,7 @@ public class DocUploadUtils {
                 key = lendingKfs.getSanctionLoanAgreementDocFile();
                 break;
             case "SHOP_PHOTO":
+            case "SHOP_STOCK":
                 key =  lendingShopDocument.getProofFrontSide();
                 break;
             case "BUSINESS_DOC":

@@ -20,6 +20,7 @@ import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.EnachInitiateRequestDTO;
 import com.bharatpe.lending.enums.EnachMode;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,7 +32,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -91,7 +91,7 @@ public class BPEnachService {
     FunnelService funnelService;
 
     @Autowired
-    private AutoPayUPIService autoPayUPIService;
+    private DigioAutoPayUPIServiceHelper digioAutoPayUPIServiceHelper;
 
     @Autowired
     private MandateRegistrationHelper mandateHelper;
@@ -106,15 +106,27 @@ public class BPEnachService {
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token ,String appVersion,
                                                      String module, String amt,
                                                      String type, String referenceNumber,
-                                                     String ownerId, String clientName, String nachMode) {
+                                                     String ownerId, String clientName, String nachMode,
+                                                     LendingPaymentScheduleSlave activeLoan) {
 
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        LendingApplication lendingApplication;
+        boolean isMandateForMigration = false;
+        if (Objects.nonNull(activeLoan)) {
+            LendingApplication inProgressLoanApplication = lendingApplicationDao.findInProgressLoanApplication(merchant.getId());
+            isMandateForMigration = !(Objects.nonNull(inProgressLoanApplication) && LoanType.TOPUP.name().equalsIgnoreCase(inProgressLoanApplication.getLoanType()));
+        }
+        if(isMandateForMigration){
+            logger.info("considered migration case for merchant: {} and applicationId: {}", merchant.getId(), activeLoan.getApplicationId());
+            lendingApplication = lendingApplicationDao.findById(activeLoan.getApplicationId()).orElse(null);
+        }else {
+            logger.info("not eligible for migration case for merchant: {}", merchant.getId());
+            lendingApplication =lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        }
 
         if(clientName.equalsIgnoreCase("LENDING")) {
 
             if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
-                LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchant.getId(), Collections.singletonList("ACTIVE"));
                 if (!ObjectUtils.isEmpty(activeLoan)) {
                     if (merchantLoansService.showRenachBanner(merchant.getId(), activeLoan.getNbfc(), false)) {
                         return eNachInitiateForRenachMerchants(merchant, token, nachMode, activeLoan);
@@ -130,7 +142,7 @@ public class BPEnachService {
             }
 
 
-            if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true)){
+            if(!isMandateForMigration && loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true)){
                 responseDTO.setResponse(false);
                 responseDTO.setMessage("Nach can be skipped");
                 logger.info("nach can be skipped for application:{}", lendingApplication.getId());
@@ -143,21 +155,41 @@ public class BPEnachService {
 
             Double nachAmount = lendingApplication.getLoanAmount();
 
-            if (EnachMode.UPI.name().equalsIgnoreCase(nachMode)) {
-                nachAmount = lendingApplication.getLoanAmount() > upiNachAmount ? upiNachAmount : nachAmount;
-            } else if (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode)) {
-                nachAmount = lendingApplication.getLoanAmount() > 100000D ? 100000D : nachAmount;
+            if(isMandateForMigration) {
+                Double maxMandateAmount = loanUtil.getMaxMandateAmount(merchant.getId());
+
+                if (maxMandateAmount != null) {
+                    nachAmount = maxMandateAmount;
+                }else {
+                    if (EnachMode.UPI.name().equalsIgnoreCase(nachMode)) {
+                        nachAmount = lendingApplication.getLoanAmount() > upiNachAmount ? upiNachAmount : nachAmount;
+                    } else if (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode)) {
+                        nachAmount = lendingApplication.getLoanAmount() > 100000D ? 100000D : nachAmount;
+                    }
+                }
+            }else {
+                if (EnachMode.UPI.name().equalsIgnoreCase(nachMode)) {
+                    nachAmount = lendingApplication.getLoanAmount() > upiNachAmount ? upiNachAmount : nachAmount;
+                } else if (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode)) {
+                    nachAmount = lendingApplication.getLoanAmount() > 100000D ? 100000D : nachAmount;
+                }
             }
 
+            logger.info("nachAmount for merchant {} : {}",merchant.getId(), nachAmount);
             String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
             String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 
             ENachIntitiationResponseDTO eNachIntitiationResponse = apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
                     String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode, lendingApplication.getTenureInMonths()),
                     lendingApplication.getLoanType());
+
             if(Objects.nonNull(eNachIntitiationResponse) && Objects.nonNull(eNachIntitiationResponse.getData())
-                    && EnachMode.UPI.name().equalsIgnoreCase(nachMode) && mandateHelper.isDigioUpiCase(lendingApplication)){
-                autoPayUPIService.registerDigioUpi(lendingApplication, eNachIntitiationResponse.getData());
+                    && EnachMode.UPI.name().equalsIgnoreCase(nachMode)){
+                if(isMandateForMigration){
+                    digioAutoPayUPIServiceHelper.registerDigioMigrationUpi(lendingApplication, eNachIntitiationResponse.getData(), nachAmount);
+                }else if(mandateHelper.isDigioUpiCase(lendingApplication)){
+                    digioAutoPayUPIServiceHelper.registerDigioUpi(lendingApplication, eNachIntitiationResponse.getData());
+                }
             }
             return eNachIntitiationResponse;
 
@@ -213,31 +245,6 @@ public class BPEnachService {
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token) {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-//        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
-//        BPEnachEnum.enachDeepLink bpEnachEnum = BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
-//
-//        if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.DRF.name())) {
-//        	PartnerRetailerDTO retailer = partnersApiHandler.getPartnerRetailerByExternalId(bpEnach.getReferenceNumber());
-//
-//        	if(!ObjectUtils.isEmpty(retailer))
-//        		responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.getToken());
-//
-//        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.LENDING.name())) {
-//
-//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.LOAN.name()
-//                + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
-//
-//        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && requestDTO.getNewApp()){
-//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card-v2&pageRoute=enach");
-//        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && !requestDTO.getNewApp()){
-//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card");
-//        } else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.GOLD_LOAN.name())){
-//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=gold-loan-lead");
-//        } else{
-//                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.RETAILER_FINANCE.name().toLowerCase()
-//                    + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
-//        }
-
 
         BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationIdV2(merchant.getId(), requestDTO.getApplicationId());
 

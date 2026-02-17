@@ -1,49 +1,35 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.MandateType;
-import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
+import com.bharatpe.lending.loanV3.revamp.enums.UpiAutoPayStatus;
 import com.bharatpe.lending.loanV3.services.VKycService;
-import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.service.AutoPayUPIService;
+import com.bharatpe.lending.service.PostAgreementAsyncFlowService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.BooleanUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.ObjectUtils;
 
 import javax.validation.constraints.NotNull;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -54,25 +40,20 @@ import java.util.stream.Collectors;
 public class UpiAutoPayStageHelper {
 
     private final LoanUtil loanUtil;
-
-    @Lazy
-    private final NbfcUtils nbfcUtils;
     private final EasyLoanUtil easyLoanUtil;
     private final VKycService vKycService;
     private final AutoPayUPIDao autoPayUPIDao;
-    private final VerifyOTPServiceV2 verifyOTPServiceV2;
+    private final AutoPayUPIService autoPayUPIService;
     private final LendingApplicationDao lendingApplicationDao;
     private final LendingApplicationDetailsDao lendingApplicationDetailsDao;
     private final LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
-    private final LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+    private final PostAgreementAsyncFlowService postAgreementAsyncFlowService;
 
     @Value("${upi.autopay.retry.count:3}")
     private int upiAutoPayMaxRetryCount;
 
     @Value("${upi.autopay.force.skip.percentage:0}")
     private int upiAutoPayForceSkipPercentage;
-
-    private final List<Lender> legacyAssociationLendersList = Arrays.asList(Lender.ABFL, Lender.PIRAMAL);
 
     public boolean isEligibleForFailedForceSkip(Long applicationId, Long merchantId) {
         if(!easyLoanUtil.percentScaleUp(merchantId, upiAutoPayForceSkipPercentage)){
@@ -133,18 +114,18 @@ public class UpiAutoPayStageHelper {
         log.info("isEligibleForSkipNach : {} for applicationId : {}", isEligibleForSkipNach, lendingApplication.getId());
         LendingViewStates nextPage;
         if(isEligibleForSkipNach){
+            lendingApplication.setNachStatus(NachStatus.APPROVED.name());
+            lendingApplication.setNachType("ENACH");
+            lendingApplication.setNachLender(loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
+            lendingApplicationDao.save(lendingApplication);
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 nextPage=LendingViewStates.AGREEMENT_PAGE;
             }else {
                 nextPage = vKycService.getLenderVkycPageOrDefault(
                         LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(),
                         lendingApplication.getLender(), LoanType.TOPUP.name().equals(lendingApplication.getLoanType()));
-                invokeDocUploadFlow(lendingApplication);
+                invokeDocUploadFlow(lendingApplication, lendingApplicationDetails);
             }
-            lendingApplication.setNachStatus(NachStatus.APPROVED.name());
-            lendingApplication.setNachType("ENACH");
-            lendingApplication.setNachLender(loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
-            lendingApplicationDao.save(lendingApplication);
         }else {
             nextPage = LendingViewStates.ENACH_PAGE;
             lendingApplication.setNachStatus(null);
@@ -161,36 +142,36 @@ public class UpiAutoPayStageHelper {
         return nextPage;
     }
 
-    public void invokeDocUploadFlow(@NotNull LendingApplication lendingApplication) {
+    public void invokeDocUploadFlow(@NotNull LendingApplication lendingApplication, @NotNull LendingApplicationDetails lendingApplicationDetails) {
         if(LoanType.TOPUP.name().equals(lendingApplication.getLoanType())){
             log.info("Loan type: TOPUP for application: {}, skipping this flow", lendingApplication.getId());
             return;
         }
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(
-                lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
-        log.info("Lending Application Lender Details for application {}: {}", lendingApplication.getId(), lendingApplicationLenderDetails);
+        postAgreementAsyncFlowService.invokeNextStage(lendingApplication, Optional.empty(), Optional.of(lendingApplicationDetails));
+    }
 
-        if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            log.info("No lending application lender details found for application id: {}", lendingApplication.getId());
-            return;
-        }
-        if( ! LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())){
-            log.info("Application is not in ASSC_COMPLETED stage for applicationId: {}, merchantId: {}, current stage is: {}, skipping this doc upload flow",
-                    lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplicationLenderDetails.getStage());
-            return;
-        }
-        if(BooleanUtils.isTrue(lendingApplicationLenderDetails.getRearchFlow())){
-            log.info("Rearch flow is enabled for application id: {}, invoking doc upload workflow", lendingApplication.getId());
-            verifyOTPServiceV2.invokeDocUploadAndNachWorflow(lendingApplication);
-        }
-        else {
-            Boolean isAutoInvokeRequired = legacyAssociationLendersList.contains(Lender.valueOf(lendingApplication.getLender()))
-                    ? LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED)
-                    : LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
-
-            log.info("Rearch flow is not enabled for application id: {}, pushing application to next stage", lendingApplication.getId());
-            nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(), isAutoInvokeRequired);
-            log.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
+    public boolean checkSkipEligibilityAndUpdateUpiAutoPayStatus(@NotNull LendingApplication lendingApplication) {
+        log.info("checking UPI AutoPay skip eligibility for merchantId: {} and applicationId: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+        AutoPayUPI autoPayUPIExistingEntityMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),AutoPayStatusEnum.ACTIVE.name());
+        boolean autoPayUpiSkipped= autoPayUPIService.isEligibleForUpiAutoPaySkip(lendingApplication,autoPayUPIExistingEntityMerchantId);
+        if(autoPayUpiSkipped){
+            autoPayUPIService.cloneAutoPayUpiEntityForNewApplication(autoPayUPIExistingEntityMerchantId, lendingApplication.getId());
+            log.info("AutoPay UPI skipped for merchantId : {}", lendingApplication.getMerchantId());
+            lendingApplication.setUpiAutopayStatus(UpiAutoPayStatus.APPROVED.name());
+            lendingApplicationDao.save(lendingApplication);
+            return true;
+        }else {
+            log.info("upiautopay is not eligible for skip for applicationId: {} and merchantId:{}",
+                    lendingApplication.getId(), lendingApplication.getMerchantId());
+            // this is bank change case
+            if(UpiAutoPayStatus.APPROVED.name().equals(lendingApplication.getUpiAutopayStatus())){
+                log.info("found upi autopay status as approved for applicationId: {} and merchantId:{} marking it as null",
+                        lendingApplication.getId(), lendingApplication.getMerchantId());
+                lendingApplication.setUpiAutopayStatus(null);
+                lendingApplicationDao.save(lendingApplication);
+            }
+            return false;
         }
     }
+
 }

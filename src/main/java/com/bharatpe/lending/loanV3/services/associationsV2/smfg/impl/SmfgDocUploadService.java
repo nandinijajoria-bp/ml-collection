@@ -1,7 +1,9 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dao.LendingKfsDao;
@@ -54,6 +56,9 @@ public class SmfgDocUploadService {
     @Autowired
     private LendingKfsDao lendingKfsDao;
 
+    @Autowired
+    private LendingShopDocumentsDao lendingShopDocumentsDao;
+
     @Transactional
     public boolean invokeDocUpload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String docType) {
         DocType docName = DocType.valueOf(docType);
@@ -76,7 +81,7 @@ public class SmfgDocUploadService {
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAYLOAD_ERROR.name());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(docUploadUtils.getStatusForDocumentUpload(docName, "FAILED").name());
                 commonService.manageApplicationState(lenderAssociationDetailsDto);
-                return false;
+                return getFailedResponse(docType, lendingApplicationLenderDetails.getApplicationId());
             }
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.DOC_UPLOAD, smfgConfig.getDocUploadSessionTimeout());
             log.info("docUpload response of SMFG from nbfc for docTYpe: {} {} with applicationId: {}", nbfcResponseDto, docName, lenderAssociationDetailsDto.getApplicationId());
@@ -95,7 +100,7 @@ public class SmfgDocUploadService {
         }
         lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(docUploadUtils.getStatusForDocumentUpload(docName, "FAILED").name());
         commonService.manageApplicationState(lenderAssociationDetailsDto);
-        return false;
+        return getFailedResponse(docType, lendingApplicationLenderDetails.getApplicationId());
     }
 
     private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, DocType doc) {
@@ -103,12 +108,22 @@ public class SmfgDocUploadService {
             LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
             BusinessDocsDTO businessDocs = getBusinessDocs(lendingApplication, doc);
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(),lendingApplication.getLender());
+            LendingShopDocuments lendingShopDocument = null;
+
+            if (doc.equals(DocType.SHOP_PHOTO) || doc.equals(DocType.SHOP_STOCK)) {
+                String docName = doc.equals(DocType.SHOP_PHOTO) ? "SHOP-FRONT" : "SHOP-STOCK";
+                lendingShopDocument = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication.getId(), docName);
+                if (ObjectUtils.isEmpty(lendingShopDocument)) {
+                    return null;
+                }
+            }
+
             SmfgDocumentUploadRequest docUploadRequest = SmfgDocumentUploadRequest.builder()
                     .partnerapplicationid(lendingApplication.getExternalLoanId())
                     .partnerid(smfgConfig.getPartnerId())
                     .vkycinfo(SmfgDocumentUploadRequest.Vkycinfo.builder()
                             .documentInfo(SmfgDocumentUploadRequest.DocumentInfo.builder()
-                                    .documentData(docUploadUtils.getFileBlob(doc, lenderAssociationDetailsRequest.getCKycResponseDto(), lendingKfs, null, businessDocs))
+                                    .documentData(docUploadUtils.getFileBlob(doc, lenderAssociationDetailsRequest.getCKycResponseDto(), lendingKfs, lendingShopDocument, businessDocs))
                                     .documentName(getDocumentNameMapping(doc))
                                     .documentType(doc.getFileExtension().substring(1))
                                     .ipaddress(lendingApplication.getIp())
@@ -149,6 +164,10 @@ public class SmfgDocUploadService {
                 return smfgConfig.getUdyamDocType();
             case "AUDIT_TRAIL_DOC":
                 return smfgConfig.getAuditTrailDocType();
+            case "SHOP_PHOTO":
+                return smfgConfig.getShopFrontPhotoType();
+            case "SHOP_STOCK":
+                return smfgConfig.getShopStockPhotoType();
             default:
                 return null;
         }
@@ -159,6 +178,14 @@ public class SmfgDocUploadService {
                 && !ObjectUtils.isEmpty(docUploadResponseDto.getStatus())
                 && !ObjectUtils.isEmpty(docUploadResponseDto.getData())
                 && ("SUCCESS".equalsIgnoreCase(docUploadResponseDto.getStatus()) || "DOCUMENT UPLOAD NOT ALLOWED".equalsIgnoreCase(docUploadResponseDto.getData().getErrorDesc())));
+    }
+
+    private boolean getFailedResponse(String docType, Long applicationId) {
+        if(DocType.BUSINESS_DOC.name().equalsIgnoreCase(docType)) {
+            log.info("Returning docUpload true in case {} upload failed once to bypass retry for applicationId {}", docType, applicationId);
+            return true;
+        }
+        return false;
     }
 
 }

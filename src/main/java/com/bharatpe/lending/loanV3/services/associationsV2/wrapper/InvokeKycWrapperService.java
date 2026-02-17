@@ -142,8 +142,8 @@ public class InvokeKycWrapperService {
                 return Arrays.asList(LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name());
             case TRILLIONLOANS:
                 return (isTopUp && Boolean.FALSE.equals(trillionLoansConfig.getKycCtaEnabledForTopup())) ?
-                        Arrays.asList(LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name()) :
-                        Arrays.asList(LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.KYC.name());
+                        Arrays.asList(LenderAssociationStages.UPDATE_CLIENT.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name()) :
+                        Arrays.asList(LenderAssociationStages.UPDATE_CLIENT.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.KYC.name());
             case MUTHOOT:
                 return Arrays.asList(LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.KYC.name());
             case CAPRI:
@@ -157,7 +157,7 @@ public class InvokeKycWrapperService {
                 return Collections.singletonList(LenderAssociationStages.KYC.name());
             case UGRO:
                 return Arrays.asList(LenderAssociationStages.SELFIE_UPLOAD.name(),
-                        LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.CREATE_CLIENT.name());
+                        LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name(), LenderAssociationStages.SHOP_STOCK_PHOTO_UPLOAD.name(), LenderAssociationStages.CREATE_CLIENT.name());
             default:
                 throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }

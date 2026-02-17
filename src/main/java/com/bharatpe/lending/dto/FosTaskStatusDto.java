@@ -17,4 +17,19 @@ public class FosTaskStatusDto {
     String message;
     String eligibleForPayout;
     Long applicationId;
+    EmiFosTaskStatusDto emiTaskDetails;
+
+    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @ToString
+    @Builder
+    public static class EmiFosTaskStatusDto {
+        Long applicationId;
+        String status;
+        String eligibleForPayout;
+        String message;
+
+    }
 }

@@ -58,6 +58,8 @@ public class SmfgConfig {
     private Double shopInferredDistanceThreshold = 2500D;
     private Double maxProcessingFee = 6.0D;
     private Integer docUploadSessionTimeout = 40000;
+    private String shopFrontPhotoType = "128";
+    private String shopStockPhotoType = "129";
 
     //LMS
     private String LmsAppName;

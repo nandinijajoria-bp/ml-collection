@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.Date;
 
+import static com.bharatpe.lending.lendingplatform.lms.util.ConversionUtil.safeBigDecimalToDouble;
+import static com.bharatpe.lending.lendingplatform.lms.util.ConversionUtil.safeBigDecimalToInt;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -52,6 +55,25 @@ public class LoanDetailsResponse {
         private BigDecimal instalmentAmount;
         private String loanCurrentStatus;
 
+        public BigDecimal calculateDuePenalty() {
+            return (this.overdueBouncingCharges != null ? this.overdueBouncingCharges : BigDecimal.ZERO)
+                    .add(this.overduePenalInterest != null ? this.overduePenalInterest : BigDecimal.ZERO);
+        }
+
+        public double calculateDuePenaltyAsDouble() {
+            return calculateDuePenaltyAsDouble(false);
+        }
+
+        public double calculateDuePenaltyAsDouble(boolean ceil) {
+            if(!ceil) {
+                return safeBigDecimalToDouble(calculateDuePenalty());
+            }
+            return Math.ceil(safeBigDecimalToDouble(calculateDuePenalty()));
+        }
+
+        public double calculateDuePenaltyAsInt() {
+            return safeBigDecimalToInt(calculateDuePenalty());
+        }
 
     }
 }

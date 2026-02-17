@@ -6,10 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.SdkClientException;
@@ -275,9 +272,10 @@ public class S3BucketHandler {
 			logger.info("Time Taken by AWS S3 getObject API : {} miliseconds", Duration.between(start, end).toMillis());
 			return inputStream;
 		}
-		catch(Exception e) {
-			logger.error("Exception while fetching object from s3", e);
-			throw e;
+		catch(Exception exception) {
+			logger.error("Exception while fetching object from s3, message: {}, stack_trace: {}",
+					exception.getMessage(), Arrays.asList(exception.getStackTrace()));
+			throw exception;
 		}
 	}
 

@@ -35,7 +35,7 @@ public class LiquiLoansPenaltyService implements IPenaltyService {
     }
 
     private Date getPenaltyActivationDateFromProperty(String overDuePenaltyRolloutDate) {
-        return DateTimeUtil.parseDate(overDuePenaltyRolloutDate, "yyyy-MM-dd hh:mm:ss");
+        return DateTimeUtil.parseDate(overDuePenaltyRolloutDate, "yyyy-MM-dd HH:mm:ss");
     }
 
     private int getApplicablePenaltyVersionCode(String lender, Date agreementAt) {

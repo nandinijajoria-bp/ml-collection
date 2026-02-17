@@ -40,7 +40,8 @@ public enum LoanDetailExceptionEnum {
 
     APPLICATION_DETAILS_NOT_FOUND("LEN00013", "Application Details not found"),
 
-    APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY("LEN00014", "Application not eligible for UPI autopay");
+    APPLICATION_NOT_ELIGIBLE_FOR_UPI_AUTO_PAY("LEN00014", "Application not eligible for UPI autopay"),
+    APPLICATION_NOT_ELIGIBLE_FOR_DIGIO_UPI_AUTO_PAY("LEN00015", "Application not eligible for digio UPI autopay");
 
 
 

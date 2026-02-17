@@ -93,6 +93,7 @@ public class PaymentDetailsResponseDTO {
 		private double totalDue;
 		private double totalExcessBalance;
 		private double netPayable;
+		private double maxPayable;
 
 		public Data() {
 			

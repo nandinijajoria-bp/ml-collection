@@ -2,8 +2,10 @@ package com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingLoanInsuranceDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingLoanInsurance;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -36,6 +38,8 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.util.*;
 
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
+
 
 @Slf4j
 @Service
@@ -65,6 +69,9 @@ public class MFBreService {
 
     @Autowired
     LendingOfferModificationSnapshotDao lendingOfferModificationSnapshotDao;
+
+    @Autowired
+    LendingLoanInsuranceDao lendingLoanInsuranceDao;
 
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
@@ -147,75 +154,72 @@ public class MFBreService {
         return null;
     }
 
-    @Async("lenderPoolTaskExecutor")
-    public boolean invokeAcceptOffer(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, MFBreCallbackResponseDTO callbackResponse) {
+    public boolean invokeAcceptOffer(LendingApplication lendingApplication, LendingApplicationLenderDetails lald) {
         try {
-            if (Objects.isNull(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails())
-                    || Objects.isNull(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadId())) {
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_FAILED.name());
-                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.ACCEPT_OFFER_FAILED);
-                return false;
-            }
-            MFAcceptOfferDTO acceptedOffer = getEligibleOffer(lenderAssociationDetailsRequestDto, callbackResponse);
-            if(ObjectUtils.isEmpty(acceptedOffer)) {
-                log.info("no eligible offer found from lender's BRE response with loanAmount {} and tenure {} for applicationId {}",
-                        lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount(), lenderAssociationDetailsRequestDto.getLendingApplication().getTenureInMonths(), lenderAssociationDetailsRequestDto.getLendingApplication().getId());
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_FAILED.name());
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.NO_ELIGIBLE_OFFER.name());
-                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.ACCEPT_OFFER_FAILED);
-                return false;
-            }
-            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_PENDING.name());
-            commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
-            NBFCRequestDTO acceptOfferPayload = getAcceptOfferPayload(lenderAssociationDetailsRequestDto, acceptedOffer);
+            NBFCRequestDTO acceptOfferPayload = getAcceptOfferPayload(lendingApplication, lald);
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(acceptOfferPayload, LenderAssociationStages.ACCEPT_OFFER);
-            log.info("Accept Offer response of Muthoot from nbfc: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
+            log.info("Accept Offer response of Muthoot from nbfc: {} with applicationId: {}", nbfcResponseDto, lald.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto.getData()) && nbfcResponseDto.getSuccess()) {
                 MFAcceptOfferResponseDTO acceptOfferResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), MFAcceptOfferResponseDTO.class);
                 if ("AOP-S-000".equalsIgnoreCase(acceptOfferResponseDTO.getStatusCode()) && "ok".equalsIgnoreCase(acceptOfferResponseDTO.getData().getMessage())) {
-                    updateOfferDetails(lenderAssociationDetailsRequestDto, acceptedOffer);
-                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_SUCCESS.name());
-                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
+                    lald.setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_SUCCESS.name());
+                    lendingApplicationLenderDetailsDao.save(lald);
                     return true;
                 }
             }
         } catch (Exception e) {
-            log.error("error while invoking Accept Offer of Muthoot for  {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("error while invoking Accept Offer of Muthoot for  {} {} {}", lald.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_FAILED.name());
-        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.ACCEPT_OFFER_FAILED);
+        lald.setBreStatus(LenderAssociationStatus.ACCEPT_OFFER_PENDING.name());
+        lendingApplicationLenderDetailsDao.save(lald);
         return false;
     }
 
-    private NBFCRequestDTO getAcceptOfferPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, MFAcceptOfferDTO acceptedOffer) {
-        LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsDto.getLendingApplicationLenderDetails();
+    private NBFCRequestDTO getAcceptOfferPayload(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
         try {
             Double irr = lendingApplicationLenderDetails.getAnnualRoi();
             Double processingFee = lendingApplication.getProcessingFee();
-            if("N".equalsIgnoreCase(lendingApplicationLenderDetails.getNbfcBreAsyncId())) {
-                if(Math.abs(acceptedOffer.getSlab().getInterest() - lendingApplicationLenderDetails.getAnnualRoi()) > muthootBreMaxRoiDifference) {
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.ROI_MISMATCHED.name());
-                    log.info("max difference threshold {} in lender's IRR {} and BP IRR {} breached for applicationId {}", muthootBreMaxRoiDifference, acceptedOffer.getSlab().getInterest(), lendingApplicationLenderDetails.getAnnualRoi(), lendingApplication.getId());
-                    throw new RuntimeException("Max difference threshold in lender's IRR and BP's IRR breached for " + lendingApplication.getId());
-                }
-                irr = acceptedOffer.getSlab().getInterest();
-                processingFee = acceptedOffer.getSlab().getProcessingFee();
+            LendingLoanInsurance lendingLoanInsurance = lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
+                    lendingApplication.getId(), lendingApplication.getLender(), SELECTED);
+
+            // This method updates offer details only when the experimentation flag is 'N' (experimental flow).
+            // Currently, since getNbfcBreAsyncId() returns 'Y' and experimentation value is 0, this method is not invoked in production.
+
+//            if("N".equalsIgnoreCase(lendingApplicationLenderDetails.getNbfcBreAsyncId())) {
+//                if(Math.abs(acceptedOffer.getSlab().getInterest() - lendingApplicationLenderDetails.getAnnualRoi()) > muthootBreMaxRoiDifference) {
+//                    lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.ValidationStatus.ROI_MISMATCHED.name());
+//                    log.info("max difference threshold {} in lender's IRR {} and BP IRR {} breached for applicationId {}", muthootBreMaxRoiDifference, acceptedOffer.getSlab().getInterest(), lendingApplicationLenderDetails.getAnnualRoi(), lendingApplication.getId());
+//                    throw new RuntimeException("Max difference threshold in lender's IRR and BP's IRR breached for " + lendingApplication.getId());
+//                }
+//                irr = acceptedOffer.getSlab().getInterest();
+//                processingFee = acceptedOffer.getSlab().getProcessingFee();
+//            }
+
+            ArrayList<MFAcceptOfferRequestDTO.Charge> charges = new ArrayList<>();
+            if(!ObjectUtils.isEmpty(lendingLoanInsurance)){
+                charges.add(MFAcceptOfferRequestDTO.Charge.builder()
+                        .chargeGST(0) ///static value, always 0
+                        .chargeVal(lendingLoanInsurance.getInsurancePremium())
+                        .chargeName("insurancePremium") //static value
+                        .chargesType("FLAT") //static value
+                        .build());
             }
+
             MFAcceptOfferRequestDTO.RequestData requestData = MFAcceptOfferRequestDTO.RequestData.builder()
-                    .offerID(acceptedOffer.getOfferId())
+                    .offerID(lendingApplicationLenderDetails.getOfferId())
                     .amount(lendingApplication.getLoanAmount())
                     .tenure(lendingApplication.getTenureInMonths())
                     .tenureType("MONTH")
                     .processingFee(processingFee)
                     .interest(irr)
+                    .charges(ObjectUtils.isEmpty(lendingLoanInsurance) ? null : charges)
                     .build();
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
                     .lender(LendingEnum.LENDER.MUTHOOT.name())
                     .payload(MFAcceptOfferRequestDTO.builder()
-                            .customerID(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())
+                            .customerID(lendingApplicationLenderDetails.getLeadId())
                             .offerDetails(requestData)
                             .build())
                     .build();
@@ -254,9 +258,18 @@ public class MFBreService {
                 log.info("BRE callback Response of Muthoot for {} {}", nbfcResponseDTO.getApplicationId(), breCallbackResponseDTO);
                 if (!ObjectUtils.isEmpty(breCallbackResponseDTO)) {
                     if ("COMPLETED".equalsIgnoreCase(breCallbackResponseDTO.getData().getStatus()) || "SUCCESS".equalsIgnoreCase(breCallbackResponseDTO.getData().getStatus())) {
+                        MFAcceptOfferDTO acceptedOffer = getEligibleOffer(lenderAssociationDetailsRequest, breCallbackResponseDTO);
+                        if(ObjectUtils.isEmpty(acceptedOffer)) {
+                            log.info("no eligible offer found from lender's BRE response with loanAmount {} and tenure {} for applicationId {}",
+                                    lenderAssociationDetailsRequest.getLendingApplication().getLoanAmount(), lenderAssociationDetailsRequest.getLendingApplication().getTenureInMonths(), lenderAssociationDetailsRequest.getLendingApplication().getId());
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.NO_ELIGIBLE_OFFER.name());
+                            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.RISK_FAILED);
+                            return false;
+                        }
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
-                        commonService.manageApplicationState(lenderAssociationDetailsRequest);
-                        invokeAcceptOffer(lenderAssociationDetailsRequest, breCallbackResponseDTO);
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setOfferId(acceptedOffer.getOfferId());
+                        commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                         return true;
                     } else if ("REJECTED".equalsIgnoreCase(breCallbackResponseDTO.getData().getStatus()) || "FAILED".equalsIgnoreCase(breCallbackResponseDTO.getData().getStatus())) {
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
@@ -315,6 +328,8 @@ public class MFBreService {
         return defaultValue;
     }
 
+   // This method updates offer details only when the experimentation flag is 'N' (experimental flow).
+   // Currently, since getNbfcBreAsyncId() returns 'Y' and experimentation value is 0, this method is not invoked in production.
     private void updateOfferDetails(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto,  MFAcceptOfferDTO acceptedOffer) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails();

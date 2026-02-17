@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
@@ -38,6 +39,8 @@ import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_CATEGORY;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_SUB_CATEGORY;
+import static com.bharatpe.lending.constant.RejectionReasons.BANK_ACCOUNT_MISMATCH;
+import static com.bharatpe.lending.constant.RejectionReasons.MERCHANT_CATEGORY_NOT_FOUND;
 
 @Slf4j
 @Service
@@ -104,6 +107,8 @@ public class SmfgNachMandateService {
                 log.info("bank account changed for application id : {}, prev accountNumber : {}, new accountNumber {}", lenderAssociationDetailsRequest.getApplicationId(), prevAccountNumber, nachMandateRequest.getPayload().getRepaymentdisbbankdetails().getAccountno());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.NACH_ACCOUNT_CHANGE.name());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
+                lenderAssociationDetailsRequest.getLendingApplication().setRejectionReason(BANK_ACCOUNT_MISMATCH);
+                lenderAssociationDetailsRequest.getLendingApplication().setRejectionStage(RejectionStage.NACH);
                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
                 return false;
             }
@@ -111,6 +116,8 @@ public class SmfgNachMandateService {
                 log.info("merchant category not found for application id : {}, merchant category : {}, merchant subcategory {}", lenderAssociationDetailsRequest.getApplicationId(), nachMandateRequest.getPayload().getAdditionaldetails().getMerchantcategory(), nachMandateRequest.getPayload().getAdditionaldetails().getMerchantsubcategory());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.MERCHANT_CATEGORY_NOT_FOUND.name());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
+                lenderAssociationDetailsRequest.getLendingApplication().setRejectionReason(MERCHANT_CATEGORY_NOT_FOUND);
+                lenderAssociationDetailsRequest.getLendingApplication().setRejectionStage(RejectionStage.NACH);
                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
                 return false;
             }
@@ -136,7 +143,7 @@ public class SmfgNachMandateService {
     private NBFCRequestDTO<SmfgAppPushRequest> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
-        if (ObjectUtils.isEmpty(lendingApplicationKycDetails) || ObjectUtils.isEmpty(lendingApplicationKycDetails.getEmail()) || ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName())) {
+        if (ObjectUtils.isEmpty(lendingApplicationKycDetails) || ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName())) {
             log.info("no father name / email found in kyc details for application id {}", lendingApplication.getId());
             return null;
         }
@@ -150,8 +157,6 @@ public class SmfgNachMandateService {
                         .partnerid(smfgConfig.getPartnerId())
                         .partnerapplicationid(lendingApplication.getExternalLoanId())
                         .apiaction(smfgConfig.getDataPushApiAction())
-                        .leaddetails(SmfgAppPushRequest.LeadDetails.builder()
-                                .emailaddress(lendingApplicationKycDetails.getEmail()).build())
                         .additionaldetails(SmfgAppPushRequest.AdditionalDetails.builder()
                                 .fathersName(converterUtils.sanitizeByRegex(lendingApplicationKycDetails.getFatherName(), allowedRegexMap.getOrDefault("FATHER_NAME", null))).build())
                         .repaymentdisbbankdetails(SmfgAppPushRequest.RepaymentDisbBankDetails.builder()

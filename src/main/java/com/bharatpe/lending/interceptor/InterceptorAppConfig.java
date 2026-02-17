@@ -34,6 +34,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	@Autowired
 	private PaymentLinkInterceptor paymentLinkInterceptor;
 
+	@Autowired
+	private DataHmacInterceptor dataHmacInterceptor;
+
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
@@ -41,6 +44,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/push_lead_response", "/lms/v1/**",
 				"/ai/**",
 				"/lending/csPanel/**",
+				"/lending/enach/status-callback",
 				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
 				"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",
 				"/partner/details", "/lending/active_loans", "/lending/offers","/lending/allow_bankaccount_change", "/lending/derog_application","/lending" +
@@ -56,10 +60,13 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/payment_link/**", "/lending/bank-statement/session/callback","/lending/liquiloan/backdated/loan", "/lending/gst3b/session/callback","/topup/close","/support/rte-program",
 						"/lending/merchant/eligibility","/support/loan-flag-status","/swagger-ui/**", "/lending/check-delete-eligible", "/lending/v3/invokeStage", "/lending/payment/details/v2", "/lending/homepage/cards", "/milestone/rte-eligibility-check",
 						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel", "/lending/v3/retryStage", "/vkyc/callback","/lending/payment/receipt","/lending/payment/pdpd/shift",
-						"/milestone/rte-loan-eligibility-check");
+						"/lending/payment/autopay/present", "/lending/payment/autopay/migrate", "/lending/payment/lien/add", "/lending/payment/lien/remove", "/lending/payment/nach/present","/lending/evictCache/due_amount",
+						"/lending/payment/dpd/notify/add", "/lending/payment/dpd/notify/remove",
+						"/milestone/rte-loan-eligibility-check","/data/**","/lending/v3/insurance/doc","/lending/qr-status/webhook", "/Lending/post-risk-process");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication", "/lms/v1/**",
+		"/lending/enach/status-callback",
 		"/support/showBulkContacts","/lending/liquiloan/approveLoan", "/lending/liquiloan/postPayoutStatusUpdate", "/lending/credit_line/application_status_update",
 				"/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/lending/active_loans", "/lending/offers", "/lending/derog_application",
 				"/fos/**","/lending/fos/**", "/lending/adhaar_mask","/lending/allow_bankaccount_change", "/lending/edi_schedule", "/lending/edi_schedule/v2",
@@ -71,7 +78,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/payment/ledger_entry", "/lending/v3/modifyLender", "/lending/v3/nextStage", "/lending/v3/callback/invoke/dataUpload", "/support/sendArcCommunication",
 				"/lms/payment/details", "/lending/liquiloan/backdated/loan", "/topup/close","/support/rte-program","/lending/merchant/eligibility","/support/loan-flag-status", "/lending/check-delete-eligible", "/lending/payment/details/v2", "/lending/homepage/cards"
 				, "/milestone/rte-eligibility-check","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal","/lending/payment/loan/cancel","/lending/payment/receipt","/lending/payment/pdpd/shift",
-				"/milestone/rte-loan-eligibility-check");
+				"/lending/payment/autopay/present", "/lending/payment/autopay/migrate", "/lending/payment/nach/present", "/lending/payment/lien/add", "/lending/payment/lien/remove",
+				"/lending/payment/dpd/notify/add", "/lending/payment/dpd/notify/remove",
+				"/milestone/rte-loan-eligibility-check","/lending/v3/insurance/doc");
 
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
 
@@ -79,7 +88,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount","/lending/merchant_loans","/lending/topup_eligibility", "/lending/loanDetails/v2",
 				"/lending/loanDetails", "/lending/getLoanDashboardDetails", "/lending/v3/callback/bre", "/lending/v3/callback/kyc", "/lending/v3/callback/drawdown", "/lending/v3/callback/sanction",
-				"/lending/v3/callback/*", "/vkyc/callback");
+				"/lending/v3/callback/*", "/vkyc/callback","/lending/evictCache/due_amount");
 
 //		registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/push_lead_response");
 
@@ -88,5 +97,8 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 		registry.addInterceptor(liquiloanInterceptor).addPathPatterns("/lending/liquiloan/nbfc/postPayout/callback", "/lending/liquiloan/p2p/postPayout/callback","/lending/liquiloan/p2p_of/postPayout/callback");
 
 		registry.addInterceptor(paymentLinkInterceptor).addPathPatterns("/lending/payment_link/**");
+
+		registry.addInterceptor(dataHmacInterceptor)
+				.addPathPatterns("/data/**","/lending/qr-status/webhook");
     }
 }

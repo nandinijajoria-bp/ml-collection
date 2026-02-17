@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.NachDetails;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.BooleanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -30,7 +31,7 @@ public class NachDetailsBuilder {
 		log.info("Fetching Nach Details for merchant: {}", lendingApplication.getMerchantId());
 		LendingApplicationDetails lendingApplicationDetails =
 				lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-		Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
+		Long nachApplicationId = BooleanUtils.isTrue(lendingApplicationDetails.getIsNachSkip()) ? null : lendingApplication.getId();
 		MerchantNachDetailsResponseDTO merchantNachDetailsResponse =
 				enachHandler.findByMerchantIdAndApplicationIdAndLender(
 						lendingApplication.getMerchantId(),

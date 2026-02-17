@@ -3,7 +3,9 @@ package com.bharatpe.lending.loanV3.controller;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ModifiedOfferResponseDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV3.dto.*;
+import com.bharatpe.lending.loanV3.dto.trillions.PayUFetchInsuranceDocDto;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.services.MaskedMobileOtpService;
 import com.bharatpe.lending.loanV3.services.ModifyStageService;
@@ -33,6 +35,9 @@ public class LendingApplicationControllerV3 {
 
     @Autowired
     MaskedMobileOtpService maskedMobileOtpService;
+
+    @Autowired
+    InsuranceService insuranceService;
 
     @Autowired
     public LendingApplicationControllerV3(@Qualifier("lendingApplicationServiceV3Impl") LendingApplicationServiceV3Base lendingApplicationServiceV3,
@@ -176,5 +181,13 @@ public class LendingApplicationControllerV3 {
         ApiResponse<?> response = lendingApplicationServiceV3.getSkipKycDetails(merchant.getId(), applicationId);
         HttpStatus status = response.success ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
         return ResponseEntity.status(status).body(response);
+    }
+
+    @PostMapping(value = "/insurance/doc")
+    public ResponseEntity<?> insuranceDoc(@RequestBody PayUFetchInsuranceDocDto payUFetchInsuranceDocDto) {
+        log.info("lending insurance doc request:{}", payUFetchInsuranceDocDto);
+        ApiResponse<?> response = insuranceService.publishLoanInsuranceEventForPayU(payUFetchInsuranceDocDto.getApplicationId()).getBody();
+        log.info("lending insurance doc response:{} for applicationId:{}", response, payUFetchInsuranceDocDto.getApplicationId());
+        return ResponseEntity.ok(response);
     }
 }

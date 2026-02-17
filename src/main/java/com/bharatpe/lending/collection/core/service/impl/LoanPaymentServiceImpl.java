@@ -16,7 +16,9 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.exception.DuplicateTransactionException;
 import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPullPaymentSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -36,7 +38,6 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -48,16 +49,13 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.common.enums.LoanPaymentMode.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
-import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.TRANSFER_BY_BP;
 import static com.bharatpe.lending.constant.CommonConstants.PAYMENT_LOCK_KEY_PREFIX;
 import static com.bharatpe.lending.constant.LendingConfigKeys.ADVANCE_EDI;
-import static com.bharatpe.lending.enums.Lender.PIRAMAL;
 
 
 @Service
@@ -69,6 +67,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     //Allowed -  Arrays.asList(NACH, ADVANCE, OTHER)
     public static final List<LoanPaymentMode> PAYMENT_ADJUSTMENT_PREFRENCE_LIST = Arrays.asList(NACH, OTHER);
     public static final String PAYMENT_EXCESS_SOURCE = "PAYMENT";
+    public static final double EXTRA_AMOUNT_THRESHOLD = 0.01;
 
     HashSet<String> ALLOWED_POSTING_TRANSFER_BP_MODE = new HashSet<>(Arrays.asList("SETLLEMENT", "FP"));
 
@@ -77,6 +76,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     public static final String EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX = "_adjust_";
 
     public static final List<String> WAIVER_LIST = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+
+    public static final Set<String> NON_PG_FORECLOSURE_SOURCE = new HashSet<>(Arrays.asList("DIRECT_TRANSFER"));
+
 
     @Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
@@ -149,11 +151,23 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     @Autowired
     private AdjustChargesServiceImpl adjustChargesService;
 
+    @Autowired
+    private LendingPullPaymentDaoSlave lendingPullPaymentDaoSlave;
+
     @Value("${payu.nach.bounce.charge:500}")
     Integer payUNachBounceCharge;
 
     @Value("#{'${lca.payin.record.eligible.lenders:}'.split(',')}")
     Set<String> lcaPayinRecordEligibleLenders;
+
+    @Value("${collection.payment.duplicate.throw.error:false}")
+    boolean rejectDuplicateTrnx;
+
+    @Value("${collection.nach.central.rollout.percent:0}")
+    Integer nachCentralRolloutPercent;
+
+    @Autowired
+    LoanPaymentUtil loanPaymentUtil;
 
     @Override
     @Transactional
@@ -178,6 +192,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 return loan;
             }
             loan = loanOptional.get();
+
+            if (payment.getOtherAmount() > 0) {
+                checkForDuplicateTransaction(payment.getOtherAmount(), loan.getId(), payment.getTerminalOrderId(), payment.getSource(), payment.getTransferType());
+            }
 
             createLoanFundInEntry(loan, payment);
 
@@ -265,7 +283,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private void adjustExtraAmountIfAny(LendingPaymentSchedule loan, double balance, LoanPaymentDetailDTO payment, boolean refund) {
-        if (balance >= 1) {
+        if (balance >= EXTRA_AMOUNT_THRESHOLD) {
             refund = refund || "CLOSED".equalsIgnoreCase(loan.getStatus());
 
             // LC-565
@@ -287,14 +305,21 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted()) && !"UPI_AUTOPAY".equalsIgnoreCase(payment.getSource())){
             ledgerDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), 1);
         }
-        log.info("Creating Excess balance for merchant:{} amount:{} source:{}", loan.getMerchantId(), amount, payment.getSource());
+
+        String source = payment.getSource();
+        // Handle nach payment by central payment system
+       if (centralNachRolloutPercentage(loan)) {
+           if ("BHARATPE_NACH".equalsIgnoreCase(source)) source = "NACH";
+       }
+
+        log.info("Creating Excess balance for merchant:{} amount:{} source:{}", loan.getMerchantId(), amount, source);
         LendingCollectionExcess lendingCollectionExcess = new LendingCollectionExcess();
         lendingCollectionExcess.setLoanId(loan.getId());
         lendingCollectionExcess.setMerchantId(loan.getMerchantId());
         lendingCollectionExcess.setStatus("ACTIVE");
         lendingCollectionExcess.setAmount(amount);
         lendingCollectionExcess.setExcessNachCreditAmount(amount);
-        lendingCollectionExcess.setMode(payment.getSource());
+        lendingCollectionExcess.setMode(source);
         lendingCollectionExcess.setTerminalOrderId(StringUtils.hasLength(payment.getTerminalOrderId()) ? payment.getTerminalOrderId() : payment.getBankRefNo());
         lendingCollectionExcess.setDeductionCount(0);
         lendingCollectionExcess.setCreditDate(ledgerDate);
@@ -373,6 +398,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingRefundAudit.setBankRefNo(payment.getBankRefNo());
         lendingRefundAudit.setRefundAmount(amount);
         lendingRefundAudit.setOrderAmount(payment.getOtherAmount());
+        lendingRefundAudit.setTerminalOrderId(StringUtils.hasLength(payment.getTerminalOrderId()) ? payment.getTerminalOrderId() : payment.getBankRefNo());
         lendingRefundAuditDao.save(lendingRefundAudit);
     }
 
@@ -453,11 +479,11 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             log.info("checkForLoanForeClosure: loanId: {} is last day of loan, so not checking for fore closure", loan.getId());
             return false;
         }
-        // there will be some pending txn before release this description field wasn't populated
-        // will enable this check later in some days
-//        if (!payment.isForeCloser()) {
-//            return false;
-//        }
+
+        if (!payment.isForeCloser() && payment.getSource() != null && !NON_PG_FORECLOSURE_SOURCE.contains(payment.getSource())) {
+            log.info("checkForLoanForeClosure: loanId: {} payment source: {} is not eligible for fore closure without explicit forecloser flag", loan.getId(), payment);
+            return false;
+        }
 
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(loan);
         log.info("checkForLoanForeClosure: EDI Holiday Interest Amount for loan: {} is {}", loan.getId(), ediHolidayInterestAmount);
@@ -637,7 +663,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             log.info("Adjusting breakup amount for loan:{} is principle:{} and interest:{} and foreclosureCharges : {}", loan.getId(), paidPrincipalAmount, paidInterestAmount, foreclosureChargesAmount);
             if (EDI_BY_EDI.name().equalsIgnoreCase(settlementMechanism)) {
                 double totalAmount = payment.getOtherAmount() + excessCollectionBalance + advanceEdiAmount;
-                adjustLoanBalanceByEdiByEdiService.settlePreClosureLoanPayment(loan.getId(), loan.getEdiCount(), loan.getEdiRemainingCount(), loan.getSettleAllPrinciple(), totalAmount);
+                adjustLoanBalanceByEdiByEdiService.settlePreClosureLoanPayment(loan, totalAmount);
             } else {
                 //IPC
                 //No Actions
@@ -824,6 +850,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 return;
             }
 
+            LendingPayinDetails existingLendingPayinDetails = lendingPayinDetailsDao.findByMerchantIdAndLoanIdAndTerminalOrderId(loan.getMerchantId(), loan.getId(), payment.getTerminalOrderId());
+            if (!ObjectUtils.isEmpty(existingLendingPayinDetails)) {
+                log.info("Lending Payin Details already exists: {} for loan: {}, payment: {}", existingLendingPayinDetails, loan.getId(), payment);
+                return;
+            }
+
             if (LoanPaymentUtil.isExcessAdjustmentEntry(payment.getTerminalOrderId())) {
                 log.info("Skipping creation of Lending Payin Details for excess adjustment entry for loan: {}, payment: {}", loan.getId(), payment);
                 return;
@@ -834,6 +866,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 return;
             }
 
+            Date transferDate = DateTimeUtil.getCurrentDayStartTime();
+
             LendingPayinDetails lendingPayinDetails = LendingPayinDetails.builder()
                     .loanId(loan.getId())
                     .merchantId(loan.getMerchantId())
@@ -842,6 +876,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                     .terminalOrderId(payment.getTerminalOrderId())
                     .totalAmount(payment.getOtherAmount())
                     .transferType(payment.getTransferType())
+                    .transferDate(transferDate)
                     .build();
 
             LendingPayinDetails savedlendingPayinDetails = lendingPayinDetailsDao.save(lendingPayinDetails);
@@ -856,11 +891,54 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         }
     }
 
+    private void checkForDuplicateTransaction(Double orderAmount, long loanId, String txnId, String mode, String transferType) {
+        log.info("Checking for duplicate in lending payment details for loan: {}, order amount: {}, " +
+                "txnId: {}, mode: {} and transferType: {}", loanId, orderAmount, txnId, mode, transferType);
+
+        List<LendingCollectionAudit> existingLendingCollectionAudit = lendingCollectionAuditDao.findAllByLoanIdAndTerminalOrderIdAndTransferType(loanId, txnId, transferType);
+
+        if (CollectionUtils.isEmpty(existingLendingCollectionAudit)) {
+            log.info("No existing lending collection audit found for loanId: {} trnxId:{}, mode:{} transferType:{}", loanId, txnId, mode, transferType);
+            return;
+        }
+
+        log.info("Existing lending collection audit found for loanId: {} trnxId:{}, mode:{} transferType:{}", loanId, txnId, mode, transferType);
+
+        for (LendingCollectionAudit lendingCollectionAudit : existingLendingCollectionAudit) {
+            log.info("Lending Collection Audit already exist for loan: {}, order amount: {}, txnId: {} and source: {}" +
+                    " lendingCollectionAudit: {}", loanId, orderAmount, txnId, mode, lendingCollectionAudit);
+
+            String paymentMode = mode;
+            if ("UPI_AUTOPAY".equalsIgnoreCase(paymentMode)) paymentMode = "UPI";
+            if ("BHARATPE_NACH".equalsIgnoreCase(paymentMode)) paymentMode = "NACH";
+            if (!StringUtils.hasLength(paymentMode)) paymentMode = "";
+
+            if (StringUtils.hasLength(lendingCollectionAudit.getAdjustmentMode())
+                   && lendingCollectionAudit.getAdjustmentMode().trim().toLowerCase().contains(paymentMode.toLowerCase())) {
+                log.info("Duplicate Transaction found in lending collection audit for loan: {}, order amount: {}, txnId: {} and source: {}" +
+                        " lendingCollectionAudit: {}", loanId, orderAmount, txnId, mode, lendingCollectionAudit);
+                if (rejectDuplicateTrnx) {
+                    throw new DuplicateTransactionException("Duplicate transaction found for loanId: " + loanId +
+                            " txnId: " + txnId + " mode: " + mode + " transferType: " + transferType + " lcaId: " + lendingCollectionAudit.getId());
+                }
+                log.info("Duplicate Transaction processed lending collection audit for loan: {}, order amount: {}, txnId: {} and source: {}" +
+                        " lendingCollectionAudit: {}", loanId, orderAmount, txnId, mode, lendingCollectionAudit);
+            }
+        }
+        log.info("checkForDuplicateTransaction completed for loanId: {}, order amount: {}, txnId: {} and source: {}",
+                loanId, orderAmount, txnId, mode);
+    }
+
+    public boolean centralNachRolloutPercentage(LendingPaymentSchedule loan) {
+        if (nachCentralRolloutPercent == -1) {
+            return true; // If the percent is -1, it means allows all
+        }
+        return loanPaymentUtil.rolloutPercentage(loan.getId(), nachCentralRolloutPercent);
+    }
+
     public void createLendingCollectionAuditForPayin(LendingPaymentSchedule lendingPaymentSchedule, LendingPayinDetails lendingPayinDetails, Double orderAmount, String txnId, String mode, String transferType) {
         log.info("Creating Lending Collection Audit for Payin for loanId: {}, payinDetailsId: {}, amount: {}, txnId: {}, mode: {}, transferType: {}",
                 lendingPaymentSchedule.getId(), lendingPayinDetails.getId(), orderAmount, txnId, mode, transferType);
-
-        Date ledgerDate = DateTimeUtil.getCurrentDayStartTime();
 
         LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                 .merchantId(lendingPaymentSchedule.getMerchantId())
@@ -876,7 +954,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 .otherCharges(0D)
                 .penalty(0D)
                 .adjustmentMode(mode)
-                .transferDate(ledgerDate)  // todo: check for other mode
+                .transferDate(lendingPayinDetails.getTransferDate())
                 .terminalOrderId(txnId)
                 .lender(lendingPaymentSchedule.getNbfc())
                 .loanStatus(lendingPaymentSchedule.getStatus())
@@ -884,7 +962,73 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 .mobile(lendingPaymentSchedule.getMobile())
                 .ledgerId(lendingPayinDetails.getId())
                 .build();
+
+        // Copy metadata from LendingPullPayment if exists
+        String pullPaymentMode = getPullPaymentModeFromAdjustmentMode(mode);
+        if (pullPaymentMode != null) {
+            log.info("Searching LendingPullPayment for loanId: {} and terminal_order_id: {} PullPayment mode: {} for adjustmentMode: {}",
+                    lendingPaymentSchedule.getId(), txnId, pullPaymentMode, mode);
+            LendingPullPaymentSlave lendingPullPaymentSlave = lendingPullPaymentDaoSlave.findTop1ByTerminalOrderIdAndLoanIdAndModeOrderByIdDesc(
+                    txnId, lendingPaymentSchedule.getId(), pullPaymentMode);
+
+            if(lendingPullPaymentSlave != null) {
+                log.info("LendingPullPayment provider : {}, metaData: {} for loanId: {} and terminal_order_id: {} PullPayment mode: {} for adjustmentMode: {}",
+                        lendingPullPaymentSlave.getProvider(), lendingPullPaymentSlave.getMetaData(), lendingPaymentSchedule.getId(), txnId, pullPaymentMode, mode);
+            }
+            copyMetadataFromPullPayment(lendingPullPaymentSlave, lendingCollectionAudit);
+
+            log.info("Copied metadata in lca_metadata: {} for loanId: {} and terminal_order_id: {} PullPayment mode: {} for adjustmentMode: {} ",
+                    lendingCollectionAudit.getMetaData(), lendingPaymentSchedule.getId(), txnId, pullPaymentMode, mode);
+        } else {
+            log.info("PullPayment mode is null for adjustmentMode: {}, skipping LendingPullPayment lookup for loanId: {}",
+                mode, lendingPaymentSchedule.getId());
+        }
+
         lendingCollectionAuditDao.save(lendingCollectionAudit);
         log.info("Created Lending Collection Audit for Payin: {} for loanId: {}, payinDetailsId: {}", lendingCollectionAudit, lendingPaymentSchedule.getId(), lendingPayinDetails.getId());
+    }
+
+    /**
+     * Copies metadata from LendingPullPayment to LendingCollectionAudit and adds provider if present
+     */
+    private void copyMetadataFromPullPayment(LendingPullPaymentSlave lendingPullPaymentSlave, LendingCollectionAudit lendingCollectionAudit) {
+        if (lendingPullPaymentSlave == null) {
+            log.info("LendingPullPayment not found for loanId: {} and terminal_order_id: {} and adjustment_mode:{}",
+                    lendingCollectionAudit.getLoanId(), lendingCollectionAudit.getTerminalOrderId(), lendingCollectionAudit.getAdjustmentMode());
+            return;
+        }
+        Map<String, Object> metadata = new HashMap<>();
+        if (lendingPullPaymentSlave.getMetaData() != null) {
+            metadata.putAll(lendingPullPaymentSlave.getMetaData());
+        }
+        // Add provider to metadata if not null
+        if (StringUtils.hasText(lendingPullPaymentSlave.getProvider())) {
+            metadata.put("provider", lendingPullPaymentSlave.getProvider());
+        }
+        if (!metadata.isEmpty()) {
+            lendingCollectionAudit.setMetaData(metadata);
+        }
+    }
+
+    /**
+     * Converts adjustment mode to pull payment mode
+     */
+    private String getPullPaymentModeFromAdjustmentMode(String adjustmentMode) {
+        if (adjustmentMode == null) {
+            return null;
+        }
+
+        String upperMode = adjustmentMode.toUpperCase();
+        if ("UPI_AUTOPAY".equals(upperMode)) {
+            return "AUTOPAYUPI";
+        }
+
+        if ("BHARATPE_NACH".equals(upperMode)
+                || "NACH".equals(upperMode)
+                || "EXTERNAL_NACH".equals(upperMode)) {
+            return "NACH";
+        }
+
+        return null;
     }
 }

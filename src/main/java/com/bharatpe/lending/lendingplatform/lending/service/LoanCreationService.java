@@ -46,6 +46,10 @@ public class LoanCreationService {
                 workflows = workflowRegistryFactory
                         .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender())).getStageWorkflow(KYC);
                 log.info("Invoking KYC workflow for OXYZO lender, applicationId={}", applicationId);
+            } else if (Lender.CREDITSAISON.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                workflows = workflowRegistryFactory
+                        .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender())).getStageWorkflow(BRE);
+                log.info("Invoking BRE workflow for CreditSaison lender, applicationId={}", applicationId);
             } else {
                 workflows = workflowRegistryFactory
                         .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender())).getStageWorkflow(KYC_DOCUMENT_UPLOAD);

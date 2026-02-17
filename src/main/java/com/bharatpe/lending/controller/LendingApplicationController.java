@@ -4,6 +4,8 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
+import com.bharatpe.lending.common.Handler.FinanceUtilsCommonHandler;
+import com.bharatpe.lending.common.dto.IfscValidationResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
@@ -58,6 +60,9 @@ public class LendingApplicationController {
 
 	@Autowired
 	LendingCache lendingCache;
+
+    @Autowired
+    FinanceUtilsCommonHandler financeUtilsCommonHandler;
 	
 //	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 //	public LendingApplicationResponseDTO createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -123,10 +128,12 @@ public class LendingApplicationController {
 
 	@RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Object verifyOTP(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("verifyOTP request : {}",commonAPIRequest);
+		long startTime = System.currentTimeMillis();
+		logger.info("verifyOTP request {} for merchantId : {}", commonAPIRequest, merchant.getId());
 		commonAPIRequest.getMeta().setIp(clientIp);
 		Object resp = verifyOTPService.verifyOTP(merchant, commonAPIRequest);
-		logger.info("verifyOTP response : {}", resp);
+		long totalTime = System.currentTimeMillis() - startTime;
+		logger.info("verifyOTP completed in {} ms with response {} for merchantId: {} ", totalTime, resp, merchant.getId());
 		return resp;
 	}
 
@@ -222,7 +229,10 @@ public class LendingApplicationController {
 
 	@RequestMapping(value="/allow_bankaccount_change", method = RequestMethod.GET, produces="application/json")
 	public ResponseEntity<ResponseDTO> bankAccount(@RequestParam Long merchantId) {
-		return new ResponseEntity<>(lendingApplicationService.bankAccountChange(merchantId), HttpStatus.OK);
+        logger.info("Allow bank account change request for merchantId : {}", merchantId);
+        ResponseDTO response  = lendingApplicationService.bankAccountChange(merchantId);
+        logger.info("Allow bank account change response : {}", response);
+		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/check-delete-eligible", method = RequestMethod.GET, produces="application/json")
@@ -312,4 +322,9 @@ public class LendingApplicationController {
 		return ResponseEntity.ok(response);
 	}
 
+    @RequestMapping(value = "/validate/ifsc", method = RequestMethod.GET, produces = "application/json")
+    public ResponseEntity<ValidIfscResponseDTO> validateIfsc(@RequestAttribute BasicDetailsDto merchant,
+                                                             @RequestParam String ifsc) {
+        return new ResponseEntity<>(lendingApplicationService.validateIfsc(ifsc, merchant.getId()), HttpStatus.OK);
+    }
 }

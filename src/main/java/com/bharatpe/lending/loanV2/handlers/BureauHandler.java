@@ -35,6 +35,9 @@ public class BureauHandler {
     @Value("${bureau.base.url}")
     public String BUREAU_BASE_URL;
 
+    @Value("${bureau.bpmoney.base.url}")
+    public String BUREAU_BP_MONEY_BASE_URL;
+
     public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days) {
         try {
             log.info("in bureau handler");
@@ -73,6 +76,10 @@ public class BureauHandler {
     }
 
     public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days, String source, boolean skipCache) {
+        return this.getBureauData(pancard,merchantId,mobile,days,source,skipCache,false);
+    }
+
+    public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days, String source, boolean skipCache, boolean newBaseUrl) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -91,6 +98,11 @@ public class BureauHandler {
             String url;
             UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(BUREAU_BASE_URL + "/bureau/fetchBureau")
                     .queryParam("days", days);
+            if (newBaseUrl) {
+                log.info("calling bpmoney bureau with base url : {} for mobile : {}",BUREAU_BP_MONEY_BASE_URL,mobile);
+                builder = UriComponentsBuilder.fromHttpUrl(BUREAU_BP_MONEY_BASE_URL + "/bureau/fetchBureau")
+                        .queryParam("days", days);
+            }
             if (Boolean.TRUE.equals(skipCache)) {
                 builder.queryParam("skipCache", skipCache);
             }

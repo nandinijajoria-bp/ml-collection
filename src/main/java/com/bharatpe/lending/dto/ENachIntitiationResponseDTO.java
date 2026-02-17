@@ -17,72 +17,51 @@ public class ENachIntitiationResponseDTO {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Data data;
-
     private boolean response = true;
-
     private boolean success;
-
     private String message = "success";
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
     public static class Data {
-
         private String mid;
-
         private String currency = "INR";
-
         private String pennyAmount = "1.0";
-
         private String transactionMerchantInitiated = "Y";
-
         private String paymentInstructionAction = "Y";
-
         private String paymentInstructionType = "M";
-
         private String payFrequency = "ADHO";
-
         private String accountType = "Saving";
-
         private String deep_link;
-
         private String merchantIdentifier = "L517110";
-
         private String transactionIdentifier;
-
         private Long transactionReferenceNumber;
-
         private String schemeCode = "First";
-
         private String bankCode;
-
         private Double loanAmount;
-
         private String loanStartDate;
-
         private Long applicationId;
-
         private String accountNumber;
-
         private String beneficiaryName;
-
         private String ifscCode;
-
         private String mandate_id;
-
         private String customer_identifier;
-
         private String lender;
-
         private EnachProvider enachProvider;
-
         private String accessToken;
-
         private String accessTokenExpiryDate;
 
         @Getter @Setter
         private Date mandateEndDate;
+        @Getter @Setter
+        private String customerVpa;
+        @Getter @Setter
+        private String umrn;
+        @Getter @Setter
+        private String mode;
+        @Getter @Setter
+        private String status;
 
         public Data(String transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode, String mid, String lender, EnachProvider enachProvider) {
             this.transactionIdentifier = transactionIdentifier;

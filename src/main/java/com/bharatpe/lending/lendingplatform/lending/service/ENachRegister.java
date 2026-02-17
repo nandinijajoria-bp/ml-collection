@@ -2,6 +2,7 @@ package com.bharatpe.lending.lendingplatform.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
@@ -11,6 +12,7 @@ import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactor
 import com.bharatpe.lending.lendingplatform.nbfc.service.workflow.Workflow;
 import com.bharatpe.lending.lendingplatform.nbfc.service.workflow.WorkflowManager;
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,14 +28,17 @@ public class ENachRegister {
 	private LendingApplicationLenderDetailsDao laldDao;
 
 	@Autowired
+	private LoanUtil loanUtil;
+
+	@Autowired
 	private WorkflowRegistryFactory workflowRegistryFactory;
 
-	public void pushDetailsToLender(LendingApplication lendingApplication) {
+	public void pushDetailsToLender(LendingApplication lendingApplication, LendingApplicationDetails lendingApplicationDetails) {
 
 		log.info("Processing nach details to update details to lender for application:{}", lendingApplication.getId());
-		if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
-			log.info("NACH status is:{} skipping NachWorkflow for application:{}",
-					lendingApplication.getNachStatus(), lendingApplication.getId());
+		if (!loanUtil.isMandateDone(lendingApplication,lendingApplicationDetails)) {
+			log.info("NACH status is:{} and upi_autopay_status is:{} skipping NachWorkflow for application:{}",
+					lendingApplication.getNachStatus(), lendingApplication.getUpiAutopayStatus(), lendingApplication.getId());
 		} else {
 			LendingApplicationLenderDetails lald =
 					laldDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(

@@ -131,7 +131,7 @@ public class ExcessNachService {
             Double excessNachAmountRefundable = lendingRefundLedgerSlaveDao.findTotalExcessNachAmount(merchantId, lendingPaymentSchedule.getId(), "EXCESS_NACH", "PENDING");
             loanDashboardResponse.setExcessNachAmount(excessNachAmountRefundable);
 
-            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(merchantId, lendingPaymentSchedule.getId(), "ACTIVE");
             Double excessCollectedAmount = 0D;
             Double excessCollectionAdjusted = 0D;
             Double excessCollectionBalance = 0D;

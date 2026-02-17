@@ -136,7 +136,7 @@ public class AbflApiGateway extends INbfcLenderGateway {
 
     public ForeClosureAmountResponse fetchDueForeclosureAmount(ForeclosureAmountRequest foreclosureAmountRequest) {
         try {
-            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ForeClosureAmountResponse.class,nbfcBaseUrl+nbfcForeClosureAmtUrl, abflForeclosureDetailsTimeoutThreshold);
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ForeClosureAmountResponse.class, nbfcBaseUrl + nbfcForeClosureAmtUrl, abflForeclosureDetailsTimeoutThreshold);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",foreclosureAmountRequest, e);
         }

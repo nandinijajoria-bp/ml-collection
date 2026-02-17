@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ObjectUtils;
 
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -134,6 +135,7 @@ public class LendingMerchantLoansResponseDTO extends TopupEligibilityResponseDat
     public static class Loan {
 
         private String presentmentStatus;
+        private String failureReason;
         private Double presentmentAmount;
         private Long applicationId;
         private Long loanId;
@@ -388,7 +390,7 @@ public class LendingMerchantLoansResponseDTO extends TopupEligibilityResponseDat
         loan.setPendingAmount(Math.ceil(safeBigDecimalToDouble(loanSummary.getPendingInstalmentAmount())));
         loan.setPaidPrinciple((double) safeBigDecimalToInt(loanSummary.getPaidPrincipalAmount()));
         loan.setPaidAmount((double) safeBigDecimalToInt(loanSummary.getTotalPaidAmount()));
-        loan.setDuePenalty(Math.ceil(safeBigDecimalToDouble(loanSummary.getOverdueOtherCharges())));
+        loan.setDuePenalty(loanSummary.calculateDuePenaltyAsDouble(true));
     }
 
     private double calculateRepaymentAmount(LoanDetailsResponse.LoanSummary loanSummary) {

@@ -43,7 +43,7 @@ public class UgroConfig {
 
     private String corporateName = "UGRO Capital Limited";
     private String businessAddress = "UGRO Capital, 4th Floor, Tower 3, Equinox Business Park, Lbs Road, Kurla, Mumbai - 400070";
-    private String contactName = "Mr. Satish Kumar";
+    private String contactName = "Mr. Satyabrata Mohapatra";
     private String contactEmail = "grievance@ugrocapital.com";
     private String contactNumber = "022-68269135";
     private String grievanceTIme = "9.30 am to 6 pm, Monday to Friday";

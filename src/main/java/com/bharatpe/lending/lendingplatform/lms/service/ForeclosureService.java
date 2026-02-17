@@ -2,12 +2,13 @@ package com.bharatpe.lending.lendingplatform.lms.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dto.ForeClosureDetailDTO;
 import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
 import com.bharatpe.lending.enums.Lender;
@@ -19,10 +20,12 @@ import com.bharatpe.lending.lendingplatform.lms.dto.response.LenderForeclosureDe
 import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -60,6 +63,15 @@ public class ForeclosureService {
     @Autowired
     private LenderAssociationStageFactory lenderAssociationStageFactory;
 
+    @Autowired
+    private LoanUtil loanUtil;
+
+    @Autowired
+    LoanPaymentUtil loanPaymentUtil;
+
+    @Value("${extra.payment.max.edi.count:5}")
+    Integer extraPaymentEdiCount;
+
 //    @Value("${newflow.loan.end-date:2023-10-31}")
 //    private String configuredLoanEndDate;
 
@@ -75,7 +87,7 @@ public class ForeclosureService {
 
         Double loanAmount = activeLoan.getLoanAmount();
         double overdueAmount = safeBigDecimalToDouble(loanDetailsResponse.getLoanSummary().getOverdueInstalmentAmount());
-        double penaltyFee = safeBigDecimalToDouble(loanDetailsResponse.getLoanSummary().getOverdueOtherCharges());
+        double penaltyFee = loanDetailsResponse.getLoanSummary().calculateDuePenaltyAsDouble();
         Integer overdueDays = loanDetailsResponse.getLoanSummary().getOverdueInstalmentCount();
         Integer loanAmountAsInt = (int) Math.ceil(loanAmount);
         Integer overDueAmountAsInt = (int) Math.ceil(overdueAmount);
@@ -119,8 +131,46 @@ public class ForeclosureService {
         data.setTotalDue(Math.ceil(overdueAmount + penaltyFee));
         data.setTotalExcessBalance(loanDetailsResponse.getLoanSummary().getExcessPayable());
         data.setNetPayable(Math.max(Math.ceil(overdueAmount + penaltyFee - data.getTotalExcessBalance()), 0)); // this is for today's due
+
+        // LC-2061
+        double maxPayable = data.getNetPayable();
+        double excessCollectionBalance = loanDetailsResponse.getLoanSummary().getExcessPayable();
+        if (loanPaymentUtil.checkExtraPaymentAfterRolloutDate(activeLoan.getCreatedAt())
+                && loanPaymentUtil.checkExtraPaymentRolloutPercentage(activeLoan.getId())) {
+            logger.info("Checking extra payment allowed for loanId: {}", activeLoan.getId());
+            maxPayable = calculateMaxAmount(activeLoan, maxPayable, loanDetailsResponse);
+            logger.info("Extra payment allowed. calculated maxPayable: {} for loanId: {}", maxPayable, activeLoan.getId());
+            if (maxPayable > data.getNetPayable()) {
+                maxPayable = Math.max(maxPayable - excessCollectionBalance, 0);
+                logger.info("Extra payment allowed after adjusting excess balance. maxPayable: {} and extrabalance:{} for loanId: {}", maxPayable, excessCollectionBalance, activeLoan.getId());
+            }
+            logger.info("Extra payment allowed. initial maxPayable: {} for loanId: {}", maxPayable, activeLoan.getId());
+            maxPayable = Math.max(maxPayable, data.getNetPayable());
+            logger.info("Extra payment allowed. maxPayable: {} for loanId: {}", maxPayable, activeLoan.getId());
+        }
+        data.setMaxPayable(maxPayable);
+
         logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
         return data;
+    }
+
+    private double calculateMaxAmount(LendingPaymentSchedule activeLoan, double maxPayable, LoanDetailsResponse data) {
+        try {
+            if (activeLoan.getEdiRemainingCount() == 0) {
+                logger.info("No extra payment allowed as edi remaining count is 0 for loanId: {}", activeLoan.getId());
+                return maxPayable;
+            }
+            double maxExtraAllowedAmount = activeLoan.getEdiAmount() * extraPaymentEdiCount;
+            double netReceivable = activeLoan.getTotalPayableAmount() + data.getLoanSummary().calculateDuePenaltyAsDouble() - data.getLoanSummary().getTotalPaidAmount().doubleValue();
+            logger.info("Calculating max amount for extra payment for loanId: {}, maxExtraAllowedAmount: {}, netReceivable: {}", activeLoan.getId(), maxExtraAllowedAmount, netReceivable);
+
+            // note this can be greater than foreclosure amount - but we must ensure not foreclose the loan at our end
+            return Math.min(maxExtraAllowedAmount, netReceivable);
+        } catch (Exception e) {
+            logger.error("Error in calculating max amount for extra payment for loanId: {}, error: {} stack: {}", activeLoan.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+
+        return maxPayable;
     }
 
     public int getForeclosureAmount(Long applicationId, Long merchantId) {
@@ -175,7 +225,7 @@ public class ForeclosureService {
             if(foreClosureConfig != null) {
                 foreClosureDetailDTO.setId(foreClosureConfig.getId());
                 foreClosureDetailDTO.setPrincipalOutstanding(data.getPrincipalDueAmount());
-                Double minAmount = foreClosureConfig.getMinAmount();
+                Double minAmount = loanUtil.getMinAmountForForeclosure(foreClosureConfig.getMinAmount(), activeLoan.getLoanApplication().getId());
                 if(minAmount == null) minAmount = 0.0;
                 logger.info("loan is {} and min amount is {} and foreclosure config rate  is {}  ",activeLoan,minAmount, foreClosureConfig.getRate());
                 foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil((((loanDetailsResponse.getLoanSummary().getLoanAmount() - safeBigDecimalToInt(loanDetailsResponse.getLoanSummary().getPendingPrincipal()) - safeBigDecimalToInt(loanDetailsResponse.getLoanSummary().getOverduePrincipal())) * foreClosureConfig.getRate()) / 100.0)), minAmount));

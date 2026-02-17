@@ -395,6 +395,15 @@ public class LoanDetailsController {
 		return ResponseEntity.ok(merchantLoansService.getDueAmount(merchantId, merchantStoreId, merchant));
 	}
 
+	@GetMapping(value = "/evictCache/due_amount")
+	public ResponseEntity<?> evictCache(@RequestAttribute(required = false) BasicDetailsDto merchant,
+										@RequestParam(required = false) Long merchantId, @RequestParam(required = false) Long merchantStoreId,
+										@RequestParam(required = false, name = "reload") boolean refreshCache) {
+		logger.info("evicting due_amount cache for  mid :{}", merchantId);
+		merchantLoansService.evictDueAmountCache(merchantId, merchantStoreId, merchant, refreshCache);
+		return ResponseEntity.ok(new ApiResponse<>(null));
+	}
+
 	@RequestMapping(value="/v2/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity<SettlementV2ResponseDTO> settlementV2(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
 		try {

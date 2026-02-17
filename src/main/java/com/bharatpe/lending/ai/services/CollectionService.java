@@ -5,12 +5,20 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.ai.dto.LendingCollectionExcessDto;
 import com.bharatpe.lending.ai.dto.LendingLedgerDto;
 import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
+import com.bharatpe.lending.common.dao.LendingPullPaymentDao;
 import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
+import com.bharatpe.lending.common.entity.LendingPullPayment;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.LendingPullPaymentResponseDTO;
+import org.springframework.util.StringUtils;
+
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,6 +46,12 @@ public class CollectionService {
 
     @Autowired
     private PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+
+    @Autowired
+    private LendingPullPaymentDao lendingPullPaymentDao;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public List<List<LendingLedgerDto>> getLendingLedgerByMerchant(Long merchantId, String date) {
         List<LendingPaymentSchedule> lendingPaymentScheduleList =
@@ -254,5 +268,90 @@ public class CollectionService {
 
     private LocalDate convertToLocalDate(Date date) {
         return LocalDate.from(date.toInstant().atZone(ZoneId.systemDefault()));
+    }
+
+    public List<List<LendingPullPaymentResponseDTO>> getAutopayDescriptionByMerchant(Long merchantId, String date, String mode) {
+        List<LendingPaymentSchedule> lendingPaymentScheduleList =
+                lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId, "ACTIVE");
+
+        if (lendingPaymentScheduleList.isEmpty()) {
+            log.info("No active loan found for merchantId: {}", merchantId);
+            return new ArrayList<>();
+        }
+
+        boolean filterBySpecificDate = false;
+        Date startOfDay = null;
+        Date endOfDay = null;
+
+        if (date != null && !date.trim().isEmpty()) {
+            Date parsedDate = DateTimeUtil.parseDate(date, "yyyy-MM-dd");
+            if (parsedDate != null) {
+                filterBySpecificDate = true;
+                startOfDay = DateTimeUtil.getStartTimeFromDateTime(parsedDate);
+                endOfDay = DateTimeUtil.getEndTimeFromDateTime(parsedDate);
+                log.info("Filtering pull payment records for specific date: {}", date);
+            } else {
+                log.error("Invalid date format provided: {}. Using default last 7 entries.", date);
+            }
+        } else {
+            log.info("No date provided, using default last 7 entries");
+        }
+
+        List<List<LendingPullPaymentResponseDTO>> allPullPaymentList = new ArrayList<>();
+
+        // Fetch pull payment records for each active loan
+        for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
+            List<LendingPullPaymentResponseDTO> dtoList = new ArrayList<>();
+
+            // Build query to fetch pull payment records for this specific loan
+            StringBuilder queryBuilder = new StringBuilder(
+                    "SELECT lpp.* FROM lending_pull_payment lpp " +
+                    "WHERE lpp.merchant_id = :merchantId " + 
+                    "AND lpp.loan_id = :loanId");
+            
+            if (filterBySpecificDate) {
+                // Filter for specific date (entire day)
+                queryBuilder.append(" AND lpp.created_at >= :startOfDay " +
+                        "AND lpp.created_at <= :endOfDay");
+            }
+            
+            if (!StringUtils.isEmpty(mode)) {
+                queryBuilder.append(" AND lpp.mode = :mode");
+            }
+            
+            queryBuilder.append(" ORDER BY lpp.created_at DESC");
+            
+            // If no date filter, limit to last 7 entries
+            if (!filterBySpecificDate) {
+                queryBuilder.append(" LIMIT 7");
+            }
+
+            Query query = entityManager.createNativeQuery(queryBuilder.toString(), LendingPullPayment.class);
+            query.setParameter("merchantId", merchantId);
+            query.setParameter("loanId", lendingPaymentSchedule.getId());
+            
+            if (filterBySpecificDate) {
+                query.setParameter("startOfDay", startOfDay);
+                query.setParameter("endOfDay", endOfDay);
+            }
+            
+            if (!StringUtils.isEmpty(mode)) {
+                query.setParameter("mode", mode);
+            }
+
+            @SuppressWarnings("unchecked")
+            List<LendingPullPayment> pullPaymentList = query.getResultList();
+
+            if (!pullPaymentList.isEmpty()) {
+                dtoList = pullPaymentList.stream()
+                        .map(LendingPullPaymentResponseDTO::from)
+                        .collect(Collectors.toList());
+            }
+
+            allPullPaymentList.add(dtoList);
+        }
+
+        log.info("Fetched pull payment records for merchantId: {}, grouped into {} loans", merchantId, allPullPaymentList.size());
+        return allPullPaymentList;
     }
 }

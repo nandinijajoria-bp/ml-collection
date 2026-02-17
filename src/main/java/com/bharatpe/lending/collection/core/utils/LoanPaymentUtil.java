@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
@@ -37,7 +38,7 @@ public class LoanPaymentUtil {
 
     public static final String DEFAULT_LOAN_SETTLEMENT_MECHANISM = IPC.name();
     public static final String DEFAULT_EXCESS_ADJUSTED_DESCRPTION = "EXCESS_NACH_ADJUSTED";
-    private static final Set<String> NON_NPA_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(LDC.name(), MAMTA.name(), HINDON.name(), LIQUILOANS.name(), LIQUILOANS_NBFC.name(), LIQUILOANS_P2P.name(), LIQUILOANS_P2P_OF.name(), MAMTA0.name(), MAMTA1.name(), MAMTA2.name(), PAYU.name(), SMFG.name(), PIRAMAL.name(), UGRO.name()));
+    private static final Set<String> NON_NPA_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(LDC.name(), MAMTA.name(), HINDON.name(), LIQUILOANS.name(), LIQUILOANS_NBFC.name(), LIQUILOANS_P2P.name(), LIQUILOANS_P2P_OF.name(), MAMTA0.name(), MAMTA1.name(), MAMTA2.name(), PAYU.name(), PIRAMAL.name()));
 
     @Value("${is.new.payment.settlement.enabled:false}")
     public  boolean newPaymentSettlementModeAllowed;
@@ -56,7 +57,16 @@ public class LoanPaymentUtil {
     LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Autowired
     APIGatewayService apiGatewayService;
+
+    @Value("${extra.payment.rollout.date:}")
+    String extraPaymentRolloutDate;
+
+    @Value("${extra.payment.rollout.percent:0}")
+    Integer extraPaymentRolloutPercent;
 
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
@@ -217,5 +227,45 @@ public class LoanPaymentUtil {
     public boolean isPerpetualDpdLoan(long loanId) {
         Optional<LendingPaymentScheduleLendingCommon> loanOptional = lendingPaymentScheduleLendingCommonDao.findById(loanId);
         return loanOptional.isPresent() && Y.name().equalsIgnoreCase(loanOptional.get().getPerpetualDpdAdjusted());
+    }
+
+    public  boolean rolloutPercentage(long id, int rolloutPercentage) {
+        return  easyLoanUtil.percentScaleUp(id, correctRolloutPercentage(rolloutPercentage));
+    }
+
+    public int correctRolloutPercentage(int rolloutPercentage) {
+        if (rolloutPercentage > 1 && rolloutPercentage < 5) {
+            rolloutPercentage = 5;
+        }
+
+        if (rolloutPercentage > 5 && rolloutPercentage < 10) {
+            rolloutPercentage = 10;
+        }
+
+        if (rolloutPercentage > 10 && rolloutPercentage % 10 != 0) {
+            rolloutPercentage = Math.min(100, (int) (Math.round(rolloutPercentage / 10.0) * 10));
+        }
+        return rolloutPercentage;
+    }
+
+    public boolean checkExtraPaymentRolloutPercentage(long loanId) {
+        if (extraPaymentRolloutPercent == -1) {
+            return true; // If the percent is -1, it means allows all
+        }
+        return rolloutPercentage(loanId, extraPaymentRolloutPercent);
+    }
+
+    public boolean checkExtraPaymentAfterRolloutDate(Date loanCreationDate) {
+        try {
+            Date rolloutDate = getExtraPaymentDateFromProperty();
+            return rolloutDate != null && loanCreationDate != null && loanCreationDate.after(rolloutDate);
+        } catch (Exception e) {
+            log.error("Error in checking extra payment loan_date: {}, error : {} stack :{}", loanCreationDate, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return false;
+    }
+
+    private Date getExtraPaymentDateFromProperty() {
+        return DateTimeUtil.parseDate(extraPaymentRolloutDate, "yyyy-MM-dd HH:mm:ss");
     }
 }

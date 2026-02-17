@@ -314,7 +314,7 @@ public class LenderAssignService implements ILenderAssignService {
                             }
                             if (lenderEligiblePincodeCheckList.contains(lender)) {
 
-                                boolean shouldCheckPincodeList = true;
+                                boolean shouldCheckPincodeList = false;
 
                                 if (PAYU.name().equalsIgnoreCase(lender)) {
                                     shouldCheckPincodeList = application.getLoanAmount() > 500000;
@@ -1988,7 +1988,7 @@ public class LenderAssignService implements ILenderAssignService {
                             }
                             if (lenderEligiblePincodeCheckList.contains(lender)) {
 
-                                boolean shouldCheckPincodeList = true;
+                                boolean shouldCheckPincodeList = false;
 
                                 if (PAYU.name().equalsIgnoreCase(lender)) {
                                     shouldCheckPincodeList = application.getLoanAmount() > 500000;

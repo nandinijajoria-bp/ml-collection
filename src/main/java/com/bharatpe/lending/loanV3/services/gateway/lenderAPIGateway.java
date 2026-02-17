@@ -129,6 +129,12 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.skip.kyc.api:api/v3/lender/skip-kyc}")
     String skipKycUrl;
 
+    @Value("${nbfc.insurance.doc.api:api/v3/lender/insurance-doc}")
+    String insuranceDocUrl;
+
+    @Value("${nbfc.dedupe.check.api:api/v3/lender/dedupe-check}")
+    private String dedupeCheckUrl;
+
     @Autowired
     UgroConfig ugroConfig;
 
@@ -186,7 +192,7 @@ public class lenderAPIGateway implements ILenderAPIGateway{
             case "NACH_MANDATE":
                 return nbfcBaseUrl + nbfcNachMandateUrl;
             case "FORECLOSURE_FETCH":
-                return nbfcBaseUrl+foreclosureFetchUrl;
+                return nbfcBaseUrl + foreclosureFetchUrl;
             case "KYC":
                 return nbfcBaseUrl+kycUrl;
             case "ACCEPT_OFFER":
@@ -239,6 +245,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl + kycValidityUrl;
             case "SKIP_KYC":
                 return nbfcBaseUrl + skipKycUrl;
+            case "INSURANCE_DOC":
+                return nbfcBaseUrl + insuranceDocUrl;
+            case "DEDUPE_CHECK":
+                return nbfcBaseUrl + dedupeCheckUrl;
             default:
                 return null;
         }

@@ -104,15 +104,15 @@ public class LenderAssociationStageFactory {
                 switch (stage) {
                     case INIT:
                         return LenderAssociationStages.KYC;
-                    case BRE:
-                        return LenderAssociationStages.ASSC_COMPLETED;
                     case KYC:
                         return LenderAssociationStages.BRE;
+                    case BRE:
+                        return LenderAssociationStages.PENNY_DROP;
+                    case PENNY_DROP:
+                        return LenderAssociationStages.ASSC_COMPLETED;
                     case ASSC_COMPLETED:
                         return LenderAssociationStages.PUSH_AUDIT;
                     case PUSH_AUDIT:
-                        return LenderAssociationStages.PENNY_DROP;
-                    case PENNY_DROP:
                         return LenderAssociationStages.DRAWDOWN;
                     case DRAWDOWN:
                         return LenderAssociationStages.COMPLETED;
@@ -152,7 +152,7 @@ public class LenderAssociationStageFactory {
                     case INIT:
                         return Boolean.TRUE;
                     case BRE:
-                        return Boolean.FALSE;
+                        return Boolean.TRUE;
                     case KYC:
                         return Boolean.TRUE;
                     case ASSC_COMPLETED:

@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
@@ -105,6 +106,12 @@ public class LoanDetailsV3Service {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Value("${skip.shop.picture.rollout.percentage:100}")
+    private Integer skipShopPictureRolloutPercentage;
 
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
@@ -588,27 +595,34 @@ public class LoanDetailsV3Service {
             loanDetailsV3Response.setSkipShopPicture(false);
             loanDetailsV3Response.setImageExist(false);
 
-            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-            if (lendingResubmitTask == null && checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response)) {
-                log.info("Found valid existing shop images for merchantId: {}, applicationId: {}", merchantId, applicationId);
-                return;
+            if(easyLoanUtil.percentScaleUp(merchantId, skipShopPictureRolloutPercentage)){
+                log.info("Skip shop picture enabled. Checking & validating existing images for merchantId: {}, applicationId: {}", merchantId, applicationId);
+                LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+                if (lendingResubmitTask == null && checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response)) {
+                    log.info("Found valid existing shop images for merchantId: {}, applicationId: {}", merchantId, applicationId);
+                    return;
+                }
+
+                LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+                if (lendingResubmitTask == null && lendingApplication != null) {
+                    log.info("Processing shop pictures for merchantId: {}, applicationId: {}, lender: {}",
+                            merchantId, applicationId, lendingApplication.getLender());
+                    processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
+                } else {
+                    log.info("Shop picture skipping not applicable for merchantId: {}, lender: {}",
+                            merchantId, lendingApplication != null ? lendingApplication.getLender() : "unknown");
+                }
             }
 
-            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (lendingResubmitTask == null && lendingApplication != null) {
-                log.info("Processing shop pictures for merchantId: {}, applicationId: {}, lender: {}",
-                        merchantId, applicationId, lendingApplication.getLender());
-                processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
-            } else {
-                log.info("Shop picture skipping not applicable for merchantId: {}, lender: {}",
-                        merchantId, lendingApplication != null ? lendingApplication.getLender() : "unknown");
-            }
         } catch (Exception e) {
             loanDetailsV3Response.setSkipShopPicture(false);
             log.error("Exception processing shop pictures for merchantId: {}, applicationId: {}. Error: {}",
                     merchantId, applicationId, e.getMessage(), e);
         } finally {
-            updateLendingShopDocumentsIsSkipped(merchantId, applicationId, loanDetailsV3Response);
+            log.info("Skip shop picture enabled.");
+            if(easyLoanUtil.percentScaleUp(merchantId, skipShopPictureRolloutPercentage)) {
+                updateLendingShopDocumentsIsSkipped(merchantId, applicationId, loanDetailsV3Response);
+            }
         }
     }
 
@@ -675,6 +689,8 @@ public class LoanDetailsV3Service {
      */
     public Boolean processLenderSpecificShopPictureRules(BasicDetailsDto merchant, ShopPicturesStateDTO dto,
                                                          LoanDetailsV3Response response, LendingApplication application) {
+        log.info("Processing lender-specific shop picture rules for merchantId: {}, applicationId: {}", dto.getMerchantId(), dto.getApplicationId());
+
         // Validate input parameters
         if (merchant == null || dto == null || response == null || application == null) {
             saveShopDocumentsAudit(application,"Invalid inputs for processLenderSpecificShopPictureRules");
@@ -739,22 +755,24 @@ public class LoanDetailsV3Service {
 
         LendingApplication refApp = referenceApplication.get();
 
-        // Get shop documents for reference application
-        List<LendingShopDocuments> shopDocs = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(
-                refApp.getMerchantId(), refApp.getId());
+        // fetch reference app docs
+        List<LendingShopDocuments> refShopDocs =
+                lendingShopDocumentsDao.findByMerchantIdAndApplicationId(refApp.getMerchantId(), refApp.getId());
 
-        // Filter for shop-stock documents
-        List<LendingShopDocuments> shopStockDocs = shopDocs.stream()
-                .filter(doc -> "shop-stock".equalsIgnoreCase(doc.getProofType()) && doc.getProofFrontSide() != null)
-                .collect(Collectors.toList());
+        // normalize to exactly 2 docs: shop-front + shop-stock
+        List<LendingShopDocuments> validShopDocs = getValidShopPictureDocs(refShopDocs);
 
-        // Check if we have any shop-stock documents
-        if (CollectionUtils.isEmpty(shopStockDocs)) {
-            saveShopDocumentsAudit(application,"No Lending shop-stock documents found");
-            log.info("No shop-stock documents found for merchantId: {}, applicationId: {}",
+        if (CollectionUtils.isEmpty(validShopDocs) || validShopDocs.size() < 2) {
+            saveShopDocumentsAudit(application, "Reference application does not have valid shop-front + shop-stock docs");
+            log.info("No valid shop-front/shop-stock docs found for merchantId: {}, refAppId: {}",
                     refApp.getMerchantId(), refApp.getId());
             return false;
         }
+
+        // Filter for shop-stock document
+        List<LendingShopDocuments> shopStockDocs = validShopDocs.stream()
+                .filter(doc -> "shop-stock".equalsIgnoreCase(doc.getProofType()))
+                .collect(Collectors.toList());
 
         LendingShopDocuments shopStockDoc = shopStockDocs.get(0);
         log.info("Found shop-stock document with proofFrontSide: {} for merchantId: {}",
@@ -767,6 +785,11 @@ public class LoanDetailsV3Service {
         log.info("Found shop picture document with proofFrontSide: {} for merchantId: {}",
                 shopPictureDocs != null ? shopPictureDocs.getProofFrontSide() : "null", refApp.getMerchantId());
 
+        if (shopPictureDocs == null || shopPictureDocs.getApplicationId() == null) {
+            saveShopDocumentsAudit(application, "Unable to trace back shop doc history");
+            return false;
+        }
+
         List<LendingShopDocuments> shopPictureDocsList = lendingShopDocumentsDao
                 .findByMerchantIdAndApplicationId(refApp.getMerchantId(), shopPictureDocs.getApplicationId());
         log.info("Found {} shop picture documents for merchantId: {}, applicationId: {}",
@@ -774,10 +797,10 @@ public class LoanDetailsV3Service {
 
         if (!CollectionUtils.isEmpty(shopPictureDocsList) &&
                 isDocumentsRecent(shopPictureDocsList, validDuration, loanSegment, application) &&
-                isValidShopDocuments(response,shopDocs, dto, refApp.getId(), application)) {
+                isValidShopDocuments(response,validShopDocs, dto, refApp.getId(), application)) {
 
             RequestDTO<UploadDocumentRequestDTO> uploadRequest = new RequestDTO<>();
-            populateUploadDocumentRequest(shopDocs, uploadRequest, refApp.getId(), application.getId());
+            populateUploadDocumentRequest(validShopDocs, uploadRequest, refApp.getId(), application.getId());
 
             if (uploadRequest.getPayload() != null) {
                 ApiResponse<UploadDocumentResponseDTO> uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, uploadRequest, true);
@@ -797,6 +820,42 @@ public class LoanDetailsV3Service {
             checkCKycDocsForShopPictures(merchant, dto, response, loanSegment, validDuration, application);
         }
         return response.getSkipShopPicture();
+    }
+
+    private List<LendingShopDocuments> getValidShopPictureDocs(List<LendingShopDocuments> docs) {
+
+        if (CollectionUtils.isEmpty(docs)) {
+            return Collections.emptyList();
+        }
+
+        List<LendingShopDocuments> filtered = docs.stream()
+                .filter(Objects::nonNull)
+                .filter(d -> d.getProofType() != null)
+                .filter(d -> ShopPhotoProofType.FRONT.getValue().equalsIgnoreCase(d.getProofType())
+                        || ShopPhotoProofType.STOCK.getValue().equalsIgnoreCase(d.getProofType()))
+                .filter(d -> d.getProofFrontSide() != null && !d.getProofFrontSide().trim().isEmpty())
+                .collect(Collectors.toList());
+
+        if (CollectionUtils.isEmpty(filtered)) {
+            return Collections.emptyList();
+        }
+
+        // pick latest front + latest stock
+        Optional<LendingShopDocuments> frontDoc = filtered.stream()
+                .filter(d -> ShopPhotoProofType.FRONT.getValue().equalsIgnoreCase(d.getProofType()))
+                .max(Comparator.comparing(LendingShopDocuments::getUpdatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
+
+        Optional<LendingShopDocuments> stockDoc = filtered.stream()
+                .filter(d -> ShopPhotoProofType.STOCK.getValue().equalsIgnoreCase(d.getProofType()))
+                .max(Comparator.comparing(LendingShopDocuments::getUpdatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
+
+        if (!frontDoc.isPresent() || !stockDoc.isPresent()) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.asList(frontDoc.get(), stockDoc.get());
     }
 
     /**
@@ -919,8 +978,13 @@ public class LoanDetailsV3Service {
 
         List<LendingShopDocuments> tempDocList = new ArrayList<>();
         if (isValidCKycDocs(cKycDocDetails.get(), dto, tempDocList)) {
+            List<LendingShopDocuments> validDocs = getValidShopPictureDocs(tempDocList);
+            if (CollectionUtils.isEmpty(validDocs) || validDocs.size() < 2) {
+                saveShopDocumentsAudit(application, "CKYC docs missing valid shop-front/shop-stock");
+                return;
+            }
             RequestDTO<UploadDocumentRequestDTO> requestDTO = new RequestDTO<>();
-            populateUploadDocumentRequest(tempDocList, requestDTO, dto.getApplicationId(), dto.getApplicationId());
+            populateUploadDocumentRequest(validDocs, requestDTO, dto.getApplicationId(), dto.getApplicationId());
             ApiResponse<UploadDocumentResponseDTO> uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO, true);
             if (uploadDocumentResponse != null && uploadDocumentResponse.isSuccess() && uploadDocumentResponse.getData() != null) {
                 response.setSkipShopPicture(true);
@@ -1210,6 +1274,7 @@ public class LoanDetailsV3Service {
             lendingShopDocument.setIp(doc.getIp() != null ? doc.getIp() : lendingApplication.getIp());
             lendingShopDocument.setProofFrontSide(doc.getDocFrontImageUrl());
             lendingShopDocument.setProofType(getPhotoDocType(doc.getDocType()));
+            lendingShopDocument.setUpdatedAt(doc.getUpdatedAt()); //So getValidShopPictureDocs() can pick the latest
 
             log.info("CKYC Doc found: {} for merchantId: {}", doc.getDocType(), dto.getMerchantId());
             log.info("Mapped LendingShopDocument: {} for merchantId: {}", lendingShopDocument, dto.getMerchantId());
@@ -1331,6 +1396,9 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
         loanDetailsV3Response.setLendingApplication(eligibilityStateDTO.getLendingApplication());
         loanDetailsV3Response.setLenderAggregationScreen(eligibilityStateDTO.getScreenType());
+        loanDetailsV3Response.setShowShopDetailsOnBankDisbursementPage(eligibilityStateDTO.isShowShopDetailsOnBankDisbursementPage());
+        loanDetailsV3Response.setAddressDetails(eligibilityStateDTO.getAddressDetails());
+        loanDetailsV3Response.setBusinessName(eligibilityStateDTO.getBusinessName());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
@@ -1366,6 +1434,7 @@ public class LoanDetailsV3Service {
         applicationDetails.setEnachDeeplink(enachStateDTO.getEnachDeeplink());
         applicationDetails.setEnachDone(enachStateDTO.getEnachDone());
         applicationDetails.setEnachModes(enachStateDTO.getEnachModes());
+        applicationDetails.setNachDetails(enachStateDTO.getNachDetail());
         applicationDetails.setNachStartedAt(enachStateDTO.getNachStartedAt());
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());
@@ -1373,8 +1442,10 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setHasLinkedPaymentBank(enachStateDTO.isHasLinkedPaymentBank());
         loanDetailsV3Response.setPaymentBank(enachStateDTO.isPaymentBank());
         loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
+        loanDetailsV3Response.setMaxMandateAmount(enachStateDTO.getMaxMandateAmount());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
+        loanDetailsV3Response.setIsCurrentLoanActive(enachStateDTO.isCurrentLoanActive());
 
         loanDetailsV3Response.setIsNativeMandateRequired(enachStateDTO.isNativeMandateRequired());
     }
@@ -1387,11 +1458,13 @@ public class LoanDetailsV3Service {
                         .loanType(upiAutopayStateDTO.getLoanType()).mandateStatus(upiAutopayStateDTO.getMandateStatus()).createdAt(upiAutopayStateDTO.getCreatedAt())
                         .waitTime(upiAutopayStateDTO.getWaitTime()).retryCount(upiAutopayStateDTO.getRetryCount()).errorCode(upiAutopayStateDTO.getErrorCode())
                         .errorReason(upiAutopayStateDTO.getErrorReason()).displayMessage(upiAutopayStateDTO.getDisplayMessage()).retryEligible(upiAutopayStateDTO.getRetrySuggested()).pollingTime(upiAutopayStateDTO.getPollingTime())
+                        .dailyInstalmentAmount(upiAutopayStateDTO.getDailyInstalmentAmount()).mandateEndDate(upiAutopayStateDTO.getMandateEndDate())
                         .build();
         applicationDetails.setUpiAutopayDetails(upiAutopayDetails);
         loanDetailsV3Response.setAccountDetails(upiAutopayStateDTO.getBankDetails());
         loanDetailsV3Response.setMerchantId(upiAutopayStateDTO.getMerchantId());
         loanDetailsV3Response.setIsCurrentLoanActive(upiAutopayStateDTO.isCurrentLoanActive());
+        loanDetailsV3Response.setMaxMandateAmount(upiAutopayStateDTO.getMaxMandateAmount());
         if(upiAutopayStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
     }

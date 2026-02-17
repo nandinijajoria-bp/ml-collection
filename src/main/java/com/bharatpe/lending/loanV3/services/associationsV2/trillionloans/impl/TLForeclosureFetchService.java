@@ -75,7 +75,7 @@ public class TLForeclosureFetchService implements ILenderAssociationService<Lend
         NBFCRequestDTO nbfcRequest = trillionRepaymentService.getForeclosureReceiptRequest(applicationId, lendingLedger);
         LoanDetailsResponseDTO loanDetailsResponseDTO = null;
         try {
-            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequest), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI, trillionLoansConfig.getForeclosureDetailsTimeoutThreshold());
+            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequest), NbfcResponseDto.class, nbfcBaseUrl + nbfcURI, trillionLoansConfig.getForeclosureDetailsTimeoutThreshold());
             log.info("Successfully hit the api for foreclosure {}",nbfcResponseDto);
 
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {

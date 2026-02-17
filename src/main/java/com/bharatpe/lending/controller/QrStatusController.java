@@ -1,10 +1,12 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.lending.dto.QrStatusEventDTO;
+import com.bharatpe.lending.dto.MerchantStatusDTO;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.QrStatusApiService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("lending")
@@ -17,8 +19,9 @@ public class QrStatusController {
     }
 
     @PostMapping("/qr-status/webhook")
-    public ResponseEntity<ApiResponse<?>> handleQrStatusEvent(@RequestBody QrStatusEventDTO eventDTO) {
-        ApiResponse<?> response = qrStatusApiService.handleQrStatusEvent(eventDTO);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Map<String, ApiResponse<?>>> handleCustomQrStatusWebhook(
+            @RequestBody Map<String, MerchantStatusDTO> merchantStatusMap) {
+        Map<String, ApiResponse<?>> result = qrStatusApiService.handleCustomQrStatusWebhook(merchantStatusMap);
+        return ResponseEntity.ok(result);
     }
 }

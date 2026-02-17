@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -42,6 +43,11 @@ public class PiramalInsuranceService {
     @Value("${piramal.insurance.rollout.percent:0}")
     Integer piramalInsuranceRolloutPercent;
 
+    @Value("${piramal.topup.insurance.rollout.percent:0}")
+    Integer piramalTopupInsuranceRolloutPercent;
+
+    private static final List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
+
 
     public LoanInsuranceDTO getInsurancePremiums(LendingApplication lendingApplication) {
         if(!easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), piramalInsuranceRolloutPercent)) {
@@ -49,6 +55,12 @@ public class PiramalInsuranceService {
             return null;
         }
 
+        if (topupLoans.contains(lendingApplication.getLoanType()) && !easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), piramalTopupInsuranceRolloutPercent)) {
+            log.info("{} insurance not enabled for top-up of merchantId {}", lendingApplication.getLender(), lendingApplication.getMerchantId());
+            return LoanInsuranceDTO.builder().build();
+        }
+
+        log.info("Fetching insurance premiums from Piramal for applicationId: {}", lendingApplication.getId());
         NbfcRequestDto<?> nbfcRequestDto = getPayload(lendingApplication);
         if (ObjectUtils.isEmpty(nbfcRequestDto)) {
             log.error("Failed to create insurance premium payload for applicationId: {}", lendingApplication.getId());

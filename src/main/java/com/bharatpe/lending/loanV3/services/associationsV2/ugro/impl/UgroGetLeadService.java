@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -22,6 +23,9 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.util.Arrays;
 import java.util.Objects;
+
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_FAILED_GET_LEAD;
+import static com.bharatpe.lending.constant.RejectionReasons.LENDER_REJECTED_UDYAM;
 
 @Slf4j
 @Service
@@ -64,6 +68,8 @@ public class UgroGetLeadService {
                 UgroGetLeadResponse getLeadResponse = objectMapper.convertValue(nbfcResponseDto.getData(), UgroGetLeadResponse.class);
                 if (!ObjectUtils.isEmpty(getLeadResponse) && Arrays.asList(ugroConfig.getClosedResponse(), ugroConfig.getRejectedResponse()).contains(getLeadResponse.getStatus())) {
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.GET_LEAD_FAILED.name());
+                    lenderAssociationDetailsDto.getLendingApplication().setRejectionReason(LENDER_FAILED_GET_LEAD);
+                    lenderAssociationDetailsDto.getLendingApplication().setRejectionStage(RejectionStage.GET_LEAD);
                     commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsDto);
                     return false;
                 }
@@ -122,6 +128,8 @@ public class UgroGetLeadService {
                 UgroGetLeadResponse getLeadResponse = objectMapper.convertValue(nbfcResponseDto.getData(), UgroGetLeadResponse.class);
                 if (!ObjectUtils.isEmpty(getLeadResponse) && Arrays.asList(ugroConfig.getClosedResponse(), ugroConfig.getRejectedResponse()).contains(getLeadResponse.getStatus())) {
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("UDYAM_" + LenderAssociationStatus.GET_LEAD_FAILED.name());
+                    lenderAssociationDetailsDto.getLendingApplication().setRejectionReason(LENDER_REJECTED_UDYAM);
+                    lenderAssociationDetailsDto.getLendingApplication().setRejectionStage(RejectionStage.UDYAM_STATUS_CHECK);
                     commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsDto);
                     statusCheckResponse.setUdyamStatus(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadStatus());
                     return statusCheckResponse;

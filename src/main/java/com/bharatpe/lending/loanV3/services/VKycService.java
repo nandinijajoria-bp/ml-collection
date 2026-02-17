@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationVkycDetailsDao;
@@ -260,6 +261,8 @@ public class VKycService {
             lendingApplicationVkycDetailsDao.save(vkycDetails);
             if (VkycStatus.VKYC_REJECTED.equals(vkycDetails.getStatus())) {
                 lenderDetails.setLeadStatus(VkycStatus.VKYC_REJECTED.name());
+                lendingApplication.setRejectionReason(VkycStatus.VKYC_REJECTED.name());
+                lendingApplication.setRejectionStage(RejectionStage.VKYC);
                 commonService.rejectApplication(lendingApplication, lenderDetails);
                 return;
             }
@@ -419,9 +422,11 @@ public class VKycService {
         if (isDisableInitiateVkycSession(vkycDetails) && !ObjectUtils.isEmpty(vkycDetails.getDkycEligible()) && !vkycDetails.getDkycEligible()) {
             log.info("vkyc session status is {} for applicationId {} and no dkyc option available, rejecting application", vkycDetails.getSessionStatus(), lendingApplication.getId());
             vkycDetails.setStatus(VkycStatus.VKYC_HARD_FAILED);
-            vkycDetails.setRejectReason(vkycDetails.getSessionStatus()); // todo check if required here
+            vkycDetails.setRejectReason(vkycDetails.getSessionStatus());// todo check if required here
             lendingApplicationVkycDetailsDao.save(vkycDetails);
             lenderDetails.setLeadStatus(VkycStatus.VKYC_HARD_FAILED.name());
+            lendingApplication.setRejectionReason(vkycDetails.getSessionStatus());
+            lendingApplication.setRejectionStage(RejectionStage.VKYC);
             commonService.rejectApplication(lendingApplication, lenderDetails);
             return true;
         }

@@ -79,6 +79,8 @@ import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.constant.LendingConstants.LedgerDescriptionTxnType;
+import static com.bharatpe.lending.constant.RejectionReasons.APPLICATION_ALREADY_PENDING_DISBURSAL;
+import static com.bharatpe.lending.constant.RejectionReasons.MERCHANT_HAS_ACTIVE_LOAN;
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 import static com.bharatpe.lending.lendingplatform.lms.util.ConversionUtil.safeBigDecimalToDouble;
 
@@ -89,6 +91,9 @@ public class SupportService {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     @Autowired
     EligibilityComputationService eligibilityComputationService;
@@ -274,7 +279,7 @@ public class SupportService {
     LmsLoanDetailsService lmsLoanDetailsService;
 
     @Autowired
-    LmsPaymentDetailsDao lmsPaymentDetailsDao;
+    LmsPaymentDetailsDaoSlave lmsPaymentDetailsDaoSlave;
 
     @Autowired
     EmiHandler emiHandler;
@@ -354,14 +359,6 @@ public class SupportService {
                 logger.info("Populating Experian Data for merchant: {}", merchantId);
                 populateExperianData(supportApiResponseDto, experian, lendingApplication, false);
             }
-//            if (!ObjectUtils.isEmpty(creditLineMerchant)) {
-//                supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_CREDIT_LINE);
-//                supportLoanResponseDTO.setCreditLineAccount(Boolean.TRUE);
-//                responseDTO.setData(supportLoanResponseDTO);
-//                logger.info("CreditLine merchant found for merchantId: {}", merchantId);
-//                return responseDTO;
-//            }
-
             //fetchClubStatus
             Boolean isClubV1 = apiGatewayService.eligibleForProcessingFee(merchantId);
             if(isClubV1){
@@ -525,7 +522,9 @@ public class SupportService {
             supportLoanResponseDTO.setMobile(basicDetailsDto.get().getMobile());
             supportLoanResponseDTO.setCity(lendingApplication.getCity());
             supportLoanResponseDTO.setBusinessName(lendingApplication.getBusinessName());
-            supportLoanResponseDTO.seteNachDone(ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getNachStatus()) ? Boolean.TRUE : Boolean.FALSE);
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+            boolean isMandateDone = Objects.nonNull(lendingApplicationDetails) && loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails);
+            supportLoanResponseDTO.seteNachDone(isMandateDone);
 
             String loanType = lendingApplication.getLoanType();
 
@@ -546,7 +545,7 @@ public class SupportService {
             supportLoanResponseDTO.setNachMandatory(nachMandatory);
             if (nachMandatory) {
                 logger.info("ENACH is mandatory for merchantId: {} and applicationId: {}", merchantId, lendingApplication.getId());
-                if (!ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getNachStatus())) {
+                if (!isMandateDone) {
                     supportLoanResponseDTO.setApplicationStatus(SupportConstants.ENACH_PENDING);
                     supportLoanResponseDTO.setMessage(SupportConstants.ENACH_PENDING_MESSAGE);
                     supportLoanResponseDTO.setConditionalMessage("NA");
@@ -828,8 +827,9 @@ public class SupportService {
             if (ObjectUtils.isEmpty(basicDetailsDto)) {
                 return;
             }
-
-            supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+            boolean isMandateDone = Objects.nonNull(lendingApplicationDetails) && loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails);
+            supportApiResponseDto.setEnachDone(isMandateDone);
             supportApiResponseDto.setApplied(Boolean.TRUE);
             ApiResponse<ApplicationStatusResponseDTO> response = lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(), basicDetailsDto.get(), false, null);
             if(Objects.nonNull(response)&&Objects.nonNull(response.getData())) {
@@ -848,7 +848,7 @@ public class SupportService {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.DRAFT.getStage());
             }
             if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus())) {
-                if ("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+                if (isMandateDone) {
                     supportApiResponseDto.setApplicationStage(ApplicationStage.RELEVANT.getStage());
                 } else {
                     supportApiResponseDto.setApplicationStage(ApplicationStage.SUBMITTED.getStage());
@@ -1213,7 +1213,7 @@ public class SupportService {
                             null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(),
                             lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null,
                             lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo(),
-                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList, insuranceDetailsDTO);
+                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList, insuranceDetailsDTO, null, null, null);
 
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
@@ -1241,9 +1241,9 @@ public class SupportService {
 
             LoanDetailsResponse loanDetailsResponse =   lmsLoanDetailsService.getLoanSummaryFromOneLms(externalLoanId);
 
-            List<LmsPaymentDetails> paidDetails = lmsPaymentDetailsDao.findSuccessTransactionsBpLoanIdOrderByIdDesc(externalLoanId);
+            List<LmsPaymentDetailsSlave> paidDetails = lmsPaymentDetailsDaoSlave.findSuccessTransactionsBpLoanIdOrderByIdDesc(externalLoanId);
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            Map<String, List<LmsPaymentDetails>> paidDetailsByDate = paidDetails.stream()
+            Map<String, List<LmsPaymentDetailsSlave>> paidDetailsByDate = paidDetails.stream()
                     .collect(Collectors.groupingBy(p -> p.getTransferDate() == null ? null : sdf.format(p.getTransferDate())));
 
             if (!ObjectUtils.isEmpty(loanDetailsResponse) && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanSummary())) {
@@ -1265,11 +1265,11 @@ public class SupportService {
                     lendingLedgerDetailList.add(lendingLedgerDetail);
 
                     String startKey = start.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                    List<LmsPaymentDetails> paidForDate = paidDetailsByDate.getOrDefault(startKey, Collections.emptyList());
+                    List<LmsPaymentDetailsSlave> paidForDate = paidDetailsByDate.getOrDefault(startKey, Collections.emptyList());
 
-                    paidForDate.sort(Comparator.comparing(LmsPaymentDetails::getTransferDate));
+                    paidForDate.sort(Comparator.comparing(LmsPaymentDetailsSlave::getTransferDate));
 
-                    for (LmsPaymentDetails paidDetail : paidForDate) {
+                    for (LmsPaymentDetailsSlave paidDetail : paidForDate) {
                         Map<String, Object> paidDetailMap = new HashMap<>();
                         paidDetailMap.put("createdAt", paidDetail.getTransferDate().toString());
                         paidDetailMap.put("id", paidDetail.getTerminalOrderId());
@@ -1608,6 +1608,8 @@ public class SupportService {
                     errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Has Active Loan"});
                     lendingApplication.setStatus("deleted");
                     lendingApplication.setResponseCode("Duplicate Disbursal");
+                    lendingApplication.setRejectionReason(MERCHANT_HAS_ACTIVE_LOAN);
+                    lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.LMS);
                     lendingApplication.setAgreement(0);
                     lendingApplicationDao.save(lendingApplication);
                     executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
@@ -1621,6 +1623,8 @@ public class SupportService {
                     errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Another Application Already Sent For Disbursal"});
                     lendingApplication.setStatus("deleted");
                     lendingApplication.setResponseCode("Duplicate Disbursal");
+                    lendingApplication.setRejectionReason(APPLICATION_ALREADY_PENDING_DISBURSAL);
+                    lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.LMS);
                     lendingApplication.setAgreement(0);
                     lendingApplicationDao.save(lendingApplication);
                     executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
@@ -2696,6 +2700,8 @@ public class SupportService {
                     lendingApplication.setResponseCode(reason);
                     lendingApplication.setManualKyc("REJECTED");
                     lendingApplication.setManualKycReason("Merchant Denied for Loan");
+                    lendingApplication.setRejectionReason("Manual KYC Rejected - Merchant Denied for Loan");
+                    lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.LMS);
                     lendingApplication.setLmsStage("SYSTEM_REJECTED");
                     lendingApplicationDao.save(lendingApplication);
                     executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));

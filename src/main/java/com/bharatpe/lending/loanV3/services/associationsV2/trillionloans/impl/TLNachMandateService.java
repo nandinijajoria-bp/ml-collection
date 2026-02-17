@@ -21,6 +21,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validat
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.BooleanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -101,7 +102,7 @@ public class TLNachMandateService {
             }
             else {
                 log.info("Fetching NACH mandate details for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
-                Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
+                Long nachApplicationId = BooleanUtils.isTrue(lendingApplicationDetails.getIsNachSkip()) ? null : lendingApplication.getId();
                 MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
                 if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                     mandateDetails = TLNachMandateRequestDto.builder()

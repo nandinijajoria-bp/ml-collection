@@ -5,7 +5,7 @@ import com.bharatpe.lending.entity.CreditScoreVideo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -17,43 +17,43 @@ public class CreditScoreVideoService {
     // Save or update video
     public CreditScoreVideo saveVideo(CreditScoreVideo video) {
         Optional<CreditScoreVideo> existingVideoOpt = creditScoreVideoDao
-                .findByMerchantId(video.getMerchantId());
+                .findByOrderId(video.getOrderId());
 
         if (existingVideoOpt.isPresent()) {
             // Update existing record
             CreditScoreVideo existingVideo = existingVideoOpt.get();
-            existingVideo.setVideoLink(video.getVideoLink());
+            existingVideo.setTemplateId(video.getTemplateId());
+            existingVideo.setVideoId(video.getVideoId());
+            existingVideo.setVideoUrl(video.getVideoUrl());
+            existingVideo.setStatus(video.getStatus());
+            existingVideo.setErrorMessage(video.getErrorMessage());
             existingVideo.setCategory(video.getCategory());
-            existingVideo.setIsValid(video.getIsValid());
-            existingVideo.setVideoGeneratedDate(video.getVideoGeneratedDate() != null ? video.getVideoGeneratedDate() : LocalDate.now());
-            existingVideo.setValidTill(existingVideo.getVideoGeneratedDate().plusDays(30));
+            // updatedAt will be set by @PreUpdate
             return creditScoreVideoDao.save(existingVideo);
         } else {
             // Save new record
-            if (video.getVideoGeneratedDate() == null) {
-                video.setVideoGeneratedDate(LocalDate.now());
-            }
-            video.setValidTill(video.getVideoGeneratedDate().plusDays(30));
+            // createdAt and updatedAt will be set by @PrePersist
             return creditScoreVideoDao.save(video);
         }
     }
 
-    // Find valid video (also check validTill)
+    // Find valid video (status = "SUCCESS" and updatedAt within 30 days)
     public Optional<CreditScoreVideo> findValidByMerchantId(String merchantId) {
-        Optional<CreditScoreVideo> validVideoOpt = creditScoreVideoDao
-                .findByMerchantIdAndIsValidTrue(merchantId);
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        return creditScoreVideoDao.findValidByMerchantId(merchantId, thirtyDaysAgo);
+    }
 
-        if (validVideoOpt.isPresent()) {
-            CreditScoreVideo video = validVideoOpt.get();
-            if (video.getValidTill() != null && !video.getValidTill().isBefore(LocalDate.now())) {
-                return validVideoOpt;
-            } else {
-                // Expired -> mark invalid
-                video.setIsValid(false);
-                creditScoreVideoDao.save(video);
-                return Optional.empty();
-            }
+    // Find latest successful video regardless of age
+    public Optional<CreditScoreVideo> findLatestSuccessByMerchantId(String merchantId) {
+        return creditScoreVideoDao.findLatestSuccessByMerchantId(merchantId);
+    }
+
+    // Check if a video is valid (status = "SUCCESS" and updated within 30 days)
+    public boolean isVideoValid(CreditScoreVideo video) {
+        if (video == null || !"SUCCESS".equals(video.getStatus())) {
+            return false;
         }
-        return Optional.empty();
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        return video.getUpdatedAt().isAfter(thirtyDaysAgo);
     }
 }

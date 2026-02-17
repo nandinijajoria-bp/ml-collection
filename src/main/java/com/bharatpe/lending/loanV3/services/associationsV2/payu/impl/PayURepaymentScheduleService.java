@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV3.services.associationsV2.payu.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingLoanInsuranceDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingLoanInsurance;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
@@ -22,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import java.util.*;
 
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
+
 @Slf4j
 @Service
 public class PayURepaymentScheduleService {
@@ -37,6 +41,9 @@ public class PayURepaymentScheduleService {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingLoanInsuranceDao lendingloanInsuranceDao;
 
     public LenderEdIScheduleResponseDTO invokeRpsGenerate(Long applicationId, Boolean isPreview) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PAYU.name());
@@ -122,7 +129,7 @@ public class PayURepaymentScheduleService {
         return null;
     }
 
-private NBFCRequestDTO getLoanPreviewPayload(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails){
+    private NBFCRequestDTO getLoanPreviewPayload(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingLoanInsurance lendingLoanInsurance) {
 
     return NBFCRequestDTO.builder()
             .applicationId(lendingApplication.getId())
@@ -135,6 +142,8 @@ private NBFCRequestDTO getLoanPreviewPayload(LendingApplication lendingApplicati
                     .roi(lendingApplicationLenderDetails.getAnnualRoi().toString())
                     .pf(lendingApplication.getProcessingFee())
                     .pfType("FIXED_AMOUNT")
+                    .insuranceType(ObjectUtils.isEmpty(lendingLoanInsurance) ? null : "FIXED_AMOUNT")
+                    .insurance(ObjectUtils.isEmpty(lendingLoanInsurance) ? null : lendingLoanInsurance.getInsurancePremium().intValue())
                     .build())
             .build();
 }
@@ -143,7 +152,9 @@ private NBFCRequestDTO getLoanPreviewPayload(LendingApplication lendingApplicati
         List<LenderEdIScheduleResponseDTO.RepaymentSchedule> ediSchedules = new ArrayList<>();
         double totalInterest = 0D;
 
-        NBFCRequestDTO loanPreviewRequestDto = getLoanPreviewPayload(lendingApplication, lendingApplicationLenderDetails);
+        LendingLoanInsurance lendingLoanInsurance = lendingloanInsuranceDao.findByApplicationIdAndLenderAndStatus(lendingApplication.getId(), lendingApplication.getLender(), SELECTED);
+
+        NBFCRequestDTO loanPreviewRequestDto = getLoanPreviewPayload(lendingApplication, lendingApplicationLenderDetails, lendingLoanInsurance);
 
         if (Objects.isNull(loanPreviewRequestDto)) {
             log.info("error in loan preview payload of PayU for applicationId: {}", lendingApplication.getId());

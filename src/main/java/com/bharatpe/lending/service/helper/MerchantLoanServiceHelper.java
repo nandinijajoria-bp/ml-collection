@@ -25,6 +25,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.util.ErrorDescriptionMapper;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import javax.validation.constraints.NotNull;
 import java.text.SimpleDateFormat;
@@ -63,6 +65,7 @@ public class MerchantLoanServiceHelper {
     private final LoanDpdDaoSlave loanDpdDaoSlave;
     private final SettlementDetailsDao settlemetDetailsDao;
     private final LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
+    private final ErrorDescriptionMapper errorDescriptionMapper;
 
     @Autowired
     @Lazy
@@ -186,6 +189,12 @@ public class MerchantLoanServiceHelper {
         loan.setPresentmentStatus(status);
         loan.setPresentmentAmount(amount);
         loan.setPresentmentDate(pullPayment.getUpdatedAt());
+        if (!"Success".equalsIgnoreCase(status)) {
+            String errorDescription = pullPayment.getErrorDescription();
+            String mappedFailureReason = errorDescriptionMapper.mapToUserMessage(errorDescription);
+            loan.setFailureReason(mappedFailureReason);
+        }
+
     }
 
 }

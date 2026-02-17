@@ -1,13 +1,20 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -25,10 +32,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
+import com.bharatpe.lending.common.enums.Status;
 
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Component
 @Slf4j
@@ -70,6 +76,15 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
 
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
+
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingAuditTrialDao lendingAuditTrialDao;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Override
     public LendingStateDTO<ShopPicturesStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -157,6 +172,25 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
 
                     if (LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId(), scopeDataArgs.getMerchant().getId()))) {
                         log.info("LENDER_CHANGE, merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
+                        List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), "INACTIVE");
+                        LendingAuditTrial lendingAuditTrial= lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(lendingApplication.getId(),
+                                scopeDataArgs.getMerchant().getId(), lendingApplication.getLoanAmount(), lendingApplication.getTenureInMonths(), "ELIGIBLE_LENDERS");
+
+                        List<String> eligibleLendersList = new ArrayList<>();
+                        if(lendingAuditTrial != null && lendingAuditTrial.getRemarks() != null){
+                            String[] eligibleLendersArray = lendingAuditTrial.getRemarks().split(",");
+                            eligibleLendersList = new ArrayList<>(Arrays.asList(eligibleLendersArray));
+                            eligibleLendersList.removeAll(alreadyAssignedLender);
+                            log.info("Eligible lenders list from audit trial for applicationId {} is {}", lendingApplication.getId(), eligibleLendersList);
+                        }
+
+                        if (eligibleLendersList.isEmpty())
+                        {   log.info("alreadyAssignedLender: {}, lendingAuditTrial: {} for merchantId: {}", alreadyAssignedLender, lendingAuditTrial, scopeDataArgs.getMerchant().getId());
+                            handleMaxLenderAttemptsReached(lendingApplication, scopeDataArgs.getMerchant().getId().toString());
+                        }
+
+                        shopPicturesStateDTO.setPrevLender(getPrevLender(lendingApplication));
+                        shopPicturesStateDTO.setEligibleLenders(eligibleLendersList != null ? eligibleLendersList : Collections.emptyList());
 
                             if(loanUtil.isApplicableForAggregationFlow(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId())) {
                                 return new LendingStateDTO<>(shopPicturesStateDTO, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.SHOP_PICTURES_PAGE);
@@ -209,4 +243,26 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
         log.info("Shop Picture And Shop Stock Image by merchantId : {} and applicationId : {}",merchantId,applicationId);
      return lendingShopDocumentsDao.hasValidProofTypes(merchantId, applicationId) == 1;
     }
+
+    private String getPrevLender(LendingApplication lendingApplication) {
+        try {
+            LendingApplicationLenderDetails prevLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.INACTIVE.name());
+            if (!ObjectUtils.isEmpty(prevLenderDetails)) {
+                return prevLenderDetails.getLender();
+            }
+        } catch (Exception e) {
+            log.info("Exception in checking lender kyc required check for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
+        log.info("Max lender attempts reached for merchant: {}", merchantId);
+        lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setRejectionReason("Max lender selection attempts reached");
+        lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+        lendingApplicationDao.save(lendingApplication);
+    }
+
 }

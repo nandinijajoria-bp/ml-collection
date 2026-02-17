@@ -9,7 +9,7 @@ import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.enums.MandateType;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -24,21 +24,16 @@ import com.bharatpe.lending.entity.NachMandateRevokeRequest;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.CancelNachApiException;
 import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.bharatpe.lending.lendingplatform.lending.service.ENachRegister;
-import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
+import com.bharatpe.lending.loanV3.revamp.enums.UpiAutoPayStatus;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
+import com.bharatpe.lending.loanV3.revamp.services.EnachStageHelper;
 import com.bharatpe.lending.loanV3.services.VKycService;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
-import com.bharatpe.lending.service.helper.MandateRegistrationHelper;
 import com.bharatpe.lending.util.LoanUtil;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -62,6 +57,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.DISBURSED_LOAN;
+
 @Service
 public class ENachService {
 
@@ -71,16 +68,10 @@ public class ENachService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
-    VerifyOTPService verifyOTPService;
-
-    @Autowired
     APIGatewayService apiGatewayService;
 
     @Autowired
     EnachErrorHandingService enachErrorHandingService;
-
-    @Autowired
-    LendingPennydropDao lendingPennydropDao;
 
     @Autowired
     EnachHandler enachHandler;
@@ -116,13 +107,7 @@ public class ENachService {
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
-    @Lazy
-    @Autowired
-    PiramalAdditionalDocUploadService piramalAdditionalDocUploadService;
-
     ExecutorService executorService = Executors.newFixedThreadPool(50);
-    @Autowired
-    private LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
     private LendingApplicationDetailsDao lendingApplicationDetailsDao;
@@ -146,30 +131,23 @@ public class ENachService {
     private Set<String> skipNachDisabledLenders;
 
     @Autowired
-    LenderAssociationStageFactoryV2 lenderAssociationStageFactoryV2;
-
-    @Autowired
     FunnelService funnelService;
 
     @Autowired
     NachMandateRevokeRequestDao nachMandateRevokeRequestDao;
 
     @Autowired
-    private RolloutUtil rolloutUtil;
-
-    @Autowired
-    private ENachRegister eNachRegister;
-
-    @Autowired
     @Lazy
     VKycService vkycService;
 
     @Autowired
-    private MandateRegistrationHelper mandateHelper;
+    private DigioAutoPayUPIServiceHelper digioAutoPayUPIServiceHelper;
 
     @Autowired
-    private AutoPayUPIService autoPayUPIService;
+    private EnachStageHelper enachStageHelper;
 
+    @Autowired
+    PostAgreementAsyncFlowService postAgreementAsyncFlowService;
 
     private final List<String> preFinalNachStatus = Arrays.asList(NachStatus.INPROCESS.name(), NachStatus.PENDING.name(),NachStatus.PENDING_VERIFICATION.name());
     private final List<String> nachCancellationInProgressStatus = Arrays.asList(NachStatus.CANCEL_INIT.name(), NachStatus.CANCEL_PENDING.name());
@@ -225,6 +203,12 @@ public class ENachService {
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token)    {
         LendingApplication lendingApplication =
                 lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
+        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+        if (lendingApplication == null) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Loan Application not found");
+            return responseDTO;
+        }
         if(!ObjectUtils.isEmpty(lendingApplication) && "approved".equalsIgnoreCase(lendingApplication.getStatus())) {
             if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
                 return submitEnachForRenachMerchants(merchant, requestDTO, token);
@@ -237,7 +221,6 @@ public class ENachService {
             lendingCache.delete(loanDetailsCacheKey);
         }
         LendingApplicationDetails lendingApplicationDetails = null;
-        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
@@ -254,7 +237,7 @@ public class ENachService {
 
         if (!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData()) && requestDTO.getStatus()) {
             logger.info("Enach success for merchant:{}", merchant.getId());
-            if(Objects.nonNull(lendingApplication) && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
+            if(!StringUtils.isEmpty(lendingApplication.getCkycId())) {
                 responseDTO.getData().setDeep_link("bharatpe://dynamic?key=easy-loans&wroute=enachSuccess");
                 if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
                     String deeplink = v3EasyloanDeeplink + "&applicationId=" + lendingApplication.getId();
@@ -263,34 +246,38 @@ public class ENachService {
             } else {
                 responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
             }
-            // Update Lending Application for ENACH
-            if (lendingApplication == null) {
-                responseDTO.setResponse(false);
-                responseDTO.setMessage("Loan Application not found");
-                return responseDTO;
-            }
+            lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplication.setNachType("ENACH");
-//            lendingApplication.setNachLender("BHARATPE");
             if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
-                lendingApplication.setNachStatus("PENDING_VERIFICATION");
+                lendingApplication.setNachStatus(NachStatus.PENDING_VERIFICATION.name());
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.PENDING_APPLICATION, bharatPeEnach.getMode());
             } else {
-                lendingApplication.setNachStatus("APPROVED");
+                if(MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType())
+                        && lendingApplicationDetails.isAutoPayUpiEligible()){
+                    lendingApplication.setUpiAutopayStatus(UpiAutoPayStatus.APPROVED.name());
+                }else {
+                    lendingApplication.setNachStatus(NachStatus.APPROVED.name());
+                }
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.SUCCESS, bharatPeEnach.getMode());
             }
 
             loanDashboardService.deleteLoanDashboardCache(merchant.getId());
+            if(DISBURSED_LOAN.equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())){
+                digioAutoPayUPIServiceHelper.submitDigioMigrationUpi(lendingApplication, eNachIntitiationResponseDTO.getData());
+                return responseDTO;
+            }else if(MandateType.DIGIO_UPI.equals(lendingApplicationDetails.getMandateType())){
+                digioAutoPayUPIServiceHelper.submitDigioUpi(lendingApplication,eNachIntitiationResponseDTO.getData());
+            }
+
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.AGREEMENT_PAGE);
             }
             else loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
             logger.info("nach status for {}, {}, {}", lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getNachStatus());
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
-//            lendingApplicationDao.save(lendingApplication);
 
-            lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             if(!ObjectUtils.isEmpty(lendingApplicationDetails)){
                 lendingApplicationDetails.setLeadAcceptanceTime(new Date());
                 if("RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage())){
@@ -303,10 +290,6 @@ public class ENachService {
                     logger.info("lendingAuditTrial -> {}", lendingAuditTrial);
                     lendingAuditTrialDao.save(lendingAuditTrial);
                 }
-            }
-
-            if(mandateHelper.isDigioUpiCase(lendingApplicationDetails)){
-                autoPayUPIService.submitDigioUpi(lendingApplication,eNachIntitiationResponseDTO.getData());
             }
 
             if("RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage())){
@@ -336,43 +319,13 @@ public class ENachService {
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
-                    if (rolloutUtil.lendingPlatformNbfcFlowApplicable(lendingApplication.getMerchantId())) {
-                    eNachRegister.pushDetailsToLender(lendingApplication);
-                } else if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
-                    logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
-                } else if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-                    LendingApplicationLenderDetails lendingApplicationLenderDetails =
-                            lendingApplicationLenderDetailsDao.
-                                    findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
-                                            (lendingApplication.getId(), Status.ACTIVE.name());
-                    if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
-                            LenderAssociationStages.ASSC_COMPLETED.name()
-                                    .equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                        Boolean autoInvokeNextStage;
-                        if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
-                            autoInvokeNextStage = LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
-                        } else {
-                            autoInvokeNextStage = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
-                        }
-                        nbfcUtils.pushApplicationToNextStage
-                                (lendingApplication.getId(), lendingApplication.getLender(),
-                                        LenderAssociationStages.ASSC_COMPLETED.name(),
-                                        autoInvokeNextStage
-                                );
-                        logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
-                    }
-                }
-            }
 
-
-//            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
-//            if (lendingPennydrop == null) {
-//                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
-//            }
             if (!LoanType.TOPUP.name().equals(lendingApplication.getLoanType())) {
+                logger.info("invoking sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
+                postAgreementAsyncFlowService.invokeNextStage(lendingApplication, Optional.empty(), Optional.of(lendingApplicationDetails));
+
                 logger.info("pushing into post check kafka after nach success for applicationId: {}",lendingApplication.getId());
-                verifyOTPService.sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+                postAgreementAsyncFlowService.pushApplicationToGuardRailsAndPriorityFlow(merchant.getId(), lendingApplication.getId());
             }
         } else {
             logger.info("Enach failed for merchant:{}", merchant.getId());

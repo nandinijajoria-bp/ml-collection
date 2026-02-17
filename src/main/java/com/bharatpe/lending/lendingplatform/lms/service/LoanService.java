@@ -286,10 +286,6 @@ public class LoanService {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
-        //Updating lending_application table
-        logger.info("Changing loan_disbursal_status to 'DISBURSED' for application_id: {}", application.getId());
-        updateLendingApplicationForDisbursal(application, request);
-
         submitLoanDashboardEvent(application);
         //creating entry in lending_payment_schedule table
         LendingPaymentSchedule newSchedule = createLendingPaymentSchedule(application, basicDetails);
@@ -300,7 +296,7 @@ public class LoanService {
 
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
 
-        Date tomorrow = new Date(application.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
+        Date tomorrow = new Date(getDisburseTimestamp(request.getDisbursalDate(), new Date()).getTime() + (1000 * 60 * 60 * 24));
         //checking if next day is Sunday or not because we don't cut edi on Sunday
 
         if (tomorrow.getDay() == 0 && !EXCLUDED_LENDERS.contains(application.getLender())) {
@@ -314,7 +310,7 @@ public class LoanService {
         newSchedule.setNextEdiDate(tomorrow); //Check if can be kept null
         response.setNextEdiDate(tomorrow);
 
-        Date tenativeLoanEndDate = getDateAfterNMonths(application.getDisburseTimestamp(), application.getTenureInMonths());
+        Date tenativeLoanEndDate = getDateAfterNMonths(getDisburseTimestamp(request.getDisbursalDate(), new Date()), application.getTenureInMonths());
         if (tenativeLoanEndDate == null) {
             response.setStatus("FAILED");
             response.setMessage("Unable to compute tentative closing date");
@@ -342,7 +338,7 @@ public class LoanService {
 
         //posting details to ONE-LMS
         logger.info("Posting loan details to lending connector for bpLoanId: {}", application.getExternalLoanId());
-        boolean loanCreationStatus = lmsLoanCreationService.processLoanRequest(application, newSchedule, disbursalResponseMap);
+        boolean loanCreationStatus = lmsLoanCreationService.processLoanRequest(application, newSchedule, disbursalResponseMap, getDisburseTimestamp(request.getDisbursalDate(), new Date()));
         if(!loanCreationStatus){
             response.setStatus("FAILED");
             response.setMessage("Unable to create loan at 1LMS");
@@ -360,23 +356,6 @@ public class LoanService {
 
         log.info("Disbursed loan successful for applicationId: {}", application.getId());
         return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
-    /**
-     * Updates the database with the disbursed loan details.
-     *
-     * @param newSchedule         the new lending payment schedule
-     * @param application         the lending application
-     * @param lmsLoanStatus the loan migration status
-     */
-    @Transactional
-    private void updateDBForDisbursedLoan(LendingPaymentSchedule newSchedule, LendingApplication application, LmsLoanStatus lmsLoanStatus) {
-        logger.info("Updating database for disbursed loan: applicationId={}, scheduleId={}, lmsLoanStatusId={}",
-                application.getId(), newSchedule.getId(), lmsLoanStatus.getId());
-        lendingApplicationDao.save(application);
-        lendingPaymentScheduleDao.save(newSchedule);
-        lmsLoanStatusDao.save(lmsLoanStatus);
-        logger.info("Database update completed for disbursed loan: applicationId={}", application.getId());
     }
 
     // Try-catch block only for generateWelcomeDocAndNotify to handle exceptions from previous usage,
@@ -421,12 +400,6 @@ private void executeSmsAndPaymentLink(LendingApplication application, LendingPay
     private boolean isDisbursalAmountMismatch(LendingApplication application, PostPayoutRequestDto request) {
         return Math.abs(application.getDisbursalAmount() - Math.ceil(request.getDisbursedAmount())) > 10 &&
                 !(LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()));
-    }
-
-    private void updateLendingApplicationForDisbursal(LendingApplication application, PostPayoutRequestDto request) {
-        application.setLoanDisbursalStatus(Constants.DISBURSED_LOAN);
-        application.setDisburseTimestamp(getDisburseTimestamp(request.getDisbursalDate(), new Date()));
-        application.setAccountType(determineAccountType(application.getLender()));
     }
 
     private String determineAccountType(String lender) {

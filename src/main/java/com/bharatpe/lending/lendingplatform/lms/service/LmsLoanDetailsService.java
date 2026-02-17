@@ -102,7 +102,7 @@ public class LmsLoanDetailsService {
 
         try {
             LoanDetailsResponse loanDetailsResponse = getLoanSummaryFromOneLms(bpLoanId);
-            if(loanDetailsResponse == null || loanDetailsResponse.getLoanSummary() == null) {
+            if (loanDetailsResponse == null || loanDetailsResponse.getLoanSummary() == null) {
                 log.info("No loan details found from 1LMS for applicationId: {}, merchantId: {}", lps.getApplicationId(), lps.getMerchantId());
                 throw new RuntimeException("No loan details found from 1LMS for applicationId: " + lps.getApplicationId() + ", merchantId: " + lps.getMerchantId());
             }
@@ -117,7 +117,7 @@ public class LmsLoanDetailsService {
 
         try {
             LoanDetailsResponse loanDetailsResponse = getLoanSummaryFromOneLms(bpLoanId);
-            if(loanDetailsResponse == null || loanDetailsResponse.getLoanSummary() == null) {
+            if (loanDetailsResponse == null || loanDetailsResponse.getLoanSummary() == null) {
                 log.info("No loan details found from 1LMS for applicationId: {}, merchantId: {}", lps.getApplicationId(), lps.getMerchantId());
                 throw new RuntimeException("No loan details found from 1LMS for applicationId: " + lps.getApplicationId() + ", merchantId: " + lps.getMerchantId());
             }
@@ -144,7 +144,7 @@ public class LmsLoanDetailsService {
     }
 
     public LendingKfs getLendingKfs(Long applicationId) {
-        log.info("Fetching kfs docs fro applicationId:{}",applicationId);
+        log.info("Fetching kfs docs fro applicationId:{}", applicationId);
         LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
         if (ObjectUtils.isEmpty(lendingKfs)) {
             throw new RuntimeException("KFS details not found for application id: " + applicationId);
@@ -164,7 +164,7 @@ public class LmsLoanDetailsService {
         return enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), lendingApplication.getId(), loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
     }
 
-    public LendingApplication getLendingApplicationDetails(Long merchantId){
+    public LendingApplication getLendingApplicationDetails(Long merchantId) {
         return lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
     }
 
@@ -188,7 +188,7 @@ public class LmsLoanDetailsService {
     public int getForeclosureAmount(Long merchantId, String externalLoanId) {
         try {
             Map<String, String> requestParams = new HashMap<>();
-            requestParams.put("bpLoanId", externalLoanId);
+            requestParams.put("bpLoanId", externalLoanId); //
             ApiResponse<ForeclosureDetailsResponse> foreclosureResponse = lendingPlatformHttpClient.sendGetRequestWithParams(GET_FORECLOSURE_AMOUNT,
                     requestParams,
                     ForeclosureDetailsResponse.class);

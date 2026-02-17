@@ -28,4 +28,9 @@ public class PayULoanPreviewRequestDTO {
     @JsonProperty("pf_type")
     private String pfType;
 
+    private Integer insurance;
+
+    @JsonProperty("insurance_type")
+    private String insuranceType;
+
 }

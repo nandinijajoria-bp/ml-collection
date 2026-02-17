@@ -65,4 +65,10 @@ public class LoanDetailsDTO {
     private List<Map<String, Object>> penaltyLedger;
     @JsonProperty("insuranceDetails")
     private InsuranceDetailsDTO insuranceDetails;
+    @JsonProperty("totalPenaltyChargesAmount")
+    private Double totalPenaltyChargesAmount;
+    @JsonProperty("totalBounceChargesAmount")
+    private Double totalBounceChargesAmount;
+    @JsonProperty("totalChargeAmount")
+    private Double totalChargeAmount;
 }

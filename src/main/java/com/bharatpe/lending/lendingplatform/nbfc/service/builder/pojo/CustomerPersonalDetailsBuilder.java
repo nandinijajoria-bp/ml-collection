@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.CustomerPersonalDetails;
@@ -14,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
 
@@ -96,10 +99,11 @@ public class CustomerPersonalDetailsBuilder {
 		return CustomerPersonalDetails.builder()
 				.aadhaarDetails(aadhaarDetails)
 				.panDetails(panDetails)
+                .panFetchDetails(getPanFetchDetails(lendingApplication, panDetails))
 				.build();
 	}
 
-	private CustomerPersonalDetails.PanDetails fetchPanDetails(KycDoc doc, long merchantId) {
+    private CustomerPersonalDetails.PanDetails fetchPanDetails(KycDoc doc, long merchantId) {
 		return CustomerPersonalDetails.PanDetails.builder()
 				.pan(doc.getDocIdentifier())
 				.nameDobDetails(getPanNameDobDetails(doc, merchantId))
@@ -203,4 +207,23 @@ public class CustomerPersonalDetailsBuilder {
 		nameDobDetails.setFullName(fullname);
 		return nameDobDetails;
 	}
+
+    private CustomerPersonalDetails.PanFetchDetails getPanFetchDetails(LendingApplication lendingApplication, CustomerPersonalDetails.PanDetails panDetails) {
+        try {
+            if (ObjectUtils.isEmpty(panDetails) || ObjectUtils.isEmpty(panDetails.getPan())) {
+                return null;
+            }
+            PanFetchKYCResponseDto panFetchKYCResponse = kycHandler.panFetch(panDetails.getPan(), lendingApplication.getMerchantId());
+            SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
+            return CustomerPersonalDetails.PanFetchDetails.builder()
+                    .dob(inputFormat.parse(panFetchKYCResponse.getData().getVerifiedDob()))
+                    .pan(panFetchKYCResponse.getData().getPanNumber())
+                    .gender(panFetchKYCResponse.getData().getGender())
+                    .build();
+        } catch (ParseException e) {
+            log.error("Error parsing date of birth from PanFetch response for merchantId: {}", lendingApplication.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return null;
+        }
+    }
+
 }

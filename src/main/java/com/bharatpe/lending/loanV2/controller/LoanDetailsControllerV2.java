@@ -248,7 +248,6 @@ public class LoanDetailsControllerV2 {
         return apiResponseDTO;
     }
 
-
     @GetMapping(value = "/additionalDetails")
     public ResponseEntity<?> additionalLoanDetails(@RequestAttribute BasicDetailsDto merchant,
                                                    @RequestParam(required = false) Long applicationId,

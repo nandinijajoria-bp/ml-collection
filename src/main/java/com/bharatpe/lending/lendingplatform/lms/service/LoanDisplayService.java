@@ -36,6 +36,8 @@ import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.PayUKycService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
+import com.bharatpe.lending.util.BQPublisherUtil;
+import com.bharatpe.lending.util.ErrorDescriptionMapper;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -93,6 +95,9 @@ public class LoanDisplayService {
     LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
+    BQPublisherUtil bqPublisherUtil;
+
+    @Autowired
     LendingCategoryDao lendingCategoryDao;
 
     @Autowired
@@ -109,6 +114,9 @@ public class LoanDisplayService {
 
     @Autowired
     LoanPaymentOrderSlaveDao loanPaymentOrderSlaveDao;
+
+    @Autowired
+    private ErrorDescriptionMapper errorDescriptionMapper;
 
     @Autowired
     LendingIoHalfTopupDao lendingIoHalfTopupDao;
@@ -333,7 +341,7 @@ public class LoanDisplayService {
 
             if(matchedLoan != null) {
                 matchedLoan.setDueAmount(Math.ceil(safeBigDecimalToDouble(lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount())));
-                matchedLoan.setDuePenalty(Math.ceil(safeBigDecimalToDouble(lmsLoanDetails.getLoanSummary().getOverdueOtherCharges())));
+                matchedLoan.setDuePenalty(lmsLoanDetails.getLoanSummary().calculateDuePenaltyAsDouble(true));
                 lendingPaymentScheduleDao.save(matchedLoan);
             }
 
@@ -350,11 +358,12 @@ public class LoanDisplayService {
                     }
                 }
                 Double excessCollectionBalance = (double) lmsLoanDetails.getLoanSummary().getExcessPayable();
-
-                loan.setTotalDue(Math.ceil(safeBigDecimalToDouble(lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount().add(lmsLoanDetails.getLoanSummary().getOverdueOtherCharges()))));
+                loan.setTotalDue(Math.ceil(safeBigDecimalToDouble((lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount() != null ? lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount() : BigDecimal.ZERO)
+                                        .add(lmsLoanDetails.getLoanSummary().calculateDuePenalty()))));
                 loan.setTotalExcessBalance(excessCollectionBalance);
 
-                double rawTotalDue = safeBigDecimalToDouble(lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount().add(lmsLoanDetails.getLoanSummary().getOverdueOtherCharges()));
+                double rawTotalDue = safeBigDecimalToDouble((lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount() != null ? lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount() : BigDecimal.ZERO)
+                        .add(lmsLoanDetails.getLoanSummary().calculateDuePenalty()));
                 loan.setNetPayable(Math.max(Math.ceil(rawTotalDue - loan.getTotalExcessBalance()), 0));
 
             }
@@ -373,7 +382,7 @@ public class LoanDisplayService {
             // EDI 7 Days model always as rediscussed with product
             loan.setEdiDays(7);
 
-            loan.setDuePenalty(Math.ceil(safeBigDecimalToDouble(lmsLoanDetails.getLoanSummary().getOverdueOtherCharges())));
+            loan.setDuePenalty(lmsLoanDetails.getLoanSummary().calculateDuePenaltyAsDouble(true));
 
             // TODO : Need to discuss from NACH Service :
             loan.setNachBounceAmount(0);
@@ -388,6 +397,10 @@ public class LoanDisplayService {
                     logger.info("loan id is {}", id);
                     loan.setPresentmentStatus(status);
                     loan.setPresentmentAmount(amount);
+                    if (!"Success".equalsIgnoreCase(status)) {
+                        String errorDescription = pullPayment.getErrorDescription();
+                        loan.setFailureReason(errorDescriptionMapper.mapToUserMessage(errorDescription));
+                    }
                     log.info("responseDTOFromOneLms pull payment Updated Date is {}", pullPayment.getUpdatedAt());
                     loan.setPresentmentDate(pullPayment.getUpdatedAt());
                 }
@@ -1590,6 +1603,7 @@ public class LoanDisplayService {
                 responseDTO.setIsRejected(true);
                 responseDTO.setRejectionReason("Top-up loan not available as the eligible amount is less than minimum allowed amount");
                 responseDTO.setTopup(Boolean.FALSE);
+                populateTopupBannerAudit(lendingPaymentSchedule,"topup_banner_shown", "false", "Top-up loan not available as the eligible amount is less than minimum allowed amount");
                 return;
             }
             List<String> tenures = topUpLoans.stream()
@@ -1615,6 +1629,20 @@ public class LoanDisplayService {
                     null, LoanDetailsConstant.FUNNEL_VERSION_TAG
             );
         }
+    }
+
+    private void populateTopupBannerAudit(LendingPaymentScheduleDTO lendingPaymentSchedule, String identifier, String topupBannerShown, String reasonNotShown) {
+        MerchantConfigInfo topupBannerVisibility = new MerchantConfigInfo();
+        topupBannerVisibility.setMerchantId(lendingPaymentSchedule.getMerchantId());
+        topupBannerVisibility.setLender(lendingPaymentSchedule.getNbfc());
+        topupBannerVisibility.setIdentifier(identifier);
+        topupBannerVisibility.setState(topupBannerShown);
+        topupBannerVisibility.setComment(reasonNotShown);
+        topupBannerVisibility.setApplicationId(lendingPaymentSchedule.getApplicationId());
+        log.info("Publishing data to BQ for topup banner for merchant id {}",
+                lendingPaymentSchedule.getMerchantId());
+        bqPublisherUtil.publish("Lending", "merchant_config_info",
+                topupBannerVisibility);
     }
 
 

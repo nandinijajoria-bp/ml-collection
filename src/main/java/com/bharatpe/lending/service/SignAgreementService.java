@@ -280,16 +280,13 @@ public class SignAgreementService {
 			}
 		}
 
-		if(lendingApplication.getLoanType().equals("TOPUP")) {
-			boolean pennyDrop = loanUtil.verifyPennyDrop(merchant.getId(), response);
-			if(pennyDrop) {
-				response = publishDataAndSendOtp(lendingApplication, merchant, appSign, response);
+		if(LoanType.TOPUP.name().equals(lendingApplication.getLoanType())) {
+			boolean isPennyDropOk = loanUtil.verifyPennyDropForTopup(merchant.getId(), response);
+			if (!isPennyDropOk) {
+				return response;
 			}
-		}else{
-			logger.info("skipping penny drop for {} loans at agreement stage", lendingApplication.getLoanType());
-			response = publishDataAndSendOtp(lendingApplication, merchant, appSign, response);
 		}
-		return response;
+			return publishDataAndSendOtp(lendingApplication, merchant, appSign, response);
 	}
 
 	private Map<String, Object> publishDataAndSendOtp(LendingApplication lendingApplication, BasicDetailsDto merchant, String appSign, Map<String, Object> response) {
@@ -690,10 +687,12 @@ public class SignAgreementService {
 			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 //			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
 			Map<String, Object> response = bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
-			if(response != null) {
+			if(!ObjectUtils.isEmpty(response) && Boolean.TRUE.equals(response.get("success"))) {
 				finalResponse.put("success", response.get("success"));
 				finalResponse.put("otp_flow",true);
 				finalResponse.put("uuid",response.get("uuid"));
+			} else {
+				finalResponse.putAll(response);
 			}
 		}
 		return finalResponse;
@@ -710,9 +709,8 @@ public class SignAgreementService {
 			}
 
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
-
-			if(!"TOPUP".equals(lendingRiskVariables.getRiskSegment()) || Objects.nonNull(lendingRiskVariables.getRiskRejection()) || Objects.isNull(lendingRiskVariables.getFinalOffer())){
-				logger.info("Topup offer expired for merchant id : {}", merchant.getId());
+			if (!loanUtil.isTopupOfferValid(lendingRiskVariables)) {
+				logger.info("Topup offer expired for merchantId={}", merchant.getId());
 				response.put("message", "Topup offer expired. Pls try again later");
 				return response;
 			}
@@ -969,7 +967,15 @@ public class SignAgreementService {
 
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
             Boolean isEligibleForSkipKyc = kycUtils.isEligibleForSkipKyc(newApplication.getId(), Lender.valueOf(newApplication.getLender()), newApplication.getMerchantId(), true);
+			logger.info(
+					"[TOPUP] For merchantId={}, applicationId={}, lender={}, isEligibleForSkipKyc={}",
+					merchant.getId(), newApplication.getId(), newApplication.getLender(), isEligibleForSkipKyc
+			);
 			LendingViewStates nextPage = getTopupViewState(Lender.valueOf(newApplication.getLender()), isEligibleForSkipKyc);
+			logger.info(
+					"[TOPUP] nextPage computed for merchantId={}, applicationId={} => {}",
+					merchant.getId(), newApplication.getId(), nextPage
+			);
 			response.put("nextPage", nextPage);
 			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), nextPage);
 
@@ -980,6 +986,9 @@ public class SignAgreementService {
 			}
 			response.put("success", true);
 			response.put("message", "Application created Successfully");
+			logger.info("[TOPUP] Final Response for merchantId={}, applicationId={} => {}",
+					merchant.getId(), newApplication.getId(), response
+			);
 			return response;
 		} catch (Exception e) {
 			logger.info("Exception in topup application creation API for merchantId {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));

@@ -17,6 +17,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -139,15 +140,26 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                 log.warn("LoanDetailsV3Request is null for merchant: {}", scopeDataArgs.getMerchant().getId());
             }
 
+            Map<String, Object> shopDetailsData = new HashMap<>();
+            List<LendingApplication> prevApplications = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(scopeDataArgs.getMerchant().getId(), Long.valueOf(experian.getPincode()));
+            LendingApplication lendingApplication =
+                    CollectionUtils.isEmpty(prevApplications) ? null : prevApplications.get(0);
+            boolean showShopDetailsOnBankDisbursementPage = loanUtil.showShopDetailsOnBankDisbursementPage(scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), lendingApplication, shopDetailsData);
+            if(showShopDetailsOnBankDisbursementPage) {
+                eligibilityStateDTO.setShowShopDetailsOnBankDisbursementPage(true);
+                eligibilityStateDTO.setBusinessName((String) shopDetailsData.get("businessName"));
+                eligibilityStateDTO.setAddressDetails((AddressDetails) shopDetailsData.get("address"));
+            }
+
             if (isMaxLenderAttemptsReached(requestData, scopeDataArgs.getMerchant().getId())) {
-                handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(scopeDataArgs.getMerchant().getId()));
+                handleMaxLenderAttemptsReached(requestData.getLendingApplication(), String.valueOf(scopeDataArgs.getMerchant().getId()), eligibilityStateDTO);
                 return new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.OFFER_EVALUATION_PAGE);
             }
 
             trackFunnelEvent(String.valueOf(scopeDataArgs.getMerchant().getId()), FunnelEnums.StageEvent.COMPLETED);
 
             LendingViewStates nextState = requestData.getLendingApplication() != null ?
-                    getNextLendingViewState(requestData.getLendingApplication()) :
+                    getNextLendingViewState(requestData.getLendingApplication(), eligibilityStateDTO) :
                     LendingViewStates.OFFER_EVALUATION_PAGE;
 
             return new LendingStateDTO<>(eligibilityStateDTO, nextState, LendingViewStates.OFFER_EVALUATION_PAGE);
@@ -210,10 +222,14 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
 
         log.info("Eligible lenders audit trial for application {}: {}", lendingApplication.getId(), eligibleLenders != null ? eligibleLenders.getRemarks() : "None");
 
-        List<LendingAuditTrial> removedLender = lendingAuditTrialDao.findAllByApplicationIdAndMerchantIdAndLoanAmountAndTypeOrderByIdDesc(
-                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "LENDER_REMOVED");
+        List<LendingAuditTrial> removedLender = lendingAuditTrialDao.findAllByApplicationIdAndMerchantIdAndLoanAmountAndTypeAndTenureOrderByIdDesc(
+                lendingApplication.getId(), merchantId, lendingApplication.getLoanAmount(), "LENDER_REMOVED", lendingApplication.getTenureInMonths());
 
         log.info("Removed lenders audit trials for application {}: {}", lendingApplication.getId(), !CollectionUtils.isEmpty(removedLender) ? removedLender : 0);
+
+        List<String> lenders = lendingApplicationLenderDetailsDao.findLendersByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), "INACTIVE");
+
+        log.info("Inactive lenders for application {}: {}", lendingApplication.getId(), !CollectionUtils.isEmpty(lenders) ? lenders : 0);
 
         Set<String> distinctRemovedLenders = new HashSet<>();
         if (eligibleLenders != null && !CollectionUtils.isEmpty(removedLender)) {
@@ -222,8 +238,15 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
                     distinctRemovedLenders.add(lender.getOldStatus());
                 }
             }
-            log.info("Found {} distinct removed lenders for merchant {}", distinctRemovedLenders, merchantId);
         }
+
+        for (String lender : lenders) {
+            if (!distinctRemovedLenders.contains(lender)) {
+                distinctRemovedLenders.add(lender);
+            }
+        }
+
+        log.info("Found {} distinct removed lenders for merchant {}", distinctRemovedLenders, merchantId);
 
         if (!CollectionUtils.isEmpty(distinctRemovedLenders) && eligibleLenders != null &&
                 eligibleLenders.getRemarks() != null) {
@@ -248,7 +271,7 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         return false;
     }
 
-    private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
+    private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId, EligibilityStateDTO eligibilityStateDTO) {
         log.info("Max lender attempts reached for merchant: {}", merchantId);
         lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
         lendingApplication.setRejectionReason("Max lender selection attempts reached");
@@ -256,8 +279,10 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
         lendingApplicationDao.save(lendingApplication);
 
-        funnelService.submitEventV3(Long.valueOf(merchantId),null, lendingApplication.getId(), FunnelEnums.StageId.OFFER_EVALUATION_PAGE,
-                FunnelEnums.StageEvent.REJECTED, null, null);
+        funnelService.submitEventV3(Long.valueOf(merchantId), null, lendingApplication.getId(),
+                FunnelEnums.StageId.OFFER_EVALUATION_PAGE, FunnelEnums.StageEvent.REJECTED, null, null);
+
+        eligibilityStateDTO.setLendingApplication(lendingApplication);
     }
 
     private EligibilityStateDTO mapToEligibilityState(OfferEvaluationRequestDTO requestData) {
@@ -283,21 +308,25 @@ public class OfferEvaluationStageDataService implements IStageDataService<Eligib
         return stateDTO;
     }
 
-    private LendingViewStates getNextLendingViewState(LendingApplication lendingApplication) {
+    private LendingViewStates getNextLendingViewState(LendingApplication lendingApplication, EligibilityStateDTO eligibilityStateDTO) {
         if (lendingApplication == null) {
             return LendingViewStates.OFFER_EVALUATION_PAGE;
         }
+
+        if(eligibilityStateDTO.isShowShopDetailsOnBankDisbursementPage()) {
+            boolean hasValidShopPhotos = lendingShopDocumentsDao.hasValidProofTypes(
+                    lendingApplication.getMerchantId(),
+                    lendingApplication.getId()
+            ) > 0;
+            if(!hasValidShopPhotos)
+            {
+                return LendingViewStates.SHOP_PICTURES_PAGE;
+            }
+        }
+
         boolean isAddressPresent = commonUtil.doesApplicationHaveCompleteAddress(lendingApplication);
         if (!isAddressPresent) {
             return LendingViewStates.SHOP_DETAILS_PAGE;
-        }
-        boolean hasValidShopPhotos = lendingShopDocumentsDao.hasValidProofTypes(
-                lendingApplication.getMerchantId(),
-                lendingApplication.getId()
-        ) > 0;
-        if(!hasValidShopPhotos)
-        {
-            return LendingViewStates.SHOP_PICTURES_PAGE;
         }
 
         Boolean bpKycRequired = lendingApplicationServiceV3Base.checkForBPKycRequired(lendingApplication, LenderAssociationStages.INIT);

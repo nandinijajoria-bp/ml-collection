@@ -47,7 +47,6 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
-import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.config.OxyzoConfig;
 import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
@@ -68,7 +67,6 @@ import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.EmiUtils;
@@ -107,7 +105,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -121,11 +118,15 @@ import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
 import static com.bharatpe.lending.common.enums.VkycStatus.VKYC_SKIPPED;
 import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
+import static com.bharatpe.lending.constant.LendingConstants.DAYS_IN_YEAR_360;
+import static com.bharatpe.lending.constant.LendingConstants.DAYS_IN_YEAR_365;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_CATEGORY;
 import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_SUB_CATEGORY;
+import static com.bharatpe.lending.constant.RejectionReasons.*;
 import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.CREDITSAISON;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
+
 
 @Service
 @Slf4j
@@ -391,8 +392,26 @@ public class LendingApplicationServiceV2 {
 
     @Value("${topup.enabled.lenders:}")
     private String topUpEnabledLenders;
+    @Autowired
+    private NbfcUtils nbfcUtils;
+
+    @Value("${pdf.generation.service.url:}")
+    private String pdfGenerationServiceUrl;
+
+    @Value("${pdf.generation.service.url.v2:}")
+    private String pdfGenerationServiceUrlV2;
+
+    @Value("${new.pdf.generation.method.lenders.v2:}")
+    private String newPdfGenerationMethodLendersV2;
+
+    @Value("${skip.shop.picture.rollout.percentage:100}")
+    private Integer skipShopPictureRolloutPercentage;
+
+    private static final String APPLICATION_KFS_DETAILS_CACHING_KEY = "kfs_details_%s";
 
     private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
+
+    private final List<String> lenderWith365DaysCalculation = Arrays.asList(Lender.SMFG.name());
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -608,7 +627,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
     }
 
-    private void saveAuditTrail(LendingApplication lendingApplication, String type, String oldStatus, String newStatus) {
+    public void saveAuditTrail(LendingApplication lendingApplication, String type, String oldStatus, String newStatus) {
         LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
         lendingAuditTrial.setApplicationId(lendingApplication.getId());
         lendingAuditTrial.setLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId()) ? "" : lendingApplication.getExternalLoanId());
@@ -882,13 +901,13 @@ public class LendingApplicationServiceV2 {
             }
             AddressValidationDto  addressValidationDto = null;
             if (applicationRequest != null && applicationRequest.getAddressDetails() != null){
-                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
+                //addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
                 String error = baseChecks(merchant, applicationRequest.getAddressDetails());
                 if (error != null) return new ApiResponse<>(false, error);
-                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
-                    log.info("address quality score less than 20");
-                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
-                }
+//                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+//                    log.info("address quality score less than 20");
+//                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+//                }
             }
 
             LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeAndAmountAndTenureInMonthsOrderByIdDesc(merchant.getId(), "CUSTOM", applicationRequest.getEligibleLoanDTO().getAmount(), applicationRequest.getEligibleLoanDTO().getTenureInMonths());
@@ -969,6 +988,7 @@ public class LendingApplicationServiceV2 {
                 funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                         FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
             }
+            loanUtil.isApplicableForAggregationFlowV2(merchant.getId(), lendingApplication.getId());
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
             log.error("Exception in createNewApplication for merchant:{} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -1025,13 +1045,13 @@ public class LendingApplicationServiceV2 {
                     createEligibleLoan(merchant.getId(), applicationRequest.getEligibleLoanDTO());
                 }
                 AddressValidationDto addressValidationDto = null;
-                if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {
-                    addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
-                    if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
-                        log.info("address quality score less than 20");
-                        return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
-                    }
-                }
+//                if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {
+//                    addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
+//                    if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+//                        log.info("address quality score less than 20");
+//                        return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+//                    }
+//                }
                 updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
                 return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
             }
@@ -1107,12 +1127,21 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setLenderAssc(false);
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true));
+
+        Map<String, Object> metaData = ObjectUtils.isEmpty(lendingApplicationDetails.getMetaData()) ? new HashMap<>() : lendingApplicationDetails.getMetaData();
+        metaData.put("skipShopDetails", Boolean.TRUE.equals(lendingApplicationRequest.getSkipShopDetails()));
+        lendingApplicationDetails.setMetaData(metaData);
+
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             lendingApplicationDetails.setOfferId(eligibleLoan.getId());
         }
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
-        loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.SHOP_DETAILS_PAGE);
+        if(Boolean.TRUE.equals(lendingApplicationRequest.getSkipShopDetails())) {
+            loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.SHOP_PICTURES_PAGE);
+        }else {
+            loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.SHOP_DETAILS_PAGE);
+        }
 
         if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
             rejectApplicationForIncorrectLender(lendingApplication);
@@ -1133,10 +1162,6 @@ public class LendingApplicationServiceV2 {
             }
         });
         loanUtil.createLendingAuditTrailDTO(lendingApplication);
-        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(lendingApplicationRequest.getEligibleLoanDTO().getLender());
-        if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
-            lenderAssignService.updateLenderLimits(lendingLenderQuota, lendingApplication);
-        }
         return lendingApplication;
     }
 
@@ -1193,10 +1218,7 @@ public class LendingApplicationServiceV2 {
         }
 
         log.info("assigning lender:{} for application:{}", eligibleLoan.getLender(), lendingApplication.getId());
-        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(eligibleLoan.getLender());
-        if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
-            lenderAssignService.updateLenderLimits(lendingLenderQuota, lendingApplication);
-        }
+
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingApplicationDetails)){
             lendingApplicationDetails = new LendingApplicationDetails();
@@ -1281,6 +1303,8 @@ public class LendingApplicationServiceV2 {
             lendingApplication.setStatus("rejected");
             lendingApplication.setManualCibil("REJECTED");
             lendingApplication.setManualCibilReason("credit assesment failed : F_TPV");
+            lendingApplication.setRejectionReason(CREDIT_ASSESSMENT_FAILED_TPV);
+            lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.APPLICATION_CREATION);
             lendingApplication.setCibilApprovedDate(new Date());
             rejected = true;
         }
@@ -1403,6 +1427,11 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setLenderAssc(false);
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender(), true));
+
+        Map<String, Object> metaData = ObjectUtils.isEmpty(lendingApplicationDetails.getMetaData()) ? new HashMap<>() : lendingApplicationDetails.getMetaData();
+        metaData.put("skipShopDetails", Boolean.TRUE.equals(lendingApplicationRequest.getSkipShopDetails()));
+        lendingApplicationDetails.setMetaData(metaData);
+
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             lendingApplicationDetails.setOfferId(eligibleLoan.getId());
         }
@@ -1472,30 +1501,12 @@ public class LendingApplicationServiceV2 {
                 shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
                 shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
                 LoanDetailsV3Response loanDetailsV3Response = new LoanDetailsV3Response();
-                if (Boolean.TRUE.equals(loanDetailsV3Service.processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication))) {
+                if (easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), skipShopPictureRolloutPercentage)  && Boolean.TRUE.equals(loanDetailsV3Service.processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication))) {
                     log.info("Shop picture skipped for lender: {} and merchant: {}",
                             lendingApplication.getLender(), lendingApplication.getMerchantId());
                     loanDetailsV3Response.setSkipShopPicture(true);
                     loanDetailsV3Response.setImageExist(false);
                     loanDetailsV3Service.updateLendingShopDocumentsIsSkipped(lendingApplication.getMerchantId(), lendingApplication.getId(), loanDetailsV3Response);
-                } else {
-                    log.info("skipping shop picture validation failed for lender: {} and merchant: {}",
-                            lendingApplication.getLender(), lendingApplication.getMerchantId());
-                    List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-                    List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
-                            .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
-                            .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
-                            .values().stream()
-                            .flatMap(docs -> docs.stream().limit(1))
-                            .collect(Collectors.toList());
-                    if (!filteredDocuments.isEmpty() && filteredDocuments.size() >= 2) {
-                        List<LendingShopDocuments> replicatedDocuments = new ArrayList<>();
-                        for (LendingShopDocuments shopDocuments : filteredDocuments) {
-                            LendingShopDocuments replicateShopDocument = getReplicateShopDocument(lendingApplication, shopDocuments);
-                            replicatedDocuments.add(replicateShopDocument);
-                        }
-                        lendingShopDocumentsDao.saveAll(replicatedDocuments);
-                    }
                 }
                 lendingApplication.setEmail(prevApplication.getEmail());
                 lendingApplication.setAlternateMobile(prevApplication.getAlternateMobile());
@@ -1722,7 +1733,7 @@ public class LendingApplicationServiceV2 {
         Integer pincode = Integer.valueOf(addressDetails.getPincode());
         if (loanUtil.isOGL(pincode)) {
             log.info("OGL pincode found for merchant:{}", merchant.getId());
-            return "OGL pincode";
+            return "This pincode is not serviceable";
         }
         Experian experian = experianDao.getByMerchantId(merchant.getId());
         if (experian != null && experian.getPincode() != null && !pincode.equals(experian.getPincode())) {
@@ -2668,6 +2679,8 @@ public class LendingApplicationServiceV2 {
                 }else if(!downGradeStatus) {
                     lendingApplication.setManualKyc("REJECTED");
                     lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
+                    lendingApplication.setRejectionReason(REJECT_DOWNGRADE_01);
+                    lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.POST_APPLICATION_SUBMISSION);
                     lendingApplication.setLmsStage("QC_REJECTED");
                     lendingApplication.setStatus("rejected");
                     lendingApplicationDao.save(lendingApplication);
@@ -2746,6 +2759,8 @@ public class LendingApplicationServiceV2 {
             log.info("Error response from update-lead api for applicationId: {}", lendingApplication.getId());
             lendingApplication.setManualKyc("REJECTED");
             lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
+            lendingApplication.setRejectionReason(REJECT_DOWNGRADE_02);
+            lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.UPDATE_LEAD);
             lendingApplication.setLmsStage("QC_REJECTED");
             lendingApplication.setStatus("rejected");
             lendingApplicationDao.save(lendingApplication);
@@ -3142,6 +3157,7 @@ public class LendingApplicationServiceV2 {
             Date date = new Date();
 
             if (docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS.toString())) {
+                invokeLenderSpecificApis(lendingApplication);
                 return getKfsDetails(applicationId, lendingApplication, merchant, null, ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DOC.toString())) {
                 return generateKfs(applicationId, lendingApplication, merchant, false, null, lang);
@@ -3171,6 +3187,11 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> getKfsDetails(Long applicationId, LendingApplication lendingApplication1, BasicDetailsDto merchant, String lang, ApplicationDocType docType){
         try{
+            KfsDto kfsDto = fetchCachedKfsDetails(applicationId, docType);
+            if(!ObjectUtils.isEmpty(kfsDto)) {
+                log.info("returning cached kfs details {} for applicationId {}", kfsDto, applicationId);
+                return new ApiResponse<>(kfsDto);
+            }
             LendingApplication lendingApplication;
             if(ObjectUtils.isEmpty(lendingApplication1)){
                 lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
@@ -3382,7 +3403,7 @@ public class LendingApplicationServiceV2 {
                 lendingApplicationCreatedAt = lendingApplication.getAgreementAt();
             }
 
-            KfsDto kfsDto = KfsDto.builder()
+            kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
                     .externalLoanId(lendingApplication.getExternalLoanId())
@@ -3405,7 +3426,7 @@ public class LendingApplicationServiceV2 {
                     .repaymentAmount(repaymentAmount)
                     .interestRate(lendingApplication.getInterestRate())
                     .apr(Optional.ofNullable(apr).orElse(lendingKfs.getApr()))
-                    .isTopUpLoan("TOPUP".equals(lendingApplication.getLoanType()))
+                    .topUpLoan("TOPUP".equals(lendingApplication.getLoanType()))
                     .locationLatLong(Objects.toString(lendingApplication.getLatitude(),"") + ", " + Objects.toString(lendingApplication.getLongitude(),""))
                     .coolingOffDays(KfsConstants.COOLING_OFF_DAYS)
                     .ediCount(lendingApplication.getPayableDays())
@@ -3457,6 +3478,7 @@ public class LendingApplicationServiceV2 {
                 }
                 kfsDto.setParentLenderCorporateName(parentLenderCorporateName);
             }
+            cacheApplicationKfsDetails(kfsDto, applicationId);
             return new ApiResponse<>(kfsDto);
         }
         catch(Exception e){
@@ -3486,8 +3508,8 @@ public class LendingApplicationServiceV2 {
         return Objects.nonNull(lendingLoanInsurance) ? lendingLoanInsurance.getInsurancePremium() : 0D;
     }
 
-    public void storeApplicationDocs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant) throws Exception {
-        LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+    public LendingKfs storeApplicationDocs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, Optional<LendingKfs> optionalLendingKfs) throws Exception {
+        LendingKfs lendingKfs = optionalLendingKfs.orElseGet(() -> lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId()));
         if(ObjectUtils.isEmpty(lendingKfs)){
             log.error("Unable to retrieve KFS details from db for applicationId : {}", applicationId);
             throw new Exception("Unable to retrieve KFS details from db for applicationId : " + applicationId);
@@ -3530,7 +3552,7 @@ public class LendingApplicationServiceV2 {
             generateApplicationFormDoc(lendingApplication, merchant, lendingKfs, date);
         }
 
-        lendingKfsDao.save(lendingKfs);
+        lendingKfs = lendingKfsDao.save(lendingKfs);
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(merchant.getId(), null, applicationId,lendingApplication.getLoanType(),
@@ -3540,6 +3562,7 @@ public class LendingApplicationServiceV2 {
             funnelService.submitEvent(merchant.getId(), null, applicationId, lendingApplication.getLoanType(),
                     FunnelEnums.StageId.AGREEMENT, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
         }
+        return lendingKfs;
     }
 
     public void generateSanctionCumLoanAgreementDoc(LendingApplication lendingApplication, BasicDetailsDto merchant,
@@ -3623,7 +3646,7 @@ public class LendingApplicationServiceV2 {
 
             PdfGenerationRequest request = requestBuilder.build();
             log.info("Calling PdfGeneratorUtilV2.generatePdf for Sanction Loan Agreement - applicationId: {}", lendingApplication.getId());
-            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
             if (response.getSuccess()) {
                 byte[] pdfByteArray = response.getPdfAsBytes();
@@ -3634,7 +3657,7 @@ public class LendingApplicationServiceV2 {
                 log.info("Successfully uploaded Sanction Loan Agreement to S3 - applicationId: {}, fileName: {}", 
                         lendingApplication.getId(), fileName);
             } else {
-                log.error("PDF generation failed for Sanction Loan Agreement - applicationId: {}, response: {}", 
+                log.error("PDF generation failed for Sanction Loan Agreement - applicationId: {}, response: {}",
                         lendingApplication.getId(), response);
                 throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + lendingApplication.getId());
             }
@@ -3825,8 +3848,8 @@ public class LendingApplicationServiceV2 {
             Double apr = 0.0;
             double[] valuesDouble = new double[values.size()];
             for (int i = 0; i < values.size(); i++) valuesDouble[i] = values.get(i);
-            log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear = 360;
+            int daysInYear = lenderWith365DaysCalculation.contains(lender) ? DAYS_IN_YEAR_365 : DAYS_IN_YEAR_360;
+            log.info("valuesDouble Size : {} and days considered for {} is {}", valuesDouble.length, daysInYear, lender);
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if (apr.isNaN()) {
                 log.info("APR : {}", apr);
@@ -3902,7 +3925,7 @@ public class LendingApplicationServiceV2 {
                 }
 
                 PdfGenerationRequest request = requestBuilder.build();
-                PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+                PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
                 if (response.getSuccess()) {
                     byte[] pdfByteArray = response.getPdfAsBytes();
@@ -3971,7 +3994,7 @@ public class LendingApplicationServiceV2 {
 
               PdfGenerationRequest request = requestBuilder.build();
               log.info("Calling PdfGeneratorUtilV2.generatePdf for KFS document - applicationId: {}", lendingApplication.getId());
-              PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+              PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
               if (response.getSuccess()) {
                   byte[] pdfByteArray = response.getPdfAsBytes();
@@ -4252,7 +4275,7 @@ public class LendingApplicationServiceV2 {
                         .html(html);
 
                 PdfGenerationRequest request = requestBuilder.build();
-                PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+                PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
                 if (response.getSuccess()) {
                     byte[] pdfByteArray = response.getPdfAsBytes();
@@ -4692,12 +4715,17 @@ public class LendingApplicationServiceV2 {
             data.put("insurance_display", "none");
             data.put("insurance_premium", "NA");
             data.put("insurance_premium_in_words", "NA");
-
+            data.put("insurance_charge", "NA");
+            data.put("insurance_gst", "NA");
+            data.put("processing_fee_plus_insurance_premium",kfsDto.getProcessingFee());
         } else {
             data.put("insurance_na_display", "none");
             data.put("insurance_display", "block");
             data.put("insurance_premium", lendingLoanInsurance.getInsurancePremium());
             data.put("insurance_premium_in_words", getAmountInWords(lendingLoanInsurance.getInsurancePremium().toString()));
+            data.put("insurance_charge", calculateInsurancePremium(kfsDto.getLoanAmount(), kfsDto.getTenureInMonths(), kfsDto.getLender()));
+            data.put("insurance_gst", calculateInsuranceGst(kfsDto.getLoanAmount(), kfsDto.getTenureInMonths(), kfsDto.getLender()));
+            data.put("processing_fee_plus_insurance_premium", kfsDto.getProcessingFee()+lendingLoanInsurance.getInsurancePremium());
         }
 
         LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
@@ -5099,8 +5127,8 @@ public class LendingApplicationServiceV2 {
         }
         String fileName = "";
         fileName = WELCOME_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-        
-        log.info("Using new PDF generation method for Welcome Document for applicationId: {} and lender: {}", 
+
+        log.info("Using new PDF generation method for Welcome Document for applicationId: {} and lender: {}",
                 lendingApplication.getId(), lendingApplication.getLender());
 
         String headerImageUrl = null;
@@ -5132,7 +5160,7 @@ public class LendingApplicationServiceV2 {
         }
 
         PdfGenerationRequest request = requestBuilder.build();
-        PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+        PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
         if (response.getSuccess()) {
             byte[] pdfByteArray = response.getPdfAsBytes();
@@ -5149,7 +5177,7 @@ public class LendingApplicationServiceV2 {
             }
             return Boolean.TRUE;
         } else {
-            log.error("Failed to generate Welcome PDF for applicationId: {}, response: {}", 
+            log.error("Failed to generate Welcome PDF for applicationId: {}, response: {}",
                     lendingApplication.getId(), response);
             return Boolean.FALSE;
         }
@@ -5226,15 +5254,15 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String authorizationHtml = (String) apiResponse.data;
             fileName = AUTHORIZATION_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-            
-            log.info("Using new PDF generation method for Authorization Letter for applicationId: {} and lender: {}", 
+
+            log.info("Using new PDF generation method for Authorization Letter for applicationId: {} and lender: {}",
                     lendingApplication.getId(), lendingApplication.getLender());
 
             PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder = PdfGenerationRequest.builder()
                     .html(authorizationHtml);
 
             PdfGenerationRequest request = requestBuilder.build();
-            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
             if (response.getSuccess()) {
                 byte[] pdfByteArray = response.getPdfAsBytes();
@@ -5249,7 +5277,7 @@ public class LendingApplicationServiceV2 {
                     lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterShortUrl);
                 }
             } else {
-                log.error("Failed to generate Authorization Letter PDF for applicationId: {}, response: {}", 
+                log.error("Failed to generate Authorization Letter PDF for applicationId: {}, response: {}",
                         lendingApplication.getId(), response);
                 throw new Exception("Unable to generate Authorization Letter PDF for applicationID" + lendingApplication.getId());
             }
@@ -5538,7 +5566,7 @@ public class LendingApplicationServiceV2 {
                     }
 
                     PdfGenerationRequest request = requestBuilder.build();
-                    PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+                    PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
                     if (response.getSuccess()) {
                         byte[] pdfByteArray = response.getPdfAsBytes();
@@ -5661,7 +5689,7 @@ public class LendingApplicationServiceV2 {
                   }
 
                   PdfGenerationRequest request = requestBuilder.build();
-                  PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+                  PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
                   if (response.getSuccess()) {
                       byte[] pdfByteArray = response.getPdfAsBytes();
@@ -5809,6 +5837,8 @@ public class LendingApplicationServiceV2 {
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
                 "APP_STATUS");
         lendingApplication.setStatus("rejected");
+        lendingApplication.setRejectionReason(LENDER_NONE);
+        lendingApplication.setRejectionStage(com.bharatpe.common.enums.RejectionStage.APPLICATION_CREATION);
         lendingApplicationDao.save(lendingApplication);
         evictCache(lendingApplication.getMerchantId());
     }
@@ -5820,16 +5850,54 @@ public class LendingApplicationServiceV2 {
             String html = "";
             String filePath = "";
 
+            // To get extra data
+            LendingApplicationLenderDetails laldDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId()).orElse(null);
+
+
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.getMerchantId());
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
-            data.put("otp_date_with_timestamp", !ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) ? lendingApplication.getAgreementAt().toString() : null);
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+
+           /* data.put("otp_date_with_timestamp", !ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) ? lendingApplication.getAgreementAt().toString() : null);
             data.put("dob", nameAndDobDetailsDto.getDob());
             data.put("pan_dob_match_kyc", "YES");
             data.put("aadhar_linked_status_with_pan", "YES");
             data.put("kyc_name_match_score_pennydrop", "YES");
             data.put("selfie_match_score", cKycResponseDto.getSelfieAadhaarFaceMatchPer());
             data.put("liveliness_score", cKycResponseDto.getSelfieLivelinessScore());
-            data.put("liveliness_check", "YES");
+            data.put("liveliness_check", "YES");*/
+
+            data.put("tc_consent_timestamp", lendingApplication.getCreatedAt());
+            data.put("device_id", "NA");
+            data.put("lead_creation_timestamp", laldDetails.getCreatedAt());
+            data.put("bureau_consent_timestamp", lendingApplication.getCreatedAt());
+            data.put("kyc_consent_timestamp", lendingApplicationKycDetails.getAadharApprovedAt());
+            data.put("aadhar_pan_linkage_status", "YES");
+            data.put("pan_number", cKycResponseDto.getPanNumber());
+            data.put("pan_api_customer_name", cKycResponseDto.getPanName());
+            data.put("pan_api_response_timestamp",lendingApplication.getCreatedAt());
+            data.put("pan_status", "VERIFIED");
+            data.put("disbursement_bank_account", bankDetailsDtoOptional.getAccountNumber());
+            data.put("ifsc_code", bankDetailsDtoOptional.getIfsc());
+            data.put("penny_drop_name_match_score","NA" );
+            data.put("penny_drop_timestamp", "NA" );
+            data.put("penny_drop_status", "NA" );
+            data.put("penny_drop_bank_name", "NA" );
+            data.put("selfie_match_score", cKycResponseDto.getSelfieAadhaarFaceMatchPer());
+            data.put("e_nach_registration_timestamp", lendingApplication.getAgreementAt());
+            data.put("kfs_acceptance_timestamp", lendingApplication.getAgreementAt());
+            data.put("sanction_letter_acceptance_timestamp", lendingApplication.getAgreementAt());
+            data.put("loan_agreement_acceptance_timestamp", lendingApplication.getAgreementAt());
+            data.put("loan_agreement_ip_address", lendingApplication.getIp());
+            data.put("account_number", bankDetailsDtoOptional.getAccountNumber());
+            data.put("account_ifsc_code", bankDetailsDtoOptional.getIfsc());
+            data.put("account_customer_name", bankDetailsDtoOptional.getBeneficiaryName());
+            data.put("account_bank_name", bankDetailsDtoOptional.getBankName());
+            data.put("business_proof_document", "NA");
+
+
+
 
             if (Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
                 filePath = "/templates/" + "AUDIT_TRAIL_DOC_SMFG" + ".html";
@@ -5893,7 +5961,7 @@ public class LendingApplicationServiceV2 {
 
             PdfGenerationRequest request = requestBuilder.build();
             log.info("Calling PdfGeneratorUtilV2.generatePdf for Signed Details - applicationId: {}", lendingApplication.getId());
-            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(request);
+            PdfGenerationResponse response = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request);
 
             if (response.getSuccess()) {
                 byte[] pdfByteArray = response.getPdfAsBytes();
@@ -5922,7 +5990,7 @@ public class LendingApplicationServiceV2 {
             PdfGenerationRequest.PdfGenerationRequestBuilder requestBuilder2 = PdfGenerationRequest.builder()
                     .html(html);
             PdfGenerationRequest request2 = requestBuilder2.build();
-            PdfGenerationResponse response2 = pdfGeneratorUtil.generatePdf(request2);
+            PdfGenerationResponse response2 = pdfGeneratorUtil.generatePdf(getPdfGenerationUrl(lendingApplication.getLender()), request2);
             if (response2.getSuccess()) {
                 byte[] pdfByteArray2 = response2.getPdfAsBytes();
                 inStream2 = new ByteArrayInputStream(pdfByteArray2);
@@ -5941,6 +6009,14 @@ public class LendingApplicationServiceV2 {
         } catch (Exception e) {
             log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+    }
+
+    private String getPdfGenerationUrl(String lender) {
+        if(newPdfGenerationMethodLendersV2.contains(lender)) {
+            return pdfGenerationServiceUrlV2;
+        }
+
+        return pdfGenerationServiceUrl;
     }
 
 
@@ -6182,5 +6258,66 @@ public class LendingApplicationServiceV2 {
 
     }
 
+    private double calculateInsurancePremium(double loanAmount, int tenureInMonths, String lender) {
+        if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())){
+            return loanAmount * ((tenureInMonths<=12) ? 0.01 : 0.015);
+        }
+        return loanAmount * 0.01;
+    }
 
+    private double calculateInsuranceGst(double loanAmount, int tenureInMonths, String lender) {
+        return calculateInsurancePremium(loanAmount, tenureInMonths, lender) * 0.18;
+    }
+
+    private void invokeLenderSpecificApis(LendingApplication lendingApplication) {
+        Boolean success = true;
+        if (Arrays.asList(Lender.PAYU.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {
+            log.info("Invoking ACCEPT_OFFER stage for lender: {} and applicationId: {}", lendingApplication.getLender(), lendingApplication.getId());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingApplication.getLender());
+            boolean breStatusAccepted = "ACCEPT_OFFER_SUCCESS".equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus());
+
+
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !breStatusAccepted) {
+                log.info("Proceeding to invoke ACCEPT_OFFER stage for lender: {} and applicationId: {}", lendingApplication.getLender(), lendingApplication.getId());
+                LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
+                lenderAssociationDetailsDto.setApplicationId(lendingApplication.getId());
+                lenderAssociationDetailsDto.setLendingApplication(lendingApplication);
+                lenderAssociationDetailsDto.setMerchantId(lendingApplication.getMerchantId());
+                lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
+                lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+                success = nbfcUtils.invokeSpecificStage(lendingApplication.getLender(), lenderAssociationDetailsDto, "ACCEPT_OFFER");
+            }
+        }
+        if (!success) {
+            throw new RuntimeException("Error while invoking lender specific apis for applicationId: " + lendingApplication.getId());
+        }
+    }
+
+    private KfsDto fetchCachedKfsDetails(Long applicationId, ApplicationDocType docType) {
+        // Override the cached KFS details when the merchant visits the KFS page again.
+        if (!ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS.equals(docType)) {
+            try {
+                String key = String.format(APPLICATION_KFS_DETAILS_CACHING_KEY, applicationId);
+                log.info("fetching cached kfs details against key {} for applicationId {}", key, applicationId);
+                Object cachedResponse = lendingCache.get(key);
+                return objectMapper.convertValue(cachedResponse, KfsDto.class);
+            } catch (Exception e) {
+                log.error("Exception in fetching kfs details for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+            }
+        }
+        return null;
+    }
+
+    private void cacheApplicationKfsDetails(KfsDto kfsDto, Long applicationId) {
+        try {
+            log.info("caching kfs details {} for applicationId {}", kfsDto, applicationId);
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(String.format(APPLICATION_KFS_DETAILS_CACHING_KEY, applicationId));
+            addCacheDto.setTtl(60);
+            addCacheDto.setValue(kfsDto);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("Exception in caching kfs details for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        }
+    }
 }

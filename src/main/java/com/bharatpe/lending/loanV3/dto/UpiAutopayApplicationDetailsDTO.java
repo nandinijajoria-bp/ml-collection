@@ -3,6 +3,8 @@ package com.bharatpe.lending.loanV3.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
+import java.util.Date;
+
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -22,4 +24,6 @@ public class UpiAutopayApplicationDetailsDTO {
     private String errorReason;
     private String displayMessage;
     private Boolean retryEligible;
+    private Date mandateEndDate;
+    private Double dailyInstalmentAmount;
 }

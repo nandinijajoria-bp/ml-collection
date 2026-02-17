@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -10,10 +9,8 @@ import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
-import com.bharatpe.lending.dao.MerchantAggregateDataDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -27,11 +24,9 @@ import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validat
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -64,25 +59,23 @@ public class TLCreateClientService {
     MerchantService merchantService;
 
     @Autowired
-    LoanUtil loanUtil;
-
-    @Value("${enable.tl.update.client:false}")
-    private Boolean enableTlUpdateClient;
-
-    @Autowired
     TrillionLoansConfig trillionLoansConfig;
 
     @Autowired
     LendingMerchantDetailsDao lendingMerchantDetailsDao;
 
-    @Autowired
-    KycHandler kycHandler;
+    private static final Map<String, String> allowedRegexMap;
 
-    @Autowired
-    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
-
-    @Autowired
-    MerchantAggregateDataDao merchantAggregateDataDao;
+    static {
+        Map<String, String> map = new HashMap<>();
+        map.put("BANK_BENE_NAME",
+                "^[a-zA-Z0-9.!@#$%&*()_\\-+\\[\\],<>/\\\\{}?:;\"^' ]{1,}$"
+        );
+        map.put("ADDRESS_LINE",
+                "^[a-zA-Z0-9:,@+ _\\t\\r\\n\"()\\.\\-{}\\[\\]/\\\\]+$"
+        );
+        allowedRegexMap = Collections.unmodifiableMap(map);
+    }
 
     @Transactional
     public boolean invokeCreateClient(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -123,17 +116,6 @@ public class TLCreateClientService {
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setCccId(createClientResponse.getClientId().toString());
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
                     commonService.manageApplicationState(lenderAssociationDetailsDto);
-
-                    if (enableTlUpdateClient && eligibleForUpdateClient(createClientResponse.getClientId(), lendingApplication.getId())) {
-                        log.info("invoking update client request of TrillionLoans for {}", lenderAssociationDetailsDto.getApplicationId());
-                        NBFCResponseDTO<?> updateClientNbfcResponseDTO = updateClientDetailsForExceptionCases(lendingApplication, lenderAssociationDetailsDto.getCKycResponseDto(), createClientResponse.getClientId());
-                        if (Objects.nonNull(updateClientNbfcResponseDTO) && updateClientNbfcResponseDTO.getSuccess() && Objects.nonNull(updateClientNbfcResponseDTO.getData())) {
-                            log.info("UpdateClient request of TrillionLoans is success for {}", lenderAssociationDetailsDto.getApplicationId());
-                        } else {
-                            updateClientException = true;
-                            throw new Exception("update client response is null");
-                        }
-                    }
                     return true;
                 }
                 if(nbfcResponseDto.getRetry()) {
@@ -196,7 +178,7 @@ public class TLCreateClientService {
                 .businessDocument(ObjectUtils.isEmpty(gstResponse.getName()) ? null : gstResponse.getName())
                 .legalName(ObjectUtils.isEmpty(merchantDetails.getBusinessName()) ? null : merchantDetails.getBusinessName())
                 .tradeName(ObjectUtils.isEmpty(gstResponse.getTradeName()) ? null : gstResponse.getTradeName())
-                .bankBeneName(ObjectUtils.isEmpty(merchantDetailsDto) || ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail()) || ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail().getBeneficiaryName()) ? null : merchantDetailsDto.getBankDetail().getBeneficiaryName())
+                .bankBeneName(ObjectUtils.isEmpty(merchantDetailsDto) || ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail()) || ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail().getBeneficiaryName()) ? null : converterUtils.sanitizeByRegex(merchantDetailsDto.getBankDetail().getBeneficiaryName(), allowedRegexMap.getOrDefault("BANK_BENE_NAME", null)) )
                 .build();
         additionalDetailList.add(additionalDetail);
         return additionalDetailList;
@@ -213,21 +195,30 @@ public class TLCreateClientService {
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
         updateLastNameAndMiddleName(nameAndDobDetailsDto);
+        String gender = kycUtils.getGender(cKycResponseDto.getGender());
         return  isEligibleForLenderKyc ? TLCreateClientRequestDto.ClientDetails.builder()
-                .firstName(nameAndDobDetailsDto.getFirstName())
+                .firstName(
+                        !ObjectUtils.isEmpty(nameAndDobDetailsDto.getFirstName()) ? nameAndDobDetailsDto.getFirstName() :
+                                !ObjectUtils.isEmpty(nameAndDobDetailsDto.getMiddleName()) ? nameAndDobDetailsDto.getMiddleName() :
+                                        nameAndDobDetailsDto.getLastName()
+                )
                 .middleName(nameAndDobDetailsDto.getMiddleName())
                 .lastName(ObjectUtils.isEmpty(nameAndDobDetailsDto.getLastName()) ? nameAndDobDetailsDto.getFirstName() : nameAndDobDetailsDto.getLastName())
                 .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
-                .gender(kycUtils.getGender(cKycResponseDto.getGender()))
+                .gender("OTHERS".equalsIgnoreCase(gender) ? "OTHER" : gender)
                 .mobileNo(mobile)
                 .externalId(lendingApplication.getExternalLoanId())
                 .build() :
                 TLCreateClientRequestDto.ClientDetails.builder()
-                        .firstName(kycUtils.getFirstName(cKycResponseDto))
+                        .firstName(
+                                !ObjectUtils.isEmpty(kycUtils.getFirstName(cKycResponseDto)) ? kycUtils.getFirstName(cKycResponseDto) :
+                                        !ObjectUtils.isEmpty(kycUtils.getMiddleName(cKycResponseDto)) ? kycUtils.getMiddleName(cKycResponseDto) :
+                                                kycUtils.getLastName(cKycResponseDto)
+                        )
                         .middleName(kycUtils.getMiddleName(cKycResponseDto))
-                        .lastName(kycUtils.getLastName(cKycResponseDto))
-                        .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
-                        .gender(kycUtils.getGender(cKycResponseDto.getGender()))
+                        .lastName(ObjectUtils.isEmpty(kycUtils.getLastName(cKycResponseDto)) ? kycUtils.getFirstName(cKycResponseDto) : kycUtils.getLastName(cKycResponseDto))
+                        .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
+                        .gender("OTHERS".equalsIgnoreCase(gender) ? "OTHER" : gender)
                         .mobileNo(mobile)
                         .externalId(lendingApplication.getExternalLoanId())
                         .build();
@@ -249,8 +240,8 @@ public class TLCreateClientService {
         }
         TLCreateClientRequestDto.AddressDetails currentAddress = TLCreateClientRequestDto.AddressDetails.builder()
                 .addressType(Collections.singletonList("PERMANENT")) //setting PERMANENT as default value
-                .addressLineOne(address1)
-                .addressLineTwo(address2)
+                .addressLineOne(converterUtils.sanitizeByRegex(address1, allowedRegexMap.getOrDefault("ADDRESS_LINE", null)))
+                .addressLineTwo(converterUtils.sanitizeByRegex(address2, allowedRegexMap.getOrDefault("ADDRESS_LINE", null)))
                 .postalCode(ObjectUtils.isEmpty(cKycResponseDto.getPincode()) ? lendingApplication.getPincode().toString() : cKycResponseDto.getPincode())
                 .build();
         addressDataList.add(currentAddress);
@@ -290,34 +281,56 @@ public class TLCreateClientService {
         return clientIdentifierDetailsList;
     }
 
-    public NBFCResponseDTO<?> updateClientDetailsForExceptionCases(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, Long clientId) {
-        TLCreateClientRequestDto tlUpdateClientRequestDto = getUpdateClientRequest(lendingApplication, cKycResponseDto, clientId);
+    public Boolean updateClient(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        try {
+            LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_CLIENT_PENDING.name());
+            commonService.manageApplicationState(lenderAssociationDetailsDto);
+            if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+                lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
+            }
+            NBFCRequestDTO<?> updateClientRequest = getUpdateClientPayload(lenderAssociationDetailsDto);
+            if (Objects.isNull(updateClientRequest)) {
+                log.info("error in update client payload of TrillionLoans for applicationId: {}", lendingApplication.getId());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_CLIENT_FAILED.name());
+                return true;
+            }
 
-        return lenderAPIGateway.invokeStage(
-                NBFCRequestDTO.builder()
-                        .applicationId(lendingApplication.getId())
-                        .payload(tlUpdateClientRequestDto)
-                        .lender(Lender.TRILLIONLOANS.name())
-                        .productName("LENDING")
-                        .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
-                        .build(),
-                LenderAssociationStages.UPDATE_CLIENT);
-    }
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(updateClientRequest, LenderAssociationStages.UPDATE_CLIENT, trillionLoansConfig.getCreateClientTimeoutThreshold());
 
-    public TLCreateClientRequestDto getUpdateClientRequest(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, Long clientId) {
-        return TLCreateClientRequestDto.builder()
-                .addressDetails(getAddressDetails(lendingApplication, cKycResponseDto))
-                .clientId(clientId)
-                .build();
-    }
-
-    public boolean eligibleForUpdateClient(Long clientId, Long applicationId) {
-        final List<Long> updateClientLenderClientIds = loanUtil.getLenderClientIdList();
-        if (updateClientLenderClientIds.contains(clientId)) {
-            return true;
+            if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_CLIENT_SUCCESS.name());
+                commonService.manageApplicationState(lenderAssociationDetailsDto);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while processing update client of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        log.info("For applicationId {} clientId : {} ", applicationId, clientId);
-        return false;
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_CLIENT_FAILED.name());
+        commonService.manageApplicationState(lenderAssociationDetailsDto);
+        return true;
+    }
+
+    public NBFCRequestDTO<?> getUpdateClientPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        LendingApplication application = lenderAssociationDetailsRequest.getLendingApplication();
+        CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
+        String clientId = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId();
+        try {
+            NBFCRequestDTO<?> updateClientRequest = NBFCRequestDTO.builder()
+                    .applicationId(application.getId())
+                    .payload(TLCreateClientRequestDto.builder()
+                            .addressDetails(getAddressDetails(application, cKycResponseDto))
+                            .clientId(clientId)
+                            .build())
+                    .lender(Lender.TRILLIONLOANS.name())
+                    .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()))
+                    .build();
+            return updateClientRequest;
+        } catch (Exception e) {
+            log.error("Exception in creating updateClient payload of trillionLoans for applicationId {} {}", application.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
     }
 
     private void updateLastNameAndMiddleName(NameAndDobDetailsDto nameAndDobDetailsDto) {

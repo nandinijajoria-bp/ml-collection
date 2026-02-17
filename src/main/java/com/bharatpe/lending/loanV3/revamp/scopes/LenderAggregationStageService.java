@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -31,6 +32,9 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+
+import static com.bharatpe.lending.constant.RejectionReasons.DEFAULT_LENDER_REJECTED;
+import static com.bharatpe.lending.constant.RejectionReasons.MAX_LENDER_SELECTION_ATTEMPTS;
 
 @Slf4j
 @Service
@@ -96,6 +100,8 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
         if(!ObjectUtils.isEmpty(defaultLender) && defaultLender.getLender().equals(lendingApplication.getLender())){
             log.info("rejecting application {} as default lender rejected the application", lendingApplication.getId());
             lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
+            lendingApplication.setRejectionReason(DEFAULT_LENDER_REJECTED);
+            lendingApplication.setRejectionStage(RejectionStage.APPLICATION_CREATION);
             lendingApplicationDao.save(lendingApplication);
             lendingApplicationServiceV2.evictCache(scopeDataArgs.getMerchant().getId());
             return new LendingStateDTO<>(null, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.LENDER_AGGREGATION);
@@ -109,6 +115,8 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
             lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
             lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name().toLowerCase());
             lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+            lendingApplication.setRejectionReason(MAX_LENDER_SELECTION_ATTEMPTS);
+            lendingApplication.setRejectionStage(RejectionStage.APPLICATION_CREATION);
             lendingApplicationDao.save(lendingApplication);
             lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
         }

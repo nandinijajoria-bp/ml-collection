@@ -1,7 +1,10 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import lombok.*;
+
+import java.util.Date;
 
 @Data
 @ToString
@@ -29,8 +32,11 @@ public class UpiAutopayStateDTO {
     private String displayMessage;
     private Boolean retrySuggested;
     private Integer pollingTime;
-    private boolean isUpiAutopayMandateEligible;
-    private boolean isEnachEligible;
     private boolean isCurrentLoanActive;
     private boolean isActiveApplicationAutoPaySetupFlow;
+    private Double dailyInstalmentAmount;
+    private Date mandateEndDate;
+    private Double maxMandateAmount;
+    private LendingViewStates autoPaySuccessNextState;
+
 }

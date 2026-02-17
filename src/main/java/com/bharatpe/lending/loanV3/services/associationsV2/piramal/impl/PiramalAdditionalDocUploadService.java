@@ -87,10 +87,8 @@ public class PiramalAdditionalDocUploadService {
                 lendingApplicationLenderDetails.setDocUploadStatus(Objects.isNull(lendingApplicationLenderDetails.getFailedUpload()) ?
                         LenderAssociationStatus.DOC_UPLOAD_PARTIAL.name() : LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
                 if (LenderAssociationStatus.DOC_UPLOAD_PARTIAL.name().equals(lendingApplicationLenderDetails.getDocUploadStatus())) {
-                    log.info("Updating lald for piramal applicationId: {}", applicationId);
-                    lendingApplicationLenderDetails.setStage(LenderAssociationStages.PENNY_DROP.name());
-                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.PUSH_AUDIT.name(), Boolean.TRUE);
+                    lendingApplicationLenderDetails.setStage(LenderAssociationStages.DRAWDOWN.name());
+                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.PUSH_AUDIT.name(), Boolean.FALSE);
                 }
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
             }

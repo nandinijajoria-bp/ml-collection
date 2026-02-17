@@ -46,6 +46,10 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.*;
 
+import com.bharatpe.common.enums.RejectionStage;
+
+import static com.bharatpe.lending.constant.RejectionReasons.BELOW_FORECLOURE_THRESHOLD_BRE_REJECTED;
+
 @Component
 @Slf4j
 public class BreRequestKafka {
@@ -150,7 +154,7 @@ public class BreRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP: RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.get().getLender()) ? RoundingMode.UP: RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
@@ -262,6 +266,9 @@ public class BreRequestKafka {
                     existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.TOPUP_ELIGIBLE_AND_FORECLOSURE_AMOUNT_BELOW_THRESHOLD.name());
                     existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                    lendingApplication.get().setRejectionStage(RejectionStage.BRE);
+                    lendingApplication.get().setRejectionReason(BELOW_FORECLOURE_THRESHOLD_BRE_REJECTED);
+                    lenderAssociationDetailsRequest.setLendingApplication(lendingApplication.get());
                     commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
                 }
                 return;

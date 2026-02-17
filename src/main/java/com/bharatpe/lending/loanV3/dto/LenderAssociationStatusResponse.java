@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
 
+import java.util.List;
+
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -25,7 +27,7 @@ public class LenderAssociationStatusResponse {
     Boolean isApplicableForAggregationFlowV2;
     Boolean isRoiDecreased = false;
     Long applicationId;
-
+    List<String> eligibleLenders;
     LenderAssociationStatusResponseMetadata metadata;
 
     @Data

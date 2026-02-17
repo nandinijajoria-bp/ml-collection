@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -21,6 +22,8 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+
+import static com.bharatpe.lending.constant.RejectionReasons.*;
 
 @Slf4j
 @Service
@@ -82,6 +85,8 @@ public class UgroBreService {
             if (ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails()) || ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadId())) {
                 log.error("UGRO: LALD/LeadId is not present for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.POST_CONSENT_DOWNGRADE_FAILED.name());
+                lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionReason(LEAD_NOT_PRESENT);
+                lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionStage(RejectionStage.UPDATE_LEAD);
                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
                 return false;
             }
@@ -90,6 +95,8 @@ public class UgroBreService {
             if (ObjectUtils.isEmpty(counterOfferNbfcRequest)) {
                 log.info("UGRO: counterOffer payload is empty for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.POST_CONSENT_DOWNGRADE_FAILED.name());
+                lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionReason(EMPTY_COUNTER_OFFER);
+                lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionStage(RejectionStage.UPDATE_LEAD);
                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
                 return false;
             }
@@ -108,6 +115,8 @@ public class UgroBreService {
             log.error("UGRO: error while invoking counterOffer for  {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.POST_CONSENT_DOWNGRADE_FAILED.name());
+        lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionReason(UPDATE_LEAD_FAILED);
+        lenderAssociationDetailsRequestDto.getLendingApplication().setRejectionStage(RejectionStage.UPDATE_LEAD);
         commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
         return false;
     }

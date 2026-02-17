@@ -158,7 +158,7 @@ public class KycRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
@@ -415,7 +415,7 @@ public class KycRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));

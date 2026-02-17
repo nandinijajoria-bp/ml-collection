@@ -1,10 +1,16 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
+import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProxyHelper;
 import com.bharatpe.lending.service.BPEnachService;
 import com.bharatpe.lending.service.ENachService;
@@ -19,7 +25,11 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
+
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.DISBURSED_LOAN;
 
 @RestController
 @RequestMapping("bpenach")
@@ -38,6 +48,12 @@ public class BPEnachController {
 
     @Autowired
     EnachHandler enachHandler;
+
+    @Autowired
+    private LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    private LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @Autowired
     @Qualifier("nachInitiateProxy")
@@ -71,12 +87,14 @@ public class BPEnachController {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
             } else {
-                if(nachInitiateProxy.isNotEdiRequest(params, merchant, headers, null)){
+                LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(
+                        merchant.getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
+                if(Objects.isNull(activeLoan) && nachInitiateProxy.isNotEdiRequest(params, merchant, headers, null)){
                     logger.info("sending initiate request to bl for merchant: {}",merchant.getId());
                     return new ResponseEntity<>(nachInitiateProxy.getResponse(params, merchant, headers, null), HttpStatus.OK);
                 }
                 finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, token,
-                    appVersion, module, amount, type, referenceNumber, ownerId, clientName, nachMode),
+                    appVersion, module, amount, type, referenceNumber, ownerId, clientName, nachMode, activeLoan),
                     HttpStatus.OK);
             }
         } catch (Exception e) {
@@ -97,7 +115,9 @@ public class BPEnachController {
 
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse = null;
 
-        if(nachSubmitProxy.isNotEdiRequest(null, merchant, headers, body)){
+        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(body.getApplicationId(), merchant.getId());
+        boolean isActiveLoan = Objects.nonNull(lendingApplication) && DISBURSED_LOAN.equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus());
+        if(!isActiveLoan && nachSubmitProxy.isNotEdiRequest(null, merchant, headers, body)){
             logger.info("sending enach submit request to bl for merchant: {}", merchant.getId());
             return new ResponseEntity<>(nachSubmitProxy.getResponse(null, merchant, headers, body), HttpStatus.OK);
         }
@@ -117,7 +137,7 @@ public class BPEnachController {
         } else {
             finalResponse = new ResponseEntity<>(bpEnachService.submitEnach(merchant, body, token), HttpStatus.OK);
         }
-
+        logger.info("Enach submit response for merchant: {} is: {}", merchant.getId(),finalResponse.getBody());
         return finalResponse;
     }
 //

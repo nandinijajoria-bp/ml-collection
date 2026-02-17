@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.query.dao.LendingApplicationLenderDetailsDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationLenderDetailsSlave;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingGstDao;
@@ -44,6 +45,9 @@ import javax.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_CATEGORY;
+import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_SUB_CATEGORY;
 
 @Slf4j
 @Service
@@ -183,6 +187,16 @@ public class PayULeadService {
 
             lenderAssociationDetailsRequestDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsRequestDto.getMerchantId()));
             NBFCRequestDTO updateLeadRequestDto = getUpdateLeadPayload(lenderAssociationDetailsRequestDto);
+
+            PayUUpdateLeadRequestDTO payload = (PayUUpdateLeadRequestDTO) updateLeadRequestDto.getPayload();
+            List<PayUUpdateLeadRequestDTO.CompanyDetailsDTO> companyDetailsList = payload.getCompanyDetails();
+            if (!ObjectUtils.isEmpty(companyDetailsList)) {
+                updateCategoryAndSubCategoryInMetaData(
+                        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(),
+                        companyDetailsList.get(0)
+                );
+            }
+
             if (Objects.isNull(updateLeadRequestDto)) {
                 log.info("error in update lead payload of PayU for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.UPDATE_LEAD_FAILED.name());
@@ -307,7 +321,7 @@ public class PayULeadService {
                     address1 = address;
                 } else {
                     address1 = address.substring(0, 40);
-                    address2 = address.substring(40, addressSize);
+                    address2 = address.substring(40, Math.min(addressSize, 190));
                 }
 
                 currentAddress = PayUUpdateLeadRequestDTO.AddressDTO.builder()
@@ -371,7 +385,6 @@ public class PayULeadService {
         PayUUpdateLeadRequestDTO.BankDetailsDTO clientIdentifierPan = PayUUpdateLeadRequestDTO.BankDetailsDTO.builder()
                 .id(null)
                 .accountTypeId("CURRENT".equalsIgnoreCase(merchantDetailsDto.getBankDetail().getAccountType()) ? "CURRENT" : "SAVINGS")
-                .bankAccountName(merchantDetailsDto.getBankDetail().getBeneficiaryName())
                 .accountNumber(merchantDetailsDto.getBankDetail().getAccountNumber())
                 .bankName(merchantDetailsDto.getBankDetail().getBankName())
                 .ifscCode(merchantDetailsDto.getBankDetail().getIfsc())
@@ -405,6 +418,22 @@ public class PayULeadService {
 
         lendingGstDao.save(lendingGstDetail);
 
+        //Fetching business category and sub-category
+        Map<String, String> currentBusinessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategoryByApplicationId(lenderAssociationDetailsRequestDto.getLendingApplication().getId());
+        String businessCategory = currentBusinessCategoryAndSubCategoryMap.getOrDefault("businessCategory", null);
+        String businessSubCategory = currentBusinessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", null);
+        log.info("Business Category and SubCategory from Risk Variable Snapshot for application Id - {} and riskSegment - {}  is - {}, {}",lenderAssociationDetailsRequestDto.getApplicationId(),
+                lendingRiskVariablesSnapshot.getRiskSegment() ,businessCategory, businessSubCategory);
+        if (ObjectUtils.isEmpty(businessCategory)) { // Fallback to onboarding category if not present
+            Optional<BasicDetailsDto> merchantDetailsOptional = merchantService.fetchMerchantBasicDetails(lenderAssociationDetailsRequestDto.getLendingApplication().getMerchantId());
+            if (merchantDetailsOptional.isPresent()) {
+                businessCategory = merchantDetailsOptional.get().getBussinessCategory();
+                businessSubCategory = merchantDetailsOptional.get().getSubCategory();
+            }
+        }
+        log.info("Final Business Category and SubCategory for application Id - {} is - {}, {}",lenderAssociationDetailsRequestDto.getApplicationId(),
+                businessCategory, businessSubCategory);
+
         List<PayUUpdateLeadRequestDTO.CompanyDetailsDTO> applicantDataList = new ArrayList<>();
         PayUUpdateLeadRequestDTO.CompanyDetailsDTO companyDetails = PayUUpdateLeadRequestDTO.CompanyDetailsDTO.builder()
                 .companyName(lenderAssociationDetailsRequestDto.getLendingApplication().getBusinessName())
@@ -414,6 +443,8 @@ public class PayULeadService {
                 .address(getAddress(lenderAssociationDetailsRequestDto,"company_address"))
                 .partnerVintage(getPartnerVintageDate(lendingRiskVariablesSnapshot.getVintage()))
                 .gst(ObjectUtils.isEmpty(cKycResponseDto.getGstNumber()) ? null : cKycResponseDto.getGstNumber())
+                .category(ObjectUtils.isEmpty(businessCategory) ? "Regular_ETC" : businessCategory)
+                .subCategory(ObjectUtils.isEmpty(businessSubCategory) ? "Others" : businessSubCategory)
                 .build();
         applicantDataList.add(companyDetails);
         return applicantDataList;
@@ -519,5 +550,12 @@ public class PayULeadService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         return dateBeforePartnerVintageDaysCount.format(formatter);
+    }
+
+    private void updateCategoryAndSubCategoryInMetaData(LendingApplicationLenderDetails lenderDetails, PayUUpdateLeadRequestDTO.CompanyDetailsDTO companyDetails) {
+        Map<String, Object> metaData = Optional.ofNullable(lenderDetails.getMetaData()).orElse(new HashMap<>());
+        metaData.put(MERCHANT_CATEGORY, companyDetails.getCategory());
+        metaData.put(MERCHANT_SUB_CATEGORY, companyDetails.getSubCategory());
+        lenderDetails.setMetaData(metaData);
     }
 }

@@ -75,7 +75,6 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -1229,7 +1228,7 @@ public class LoanDetailsService {
 
 				Optional<Map<String, Object>> mediaOpt = getCreditScoreVideoMedia(String.valueOf(merchantBasicDetails.getId()));
 				if (mediaOpt.isPresent()) {
-					responseDTO.setMedia(mediaOpt.get());
+					creditScoreResponseDto.setMedia(mediaOpt.get());
 					logger.info("Valid Credit Score media found for merchant id: {}", merchantBasicDetails.getId());
 				} else {
 					logger.info("No valid Credit Score media found for merchant id: {}", merchantBasicDetails.getId());
@@ -1326,10 +1325,10 @@ public class LoanDetailsService {
 			if (creditScoreRequestDto.isBureauPull()) {
 				logger.info("pulling fresh bureau for merchantId : {} mobile : {}",merchantBasicDetails.getId(),merchantBasicDetails.getMobile());
 				bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
-						bureauScorePullDays, LendingConstants.LENDING_SOURCE,true);
+						bureauScorePullDays, LendingConstants.LENDING_SOURCE,true,true);
 			} else {
 				bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
-						bureauScorePullDays, LendingConstants.LENDING_SOURCE,false);
+						bureauScorePullDays, LendingConstants.LENDING_SOURCE,false,true);
 			}
 			if (!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) && !ObjectUtils.isEmpty(bureauResponseDTO.getVariables().getBureauScore())) {
 				creditScoreResponseDto.setScore(bureauResponseDTO.getVariables().getBureauScore());
@@ -1448,11 +1447,15 @@ public class LoanDetailsService {
 			CreditScoreVideo validVideo = validVideoOpt.get();
 			Map<String, Object> media = new HashMap<>();
 			Map<String, Object> video = new HashMap<>();
-			video.put("video_link", validVideo.getVideoLink());
+			video.put("video_link", validVideo.getVideoUrl());
 			video.put("category", validVideo.getCategory());
-			video.put("valid", validVideo.getIsValid());
-			video.put("valid_till", validVideo.getValidTill());
-			video.put("date_of_video_generation", validVideo.getVideoGeneratedDate());
+			video.put("status", validVideo.getStatus());
+			video.put("video_id", validVideo.getVideoId());
+			video.put("template_id", validVideo.getTemplateId());
+			video.put("order_id", validVideo.getOrderId());
+			video.put("valid", creditScoreVideoService.isVideoValid(validVideo));
+			video.put("created_at", validVideo.getCreatedAt());
+			video.put("updated_at", validVideo.getUpdatedAt());
 			video.put("message", "Valid video found");
 			media.put("video", video);
 			logger.info("Valid CreditScoreVideo found for merchantId: {}", merchantId);

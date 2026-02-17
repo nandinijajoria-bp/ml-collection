@@ -16,12 +16,13 @@ import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Objects;
 
 @Component
@@ -84,8 +85,7 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
             }
 
-            boolean showShopDetails = (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && loanUtil.showShopDetailsOnBankDisbursementPage(
-                    scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId(), lendingApplication, new HashMap<>()));
+            boolean showShopDetails = (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) &&  BooleanUtils.isTrue(MapUtils.getBoolean(lendingApplicationDetails.getMetaData(), "skipShopDetails")));
 
             referenceStateDTO.setIsAadhaarAddressVerified(showShopDetails || !ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
             referenceStateDTO.setLoanPurpose(!showShopDetails && lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
@@ -95,10 +95,13 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 referenceStateDTO.setMobile(scopeDataArgs.getMerchant().getMobile());
             }
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
-
+            Integer appVersion = null;
+            if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request())){
+                appVersion = scopeDataArgs.getLoanDetailsV3Request().getAppVersion();
+            }
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-                nextLendingViewState = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication,
-                        Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isIOS());
+                nextLendingViewState = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication
+                );
             }
 
         } catch (Exception e) {

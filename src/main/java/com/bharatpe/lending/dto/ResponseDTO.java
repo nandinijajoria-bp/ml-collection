@@ -23,8 +23,6 @@ public class ResponseDTO {
 
     private Object data;
 
-    private Object media; // <-- Added media field
-
     private List<String> maskedMobiles;
 
     private String mobile;
@@ -92,14 +90,6 @@ public class ResponseDTO {
         this.data = data;
     }
 
-    public Object getMedia() {  // <-- Getter for media
-        return media;
-    }
-
-    public void setMedia(Object media) {  // <-- Setter for media
-        this.media = media;
-    }
-
     public boolean isCrif() {
         return crif;
     }
@@ -115,7 +105,6 @@ public class ResponseDTO {
                 ", uuid='" + uuid + '\'' +
                 ", message='" + message + '\'' +
                 ", data=" + data +
-                ", media=" + media +
                 ", maskedMobiles=" + maskedMobiles +
                 ", mobile='" + mobile + '\'' +
                 '}';

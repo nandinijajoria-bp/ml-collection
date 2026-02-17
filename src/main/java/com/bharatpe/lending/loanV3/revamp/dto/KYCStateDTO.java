@@ -3,6 +3,8 @@ package com.bharatpe.lending.loanV3.revamp.dto;
 import com.bharatpe.lending.enums.KycStatus;
 import lombok.*;
 
+import java.util.List;
+
 @Data
 @ToString
 @Builder
@@ -24,4 +26,6 @@ public class KYCStateDTO {
     private String kycRanking;
     private String kycRankingStatus;
     private boolean skipKycEligible;
+    private String prevLender;
+    private List<String> eligibleLenders;
 }

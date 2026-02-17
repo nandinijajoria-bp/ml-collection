@@ -24,4 +24,5 @@ public class UgroNachMandateRequest {
     private String nachVendor;
     private String vendorRequestId;
     private String status;
+    private String mandateID;
 }

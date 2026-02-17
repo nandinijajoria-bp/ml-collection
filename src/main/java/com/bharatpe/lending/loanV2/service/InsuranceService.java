@@ -3,14 +3,17 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingConsentDao;
 import com.bharatpe.lending.common.dao.LendingLoanInsuranceDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingConsent;
 import com.bharatpe.lending.common.entity.LendingLoanInsurance;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingApplicationLenderDetailsDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.FunnelService;
@@ -26,18 +29,26 @@ import com.bharatpe.lending.loanV2.dto.UpdateInsuranceDetailsResponseDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
+import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.PayUInsuranceService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 import static com.bharatpe.lending.constant.InsuranceConstant.*;
@@ -87,6 +98,12 @@ public class InsuranceService {
     @Autowired
     S3BucketHandler s3BucketHandler;
 
+    @Autowired
+    PayUInsuranceService payUInsuranceService;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     @Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
@@ -115,8 +132,8 @@ public class InsuranceService {
 
     public LoanInsuranceDTO fetchLenderInsurancePremiumDetails(LendingApplication lendingApplication) {
         LoanInsuranceDTO loanInsurance = new LoanInsuranceDTO();
+        log.info("fetch insurance premium details for application {}, loan type {}", lendingApplication.getId(), lendingApplication.getLoanType());
         try {
-            if (!topupLoans.contains(lendingApplication.getLoanType())) {
                 List<LoanInsuranceDTO.InsuranceDetails> previousInsuredDetails = fetchPreviousInsuredDetails(lendingApplication);
                 if (!ObjectUtils.isEmpty(previousInsuredDetails)) {
                     log.info("Merchant: {} is insured before for the application id: {} and insurance: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), previousInsuredDetails);
@@ -125,7 +142,13 @@ public class InsuranceService {
                     return loanInsurance;
                 }
                 LoanInsuranceDTO insuranceDetails = associationServiceUtil.fetchInsurancePremiums(lendingApplication);
-                if(!ObjectUtils.isEmpty(insuranceDetails) && !ObjectUtils.isEmpty(insuranceDetails.getInsurances())) {
+                LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                        lendingApplicationLenderDetailsDao.findApplicationIdByBreStatus(lendingApplication.getId(), lendingApplication.getLender());
+                if(!ObjectUtils.isEmpty((lendingApplicationLenderDetails))){
+                    log.info("Accept offer api already called for application {}", lendingApplicationLenderDetails.getApplicationId());
+                }
+
+                if(ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(insuranceDetails) && !ObjectUtils.isEmpty(insuranceDetails.getInsurances())) {
                     Double insurancePremium = insuranceDetails.getInsurances().get(0).getInsurancePremium();
                     if(baseChecksFailed(lendingApplication, insurancePremium)) {
                         log.info("base checks failed for insurance for application {}", lendingApplication.getId());
@@ -134,7 +157,6 @@ public class InsuranceService {
                     updateApplicationInsuranceEligibilityFlag(lendingApplication, true);
                     return insuranceDetails;
                 }
-            }
         } catch (Exception e) {
             log.info("Exception in fetching insurance premium details for {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
         }
@@ -290,6 +312,11 @@ public class InsuranceService {
         LendingLoanInsurance lendingLoanInsurance = getInsuranceDetails(lendingApplication.getId(), lendingApplication.getLender(), SELECTED);
 
         if (!ObjectUtils.isEmpty(lendingConsent)) {
+            if (!ObjectUtils.isEmpty(lendingLoanInsurance) && Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                // save insurance documents after disbursal
+                String contentUrl = payUInsuranceService.invokeInsuranceDocument(lendingApplication);
+                downloadInsuranceDocDetails(contentUrl, new Date(), new Date(), lendingApplication.getId(), lendingApplication.getLender(), lendingLoanInsurance);
+            }
             FunnelEnums.StageEvent event = lendingConsent.getIsAccepted() && !ObjectUtils.isEmpty(lendingLoanInsurance) ?
                     FunnelEnums.StageEvent.ACCEPT : FunnelEnums.StageEvent.REJECT;
             log.info("Insurance is: {} for merchant: {}", event.name(), lendingApplication.getMerchantId());
@@ -301,6 +328,21 @@ public class InsuranceService {
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString());
         }
+    }
+
+    public ResponseEntity<ApiResponse<?>> publishLoanInsuranceEventForPayU(Long applicationId) {
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+
+        LendingLoanInsurance lendingLoanInsurance = getInsuranceDetails(lendingApplication.get().getId(), lendingApplication.get().getLender(), SELECTED);
+
+        if (!ObjectUtils.isEmpty(lendingLoanInsurance) && Lender.PAYU.name().equalsIgnoreCase(lendingApplication.get().getLender())) {
+            log.info("fetching insurance doc for applicationId: {}", applicationId);
+            // save insurance documents after disbursal
+            String contentUrl = payUInsuranceService.invokeInsuranceDocument(lendingApplication.get());
+            downloadInsuranceDocDetails(contentUrl, new Date(), new Date(), lendingApplication.get().getId(), lendingApplication.get().getLender(), lendingLoanInsurance);
+        }
+
+        return ResponseEntity.ok(new ApiResponse<>(true, "Insurance document processed successfully")); // 200 OK
     }
 
     public void saveInsuranceDocDetails(String base64Image, Date commencementDate, Date maturityDate, Long applicationId, String lender) {
@@ -329,6 +371,58 @@ public class InsuranceService {
         }
     }
 
+    public void downloadInsuranceDocDetails(String imageUrl, Date commencementDate, Date maturityDate, Long applicationId, String lender, LendingLoanInsurance loanInsurance) {
+        try {
+            if (ObjectUtils.isEmpty(imageUrl)) {
+                log.warn("No insurance document URL found from lender {} for application Id: {}", lender, applicationId);
+                return;
+            }
+
+            if (ObjectUtils.isEmpty(loanInsurance)) {
+                log.info("No insurance details found with lender {} for application Id: {}", lender, applicationId);
+                return;
+            }
+            String fileName = INSURANCE_POLICY_DOC_PREFIX + applicationId;
+
+            // Download the file from the provided URL
+            InputStream inputStream = downloadFileFromUrl(imageUrl);
+
+            // Upload the file to S3
+            s3BucketHandler.uploadToS3PdfBucket(inputStream, fileName, bucket);
+            String docUrl = s3BucketHandler.getPreSignedPublicURL(fileName, bucket);
+            String docShortUrl = apiGatewayService.getShortUrl(docUrl);
+
+            // Calculate maturityDate
+            LocalDate commencementLocalDate = commencementDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate maturityLocalDate = commencementLocalDate.plusMonths(loanInsurance.getPolicyTermsInMonths());
+            maturityDate = Date.from(maturityLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+            loanInsurance.setPolicyDocFile(fileName);
+            loanInsurance.setPolicyDocUrl(docShortUrl);
+            loanInsurance.setCommencementDate(commencementDate);
+            loanInsurance.setMaturityDate(maturityDate);
+            lendingLoanInsuranceDao.save(loanInsurance);
+        } catch (Exception e) {
+            log.error("Exception in saving {} insurance doc details for applicationId {} {}", lender, applicationId, Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    private InputStream downloadFileFromUrl(String fileUrl) throws IOException {
+        URL url = new URL(fileUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod(HttpMethod.GET.name());
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(5000);
+
+        if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            log.info("Successfully downloaded file from URL: {}", fileUrl);
+            return connection.getInputStream();
+        } else {
+            log.error("Failed to download file from URL: {} with response code: {}", fileUrl, connection.getResponseCode());
+            throw new IOException("Failed to download file from URL: " + fileUrl + " with response code: " + connection.getResponseCode());
+        }
+    }
+
     public LendingLoanInsurance getInsuranceDetails(Long applicationId, String lender, String status) {
         LendingLoanInsurance lendingLoanInsurance = lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(applicationId, lender, status);
         return lendingLoanInsurance;
@@ -349,14 +443,42 @@ public class InsuranceService {
                         .insuranceAvailedDate(lendingLoanInsurance.getCommencementDate())
                         .insuranceApplicable(true)
                         .insuranceDocument(policyDocUrl)
-                        .benefitsOfTheInsurance(insuranceConfig.careBenefits)
-                        .insurancePartnerContactDetails(insuranceConfig.insuranceContactDetails)
+                        .benefitsOfTheInsurance(getInsuranceBenefits(application.getLender()))
+                        .insurancePartnerContactDetails(getInsurancePartnerContactDetails(application.getLender()))
                         .build();
             }
         } catch (Exception e) {
             log.error("Exception in fetching insurance details for application {} {}", application.getId(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private String getInsuranceBenefits(String lender) {
+        switch (Lender.valueOf(lender.toUpperCase())) {
+            case PIRAMAL:
+                return insuranceConfig.piramalBenefits;
+            case PAYU:
+                return insuranceConfig.payUBenefits;
+            case MUTHOOT:
+                return insuranceConfig.muthootBenefits;
+            // Add more cases as needed
+            default:
+                return null;
+        }
+    }
+
+    private Map<String, String> getInsurancePartnerContactDetails(String lender) {
+        switch (Lender.valueOf(lender.toUpperCase())) {
+            case PIRAMAL:
+                return insuranceConfig.piramalInsuranceContactDetails;
+            case PAYU:
+                return insuranceConfig.payUInsuranceContactDetails;
+            case MUTHOOT:
+                return insuranceConfig.muthootInsuranceContactDetails;
+            // Add more cases as needed
+            default:
+                return null;
+        }
     }
 
 

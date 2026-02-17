@@ -165,4 +165,53 @@ public class PaymentController {
         paymentService.shiftFromPDP(requestDTO);
         return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
     }
+
+    @RequestMapping(value = "/autopay/present", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> presentAmountOnDemand(@RequestParam Long loanId) {
+        logger.info("initiating Autopay presentment for loan id: {}", loanId);
+        paymentService.initiateOnDemandPresentment(loanId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/autopay/migrate", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> migrateAutopay(@RequestParam Long loanId) {
+        logger.info("Autopay migartion for loan id: {}", loanId);
+        paymentService.migrateAutopayMandate(loanId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/nach/present", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> presentNachAmountOnDemand(@RequestParam Long loanId) {
+        logger.info("Initiating NACH presentment for loan id: {}", loanId);
+        paymentService.initiateOnDemandNachPresentment(loanId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/lien/add", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> addLien(@RequestParam Long loanId) {
+        logger.info("Adding lien for loan id: {}", loanId);
+        paymentService.addLien(loanId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/lien/remove", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> removeLien(@RequestParam Long loanId) {
+        logger.info("Removing lien for loan id: {}", loanId);
+        paymentService.removeLien(loanId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/dpd/notify/add", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> addDpdBanner(@RequestParam Long merchantId, @RequestParam Long loanId) {
+        logger.info("Adding DPD banner for merchant id: {}", merchantId);
+        paymentService.notifyViaAppBottomSheet(loanId, merchantId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/dpd/notify/remove", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> removeDpdBanner(@RequestParam Long merchantId, @RequestParam Long loanId) {
+        logger.info("removeDpdBanner DPD banner for merchant id: {}", merchantId);
+        paymentService.removeAppBottomSheet(loanId, merchantId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
 }

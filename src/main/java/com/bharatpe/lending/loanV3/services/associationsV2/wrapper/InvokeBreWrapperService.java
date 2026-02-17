@@ -12,7 +12,6 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
-import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.util.EdiUtil;
@@ -168,7 +167,7 @@ public class InvokeBreWrapperService {
         lendingApplicationLenderDetails.setStatus(recordStatus);
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
-        df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
+        df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
         if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             df = new DecimalFormat("#.######");
         }

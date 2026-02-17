@@ -20,4 +20,7 @@ public interface NachMandateEligibilityConfigDao extends JpaRepository<NachManda
             "and status = 1 order by id")
     List<NachMandateEligibilityConfig> findNachMandateEligibilityConfigByLender(String lender);
 
+    @Query(nativeQuery = true, value = "select * from nach_mandate_eligibility_config where lender=:lender and loan_segment = :loanSegment and status = :status")
+    NachMandateEligibilityConfig findByLenderAndLoanSegmentAndStatus(String lender, String loanSegment, Boolean status);
+
 }

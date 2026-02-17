@@ -111,7 +111,7 @@ public class NachBounceChargesService {
         String rolloutDate = getLenderNachBounceRollOutDate(lender);
         log.info("Rollout date for lender {} is {}", lender, rolloutDate);
         if(rolloutDate == null) return null;
-        return DateTimeUtil.parseDate(getLenderNachBounceRollOutDate(lender), "yyyy-MM-dd hh:mm:ss");
+        return DateTimeUtil.parseDate(getLenderNachBounceRollOutDate(lender), "yyyy-MM-dd HH:mm:ss");
     }
 
     public String getLenderNachBounceRollOutDate(String lender) {

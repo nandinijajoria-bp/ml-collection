@@ -34,8 +34,7 @@ import static com.bharatpe.lending.common.enums.LenderAssociationStatus.LEAD_CRE
 import static com.bharatpe.lending.common.enums.LenderAssociationStatus.RISK_FAILED;
 import static com.bharatpe.lending.common.enums.Status.ACTIVE;
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.WorkflowName.CREATE_LEAD_WORKFLOW;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.LeadStatus.CREATE_LEAD;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.LeadStatus.KYC;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.LeadStatus.*;
 
 @Service
 @Slf4j
@@ -139,13 +138,13 @@ public class CreateLeadWorkflow implements Workflow {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
         lendingApplicationLenderDetails.setApplicationId(lendingApplication.getId());
         lendingApplicationLenderDetails.setLender(lendingApplication.getLender());
-        lendingApplicationLenderDetails.setStage(KYC.name());
+        lendingApplicationLenderDetails.setStage(getStageByLender(lendingApplication.getLender()));
         lendingApplicationLenderDetails.setStatus(ACTIVE.name());
         lendingApplicationLenderDetails.setLeadStatus(CREATE_LEAD.name());
         lendingApplicationLenderDetails.setLeadSubStatus(LeadSubStatus.PENDING);
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
-        df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
+        df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
         if (com.bharatpe.lending.enums.Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             df = new DecimalFormat("#.######");
         }
@@ -157,6 +156,14 @@ public class CreateLeadWorkflow implements Workflow {
         lendingApplicationLenderDetails.setRearchFlow(true);
         log.info("Creating LendingApplicationLenderDetails for applicationId: {}", lendingApplication.getId());
         return lendingApplicationLenderDetailsService.save(lendingApplicationLenderDetails);
+    }
+
+    private String getStageByLender(String lender) {
+        if(Lender.CREDITSAISON.name().equalsIgnoreCase(lender)) {
+            return BRE.name();
+        }
+
+        return KYC.name();
     }
 
     private LenderBaseRequest<CreateLeadRequest> getCreateLeadRequest(LendingApplication lendingApplication) {

@@ -2,6 +2,8 @@ package com.bharatpe.lending.loanV3.revamp.dto;
 
 import lombok.*;
 
+import java.util.List;
+
 @Data
 @ToString
 @Builder
@@ -16,4 +18,6 @@ public class ShopPicturesStateDTO {
     private Boolean lenderAssc;
     private Long merchantId;
     private boolean skipKycEligible;
+    private String prevLender;
+    private List<String> eligibleLenders;
 }

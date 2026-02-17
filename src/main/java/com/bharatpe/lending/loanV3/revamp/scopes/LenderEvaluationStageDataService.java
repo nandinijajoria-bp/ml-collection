@@ -29,6 +29,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.Arrays;
 import java.util.Objects;
 
+
 @Component
 @Slf4j
 public class LenderEvaluationStageDataService implements IStageDataService<LenderEvaluationStateDTO>{
@@ -130,15 +131,19 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     } else if (LenderAssociationStatus.RE_KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                        LendingViewStates nextLendingViewStateForTopup = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication,
-                                Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isIOS());
+                        Integer appVersion = null;
+                        if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request())){
+                            appVersion = scopeDataArgs.getLoanDetailsV3Request().getAppVersion();
+                        }
+                        LendingViewStates nextLendingViewStateForTopup = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication
+                        );
                         log.info("Next lending view state for topup application {} is {}", lendingApplication.getId(), nextLendingViewStateForTopup);
 
                         nextPage = referencePageDisabledForTopup ?  nextLendingViewStateForTopup : LendingViewStates.REFERENCE_PAGE;
                         if(nextPage.equals(LendingViewStates.REFERENCE_PAGE) && loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
                             log.info("Skipping reference page as reference not required for topup application {}", lendingApplication.getId());
-                            nextPage = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication,
-                                    Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request()) && scopeDataArgs.getLoanDetailsV3Request().isIOS());
+                            nextPage = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication
+                            );
                         }
                     }
                 }

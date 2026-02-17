@@ -21,6 +21,8 @@ import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -69,8 +71,8 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         LoanInsuranceDTO insuranceDetails = insuranceService.fetchLenderInsurancePremiumDetails(lendingApplication);
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
-        Map<String, Object> shopDetailsData = new HashMap<>();
-        boolean showShopDetails = showShopDetails(scopeDataArgs.getLoanDetailsV3Request().getVersion(), lendingApplication, scopeDataArgs.getToken(), shopDetailsData);
+//        Map<String, Object> shopDetailsData = new HashMap<>();
+        boolean showShopDetails = showShopDetails(scopeDataArgs.getLoanDetailsV3Request().getVersion(), lendingApplicationDetails);
         AgreementStateDTO agreementResponseV3 = AgreementStateDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender(lendingApplication.getLender())
@@ -88,9 +90,9 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                         .interest(lendingApplication.getRepayment() - lendingApplication.getLoanAmount())
                         .total(lendingApplication.getRepayment())
                         .build())
-                .businessName(showShopDetails ? (String) shopDetailsData.get("businessName") : null)
+                .businessName(showShopDetails ? lendingApplication.getBusinessName() : null)
                 .addressDetails(showShopDetails
-                        ? (AddressDetails) shopDetailsData.get("address")
+                        ? loanUtil.merchantAddress(lendingApplication)
                         : null)
                 .accountDetails(loanUtil.getAccountDetails(lendingApplication.getMerchantId()))
                 .enachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId()))
@@ -115,9 +117,9 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.KEY_FACTOR_STATEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
     }
 
-    private boolean showShopDetails(String version, LendingApplication lendingApplication, String token, Map<String, Object> shopDetailsData) {
+    private boolean showShopDetails(String version, LendingApplicationDetails lendingApplicationDetails) {
         return "v2".equalsIgnoreCase(version) &&
-                loanUtil.showShopDetailsOnBankDisbursementPage(token, lendingApplication.getMerchantId(), lendingApplication, shopDetailsData);
+                BooleanUtils.isTrue(MapUtils.getBoolean(lendingApplicationDetails.getMetaData(), "skipShopDetails"));
     }
 
 }

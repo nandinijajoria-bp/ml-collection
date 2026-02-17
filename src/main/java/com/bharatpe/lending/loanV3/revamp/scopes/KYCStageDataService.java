@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
@@ -20,6 +21,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.KycConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.KycDocResponseDTO;
 import com.bharatpe.lending.enums.*;
@@ -114,6 +116,9 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
     @Autowired
     LoanUtil loanUtil;
 
+    @Autowired
+    LendingAuditTrialDao lendingAuditTrialDao;
+
     @Value("${enable.p2pm.flag:false}")
     boolean p2pmEnabled;
 
@@ -184,12 +189,31 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     log.info("Lender change flow for applicationId: {}, merchantId: {}", lendingApplication.getId(), scopeDataArgs.getMerchant().getId());
                         // Fix: Only redirect to OFFER_EVALUATION_PAGE if we're not already on KYC_PAGE
                         // This prevents the infinite loop between offer_evaluation and kyc_page
-                        if (!LendingViewStates.KYC_PAGE.name().equals(lendingApplicationDetails.getApplicationViewState())) {
-                            log.info("Redirecting to OFFER_EVALUATION_PAGE for lender change flow, current state: {}", lendingApplicationDetails.getApplicationViewState());
-                            return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
-                        } else {
-                            log.info("Already on KYC_PAGE, continuing with KYC flow to prevent loop, current state: {}", lendingApplicationDetails.getApplicationViewState());
-                        }
+                    List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), "INACTIVE");
+                    LendingAuditTrial lendingAuditTrial= lendingAuditTrialDao.findTopByApplicationIdAndMerchantIdAndLoanAmountAndTenureAndTypeOrderByIdDesc(lendingApplication.getId(),
+                            scopeDataArgs.getMerchant().getId(), lendingApplication.getLoanAmount(), lendingApplication.getTenureInMonths(), "ELIGIBLE_LENDERS");
+
+                    List<String> eligibleLendersList = new ArrayList<>();
+                    if(lendingAuditTrial != null && lendingAuditTrial.getRemarks() != null){
+                        String[] eligibleLendersArray = lendingAuditTrial.getRemarks().split(",");
+                        eligibleLendersList = new ArrayList<>(Arrays.asList(eligibleLendersArray));
+                        eligibleLendersList.removeAll(alreadyAssignedLender);
+                        log.info("Eligible lenders list from audit trial for applicationId {} is {}", lendingApplication.getId(), eligibleLendersList);
+                    }
+
+                    if (eligibleLendersList.isEmpty())
+                    {   log.info("alreadyAssignedLender: {}, lendingAuditTrial: {} for merchantId: {}", alreadyAssignedLender, lendingAuditTrial, scopeDataArgs.getMerchant().getId());
+                        handleMaxLenderAttemptsReached(lendingApplication, scopeDataArgs.getMerchant().getId().toString());
+                    }
+
+                    initiateKycResponse.setPrevLender(getPrevLender(lendingApplication));
+                    initiateKycResponse.setEligibleLenders(eligibleLendersList != null ? eligibleLendersList : Collections.emptyList());
+                    if (!LendingViewStates.KYC_PAGE.name().equals(lendingApplicationDetails.getApplicationViewState())) {
+                        log.info("Redirecting to OFFER_EVALUATION_PAGE for lender change flow, current state: {}", lendingApplicationDetails.getApplicationViewState());
+                        return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.OFFER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
+                    } else {
+                        log.info("Already on KYC_PAGE, continuing with KYC flow to prevent loop, current state: {}", lendingApplicationDetails.getApplicationViewState());
+                    }
                 }
                 else
                 {
@@ -476,6 +500,26 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             }
         }
         return "PAN_NO,SELFIE,POA";
+    }
+    private void handleMaxLenderAttemptsReached(LendingApplication lendingApplication, String merchantId) {
+        log.info("Max lender attempts reached for merchant: {}", merchantId);
+        lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setRejectionReason("Max lender selection attempts reached");
+        lendingApplication.setManualKyc(ApplicationStatus.REJECTED.name().toLowerCase());
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+        lendingApplicationDao.save(lendingApplication);
+    }
+
+    private String getPrevLender(LendingApplication lendingApplication) {
+        try {
+            LendingApplicationLenderDetails prevLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.INACTIVE.name());
+            if (!ObjectUtils.isEmpty(prevLenderDetails)) {
+                return prevLenderDetails.getLender();
+            }
+        } catch (Exception e) {
+            log.info("Exception in checking lender kyc required check for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
     }
 }
 

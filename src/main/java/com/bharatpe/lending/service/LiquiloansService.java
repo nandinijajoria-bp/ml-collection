@@ -705,7 +705,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 
-                if (lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name())) {
+                if (Arrays.asList(Lender.PIRAMAL.name(), Lender.PAYU.name()).contains(lendingApplication.getLender())) {
                     insuranceService.publishLoanInsuranceEvent(lendingApplication, loanDashboardApiVersion);
                 }
 
@@ -1734,7 +1734,7 @@ public class LiquiloansService {
                     }
 
                     if (Lender.PIRAMAL.name().equalsIgnoreCase(paymentSchedule.getNbfc())
-                            && ! ediUtil.isRoundDownEligibleLender(paymentSchedule.getNbfc())) {
+                            && ! ediUtil.isEligibleForRoundingUpAnnualRoi(paymentSchedule.getNbfc())) {
                         interest = roundToWhole(interest);
                         principal = paymentSchedule.getEdiAmount().intValue() - interest;
                     }

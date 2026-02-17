@@ -18,6 +18,7 @@ import java.util.Date;
 public class CustomerPersonalDetails {
     private AadhaarDetails aadhaarDetails;
     private PanDetails panDetails;
+    private PanFetchDetails panFetchDetails;
     private String merchantType;
     private long mobile;
     private long customerId;
@@ -63,4 +64,16 @@ public class CustomerPersonalDetails {
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy", timezone = "Asia/Kolkata")
         private Date dob;
     }
+
+    @Data
+    @NoArgsConstructor
+    @Builder
+    @AllArgsConstructor
+    public static class PanFetchDetails {
+        private String pan;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy", timezone = "Asia/Kolkata")
+        private Date dob;
+        private String gender;
+    }
+
 }

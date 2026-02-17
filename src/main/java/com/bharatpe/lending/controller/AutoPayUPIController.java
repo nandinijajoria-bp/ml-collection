@@ -43,7 +43,6 @@ public class AutoPayUPIController {
         return response;
     }
 
-
     @GetMapping(value = "/mandate/status")
     public MandateUPIStatusResponse statusCheckMandate(
             @RequestAttribute BasicDetailsDto merchant,
@@ -80,5 +79,19 @@ public class AutoPayUPIController {
         return ResponseEntity.ok(autoPayUPIService.isUPIAutoPayRequired(merchant));
     }
 
+    @GetMapping(value = "/alt-mandate-eligibility")
+    public ResponseEntity<UPIAltEligibilityDto> checkAltAccountEligibility(@RequestHeader String token,
+                                                                           @RequestAttribute BasicDetailsDto merchant, @RequestParam Long applicationId) {
+        log.info("Received request for alt mandate eligibility check for merchantId: {}, applicationId: {}", merchant.getId(), applicationId);
+        return ResponseEntity.ok(autoPayUPIService.checkAltMandateEligibility(applicationId, merchant.getId(), token));
+    }
 
+    @PostMapping(value = "/register/alt-mandate")
+    public UPIRegisterResponseDto registerAutoPayForAltMandate(@RequestAttribute BasicDetailsDto merchant,
+                                                               @RequestBody AutoPayUPIAltMandateRegisterRequest requestDto) {
+        log.info("Received request for alt mandate registration for merchantId: {} with payload: {}", merchant.getId(), requestDto);
+        UPIRegisterResponseDto response = autoPayUPIService.registerAltMandate(merchant, requestDto);
+        log.info("Response for alt mandate registration for merchantId: {} is: {}", merchant.getId(), response);
+        return response;
+    }
 }

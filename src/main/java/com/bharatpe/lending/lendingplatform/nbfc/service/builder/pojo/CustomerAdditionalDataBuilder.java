@@ -8,7 +8,9 @@ import com.bharatpe.lending.dao.MerchantAggregateDataDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.MerchantAggregateData;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.CustomerAdditionalData;
+import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,10 @@ public class CustomerAdditionalDataBuilder {
 	DocUploadUtils docUploadUtils;
 	@Autowired
 	LendingKfsDao lendingKfsDao;
+	@Autowired
+	LoanUtil loanUtil;
+    @Autowired
+    CreditSaisonConfig csConfig;
 
 	public CustomerAdditionalData buildCustomerAdditionalData(
 			LendingApplication lendingApplication,
@@ -56,7 +62,7 @@ public class CustomerAdditionalDataBuilder {
 			customerAdditionalData.setSettlementType(basicDetailsDto.getSettlementType());
 			customerAdditionalData.setSettlementLevel(basicDetailsDto.getSettlementLevel());
 		}
-
+        customerAdditionalData.setCsStateMapping(csConfig.getState(lendingApplication.getState()));
 		log.debug("Customer Additional Data for merchant: {} is {}", lendingApplication.getMerchantId(), customerAdditionalData);
 
 		return customerAdditionalData;
@@ -68,9 +74,8 @@ public class CustomerAdditionalDataBuilder {
 			CustomerAdditionalData customerAdditionalData) {
 
 		if (!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
-			MerchantAggregateData merchantAggregateData =
-					merchantAggregateDataDao.findByMerchantIdAndAggregateId
-							(lendingApplication.getMerchantId(), lendingRiskVariablesSnapshot.getAggregateId());
+			MerchantAggregateData merchantAggregateData = loanUtil.getMerchantAggregateData(lendingApplication.getMerchantId(), lendingRiskVariablesSnapshot.getAggregateId());
+
 			if (!ObjectUtils.isEmpty(merchantAggregateData)) {
 				customerAdditionalData.setApplicationType(merchantAggregateData.getApplicationType());
 				customerAdditionalData.setAggregatedId(merchantAggregateData.getAggregateId());

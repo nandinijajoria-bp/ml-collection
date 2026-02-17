@@ -32,6 +32,12 @@ public class PayUAcceptOfferRequestDTO {
 
     private List<Charge> charges;
 
+    @JsonProperty("add_ons")
+    private List<AddOns> addOns;
+
+    @JsonProperty("check_sum")
+    private String checkSum;
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -49,6 +55,16 @@ public class PayUAcceptOfferRequestDTO {
         @JsonProperty("is_gst_included")
         private Boolean isGstIncluded;
 
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class AddOns {
+        private String type;
+        private Boolean opted;
     }
 
 }

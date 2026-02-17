@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Objects;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
@@ -49,7 +51,7 @@ public class AdjustLoanBalanceByNPAServiceImpl implements AdjustLoanBalanceServi
         balance = charges.getBalance();
 
         // switch back to IPC if all due is paid
-        if (activeLoan.getDueAmount() <= 0) {
+        if (BigDecimal.valueOf(activeLoan.getDueAmount()).setScale(2, RoundingMode.HALF_UP).doubleValue() <= 0) {
             activeLoan.setSettleAllPrinciple(false);
         }
 

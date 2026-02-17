@@ -38,6 +38,7 @@ public class LoanDashboardResponse {
     private boolean isDummyMerchant = false;
     private String source;
     private Long merchantId;
+    private Long applicationId;
     private Double excessNachAmount;
     private Double excessCollectionAmount;
     private Double excessCollectionAdjusted;
@@ -61,6 +62,6 @@ public class LoanDashboardResponse {
     private boolean sliderEnrolled;
     private boolean rteEnrolled;
     private boolean isAutopayRequiredForActiveLoan;
-
+    private boolean isNachMandateRequiredForActiveLoan;
 }
 

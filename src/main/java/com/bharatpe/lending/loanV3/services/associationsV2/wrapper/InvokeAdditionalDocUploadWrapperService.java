@@ -142,7 +142,7 @@ public class InvokeAdditionalDocUploadWrapperService {
             case "PAYU":
                 return Collections.singletonList(DocType.LOAN_DOCS);
             case "SMFG":
-                return Arrays.asList(DocType.DIGILOCKER_AADHAAR_XML, DocType.SELFIE, DocType.BUSINESS_DOC, DocType.AUDIT_TRAIL_DOC);
+                return Arrays.asList(DocType.DIGILOCKER_AADHAAR_XML, DocType.SELFIE, DocType.BUSINESS_DOC, DocType.AUDIT_TRAIL_DOC, DocType.SHOP_PHOTO, DocType.SHOP_STOCK);
             case "UGRO":
                 return Collections.singletonList(DocType.LOAN_DOCUMENTS_MERGED);
             default:

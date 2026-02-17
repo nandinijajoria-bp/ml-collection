@@ -686,42 +686,25 @@
                     details grievance redressal mechanism</p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">At Piramal Finance Ltd. (Formerly Piramal Capital & Housing Finance Ltd.) (“PFL”). ,
-                    it is our
-                    endeavour to provide the best in customer service. All
-                    our products, services and policies are built around the
-                    core value of customer centricity. There can be
-                    instances where customers are not satisfied with the
-                    services provided. To highlight such instances and
-                    register a complaint please follow the following
-                    process:</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">a)The Borrower may raise his / her
-                    complaint through
-                    Toll free number mentioned on
-                    www.piramalfinance.com or email to
-                    customercare@piramal.com.</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">At Piramal Finance Limited. (Formerly Piramal Capital & Housing Finance Ltd.),
+                    it is our endeavour to provide the best in customer service. All our products, services and policies are built
+                    around the core value of customer centricity. There can be instances where customers are not satisfied with the
+                    services provided. To highlight such instances and register a complaint please follow the following process:</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">a)The Borrower may raise his / her complaint through Toll free number mentioned
+                    on www.piramalfinance.com or email to customercare@piramal.com.</p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">
-                    b)If the customer is not satisfied with the resolution
-                    provided, or his/her query is not resolved within 15
-                    days, the customer may escalate by writing to us at:
-                    grievances@piramal.com
+                    b)If the customer is not satisfied with the resolution provided, or his/her query is not resolved within 15 days,
+                    the customer may escalate by writing to us at: grievances@piramal.com
                 </p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">
-                    c)In case the concern remains unresolved beyond a
-                    period of 15 days, the Borrower may escalate the matter
-                    to “The Nodal Officer” details whereof as mentioned
-                    below.
+                    c)In case the concern remains unresolved beyond a period of 15 days, the Borrower may escalate the matter to
+                    "The Nodal Officer" details whereof as mentioned below.
                 </p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">
-                    d)In case the Borrower is still not satisfied with the
-                    response, the Borrower may approach the Complaint
-                    Redressal Cell of National Housing Bank by lodging its
-                    complaint in Online mode at the link
-                    https://grids.nhbonline.org.in or may write to National
-                    Housing Bank, Complaint Redressal Cell, Department
-                    of Regulation & Supervision, National Housing Bank,
-                    4th Floor, Core 5A, India Habitat Centre, Lodhi Road,
-                    New Delhi - 110 003
+                    d)In case of non-addressal of the complaint to the customer's satisfaction within a period of 30 days from
+                    the above quarters, the Member may approach the RBI CMS portal by lodging its complaint online at the given
+                    link https://cms.rbi.org.in or may write to below mentioned address: Centralised Receipt and Processing Centre,
+                    Reserve Bank of India, 4th Floor, Sector 17, Central Vista, Chandigarh -- 160017.
                 </p>
             </td>
         </tr>
@@ -2808,6 +2791,14 @@
                 and principal Loan are paid by the Borrower.
             </li>
         </ol>
+        <p>Examples of SMA/NPA classification dates:
+            If due date of a loan account is March 31, 2025, and full dues are not received before the Lender runs the
+            day-end process for this date, the date of overdue shall be March 31, 2025. If it continues to remain overdue,
+            then this account shall get tagged as SMA-1 upon running day-end process on April 30, 2025 i.e. upon completion
+            of 30 days of being continuously overdue. Accordingly, the date of SMA-1 classification for that account shall be April 30, 2025.
+            Similarly, if the account continues to remain overdue, it shall get tagged as SMA-2 upon running day-end process
+            on May 30, 2025 and if continues to remain overdue further, it shall get classified as NPA upon running day-end process on
+            June 29, 2025</p>
     </div>
     <div class="text-left mb10"><span class="mr10">14.10</span> <span class="bold">Insurance</span>: The Borrower
         confirms that the Lender has not solicited the Borrower for any insurance policy or scheme and that the
@@ -2898,13 +2889,22 @@
             <td colspan="3" style="padding: 0px 5px;" class="word-wrap width-70">{{mobile_number_for_otp}}</td>
         </tr>
         <tr class="width-100">
-            <td class="text-center bold width-6">5</td>
+            <td class="text-center bold width-6">5 (i)</td>
             <td colspan="6" style="padding: 0px 5px;" class="width-24">
                 <p style="margin: 6px 16px;" class="fw400 bold text-left">Sanctioned Loan Amount (in Rupees)</p>
             </td>
             <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
                 <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_in_figure}}/- (Rupees
                     {{loan_amount_in_words}} Only)</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="text-center bold width-6"> (ii)</td>
+            <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 bold text-left">Total interest charge during the entire tenure of the loan (in Rupees)</p>
+            </td>
+            <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
+                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{interest_charged_to_borrower}}/-</p>
             </td>
         </tr>
         <tr class="width-100">

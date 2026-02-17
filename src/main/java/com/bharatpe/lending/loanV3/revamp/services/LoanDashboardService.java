@@ -47,6 +47,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.LoanApplicationDetailsV3;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailResponseDto;
 import com.bharatpe.lending.loanV3.revamp.dto.RejectionStateDto;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
 import com.bharatpe.lending.loanV3.revamp.enums.PreApprovedLoanEnums;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -337,7 +338,7 @@ public class LoanDashboardService {
     }
 
     @LogExecutionTime
-    public LoanDashboardResponse getLoanDashboardDetailsV2(BasicDetailsDto merchantDetails, String token) {
+    public LoanDashboardResponse getLoanDashboardDetailsV2(BasicDetailsDto merchantDetails, String token, boolean isIOS,Integer appVersion) {
         log.info("Fetching loan dashboard details with new flow for merchantId: {} ", merchantDetails.getId());
         String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchantDetails.getId();
         LoanDashboardResponse cachedResponse = getCachedLoanDetails(loanDetailsCacheKey);
@@ -361,7 +362,7 @@ public class LoanDashboardService {
 
         Optional<LendingPaymentScheduleSlave> activeLoan = getActiveLoan(paymentSchedules);
         if (activeLoan.isPresent()) {
-            handleActiveLoan(activeLoan.get(), merchantDetails, loanDashboardResponse, emiDataCompletableFuture);
+            handleActiveLoan(activeLoan.get(), merchantDetails, loanDashboardResponse, emiDataCompletableFuture, isIOS, appVersion);
             return loanDashboardResponse;
         }
 
@@ -469,7 +470,8 @@ public class LoanDashboardService {
                 .findFirst();
     }
 
-    private void handleActiveLoan(LendingPaymentScheduleSlave activeLoan, BasicDetailsDto merchantDetails, LoanDashboardResponse response, CompletableFuture<EmiDashboardResponse> emiDataFuture) {
+    private void handleActiveLoan(LendingPaymentScheduleSlave activeLoan, BasicDetailsDto merchantDetails, LoanDashboardResponse response,
+                                  CompletableFuture<EmiDashboardResponse> emiDataFuture, boolean isIOS,Integer appVersion) {
         log.info("Active loan found for merchantId: {}", merchantDetails.getId());
         response.setInsuranceEligibility(insuranceService.checkInsuranceEligibility(activeLoan));
         funnelService.submitEvent(merchantDetails.getId(), null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.ACTIVE_LOAN, LocalDateTime.now().toString());
@@ -478,6 +480,8 @@ public class LoanDashboardService {
         response.setActiveLoan(true);
         excessNachService.setExcessCollectionDetails(merchantDetails.getId(), response);
         response.setAutopayRequiredForActiveLoan(mandateHelper.isAutopayRequiredForActiveApplication(activeLoan));
+        response.setNachMandateRequiredForActiveLoan(mandateHelper.isDigioUpiAutopayRequiredForActiveApplication(activeLoan, isIOS, appVersion));
+        response.setApplicationId(activeLoan.getApplicationId());
         cacheLoanDetailsData(response);
         emiDashboardService.skipData(emiDataFuture);
     }
@@ -549,10 +553,12 @@ public class LoanDashboardService {
         }
     }
 
-    public LoanDashboardResponse fetchLoanDashboardDetailsResponse(BasicDetailsDto merchantDetails, String token) throws IOException {
-        return easyLoanUtil.percentScaleUp(merchantDetails.getId(), loanDashboardSyncRollout)
-                ? getLoanDashboardDetailsV2(merchantDetails, token)
+    public LoanDashboardResponse fetchLoanDashboardDetailsResponse(BasicDetailsDto merchantDetails, String token, boolean isIOS,Integer appVersion) throws IOException {
+        LoanDashboardResponse loanDashboardResponse = easyLoanUtil.percentScaleUp(merchantDetails.getId(), loanDashboardSyncRollout)
+                ? getLoanDashboardDetailsV2(merchantDetails, token, isIOS, appVersion)
                 : getLoanDashboardDetails(merchantDetails, token);
+        log.info("loan dashboard response for merchantId: {} is {}", merchantDetails.getId(), loanDashboardResponse);
+        return loanDashboardResponse;
     }
 
 
@@ -824,6 +830,18 @@ public class LoanDashboardService {
             applicationDetails.setInterestRate(openApplication.getInterestRate());
             applicationDetails.setApplicationStatus(openApplication.getStatus().toLowerCase());
             applicationDetails.setLender(openApplication.getLender());
+            
+            boolean isTopup = LoanType.TOPUP.name().equals(openApplication.getLoanType());
+
+            boolean isNachApproved = NachStatus.APPROVED.name().equalsIgnoreCase(openApplication.getNachStatus()) || NachStatus.APPROVED.name().equalsIgnoreCase(openApplication.getUpiAutopayStatus());
+
+            if(!isTopup && !isNachApproved){
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationServiceV3.getLendingApplicationDetailsByApplicationId(openApplication.getId());
+                boolean isAtMandatePage = LendingViewStates.ENACH_PAGE.name().equalsIgnoreCase(lendingApplicationDetails.getApplicationViewState())
+                        || LendingViewStates.UPI_AUTOPAY_PAGE.name().equalsIgnoreCase(lendingApplicationDetails.getApplicationViewState());
+                applicationDetails.setMandatePending(isAtMandatePage);
+            }
+
             if(ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())){
                 funnelService.submitEvent(merchantDetails.getId(), null, openApplication.getId(),
                         FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PENDING_APPLICATION, LocalDateTime.now().toString());

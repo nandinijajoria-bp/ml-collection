@@ -14,6 +14,7 @@ public class FetchTxnResponseDto {
         private String Date;
         private Double presentmentAmt;
         private String status;
+        private String failureReason;
     }
 
 }

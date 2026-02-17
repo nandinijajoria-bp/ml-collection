@@ -189,7 +189,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         lendingApplicationLenderDetails.setStatus(recordStatus);
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
-        df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
+        df.setRoundingMode(ediUtil.isEligibleForRoundingUpAnnualRoi(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
         if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             df = new DecimalFormat("#.######");
         }

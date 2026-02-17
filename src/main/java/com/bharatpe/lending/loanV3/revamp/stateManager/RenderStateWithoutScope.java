@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import com.bharatpe.lending.handlers.KycHandler;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -90,11 +91,17 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     @Value("${show.pan.pin.page.enabled:true}")
     private boolean showPanPinPage;
 
+    @Value("${skip.pan.pin.page.rollout:100}")
+    private int skipPanPinPage;
+
     @Autowired
     LendingApplicationVkycDetailsDao lendingApplicationVkycDetailsDao;
 
     @Autowired
     VKycService vkycService;
+
+    @Autowired
+    KycHandler kycHandler;
 
     @Autowired
     private UpiAutoPayStageHelper upiAutoPayStageHelper;
@@ -162,7 +169,7 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             log.info("show status page {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
-        if (showPanPinPage && panPinForMerchnant(scopeDataArgs, loanDetailsV3Response)) {
+        if (showPanPinPage && panPinForMerchnant(scopeDataArgs, loanDetailsV3Response) && !easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), skipPanPinPage)) {
             log.info("show pan pin page {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
@@ -182,15 +189,16 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             return loanDetailsV3Response;
         }
 
+        if (showOfferEvaluationPage(scopeDataArgs,loanDetailsV3Response)) {
+            log.info("eligibile offer exist {}", scopeDataArgs);
+            return loanDetailsV3Response;
+        }
+
         if (showOfferPage(scopeDataArgs,loanDetailsV3Response)) {
             log.info("eligibility exist {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
 
-        if (showOfferEvaluationPage(scopeDataArgs,loanDetailsV3Response)) {
-            log.info("eligibile offer exist {}", scopeDataArgs);
-            return loanDetailsV3Response;
-        }
         if (hasNonNachableBank(scopeDataArgs,loanDetailsV3Response)) {
             log.info("non nachable bank exist {}", scopeDataArgs);
             return loanDetailsV3Response;
@@ -271,6 +279,7 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     public LendingStateDTO<PANPINStateDTO> panPinWorkflow(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<PANPINStateDTO> lendingStateDTO = null;
         Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
+        String kycPancard = kycHandler.getPanNumber(scopeDataArgs.getMerchant().getId());
         if (experian != null && (ObjectUtils.isEmpty(experian.getPincode())
                 || ObjectUtils.isEmpty(experian.getPancardNumber()))) {
             lendingStateDTO = new LendingStateDTO<>();
@@ -278,7 +287,7 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             return lendingStateDTO;
         }
         if(experian != null && !ObjectUtils.isEmpty(experian.getPancardNumber())
-                && !loanUtilV3.isPanNsdlVerified(scopeDataArgs.getToken(), experian.getPancardNumber(), scopeDataArgs.getMerchant().getId())) {
+                && !loanUtilV3.isPanNsdlVerified(scopeDataArgs.getToken(), kycPancard, scopeDataArgs.getMerchant().getId())) {
             lendingStateDTO = new LendingStateDTO<>();
             lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
         }
@@ -562,9 +571,10 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
                     Objects.isNull(lendingApplication.getDisburseTimestamp()) &&
                     !"DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())
             )showApplicationStatus = true;
-            if("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) &&
-                    "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())
-            )showApplicationStatus = true;
+            if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())){
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+                showApplicationStatus = Objects.nonNull(lendingApplicationDetails) && loanUtil.isMandateDone(lendingApplication, lendingApplicationDetails);
+            }
         }
         if(showApplicationStatus){
             lendingStateDTO = new LendingStateDTO<>();

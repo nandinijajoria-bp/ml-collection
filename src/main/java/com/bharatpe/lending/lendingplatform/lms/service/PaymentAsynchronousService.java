@@ -40,11 +40,12 @@ public class PaymentAsynchronousService {
             LendingPaymentSchedule activeLoan, Double amount, String source, String terminalOrderId, Long orderId, boolean foreClosure) {
         try {
             LendingApplication lendingApplication = loanDetailsService.getLendingApplicationByApplicationId(activeLoan.getApplicationId());
-            BankDetailsDto merchantBankDetail = loanDetailsService.getMerchantBankDetails(activeLoan.getMerchantId()); //Fetching bank details form Merchant service
             LendingApplicationLenderDetails lald = loanDetailsService.getLenderDetails(lendingApplication.getId(), lendingApplication.getLender());
 
             LmsPaymentDetails lmsPaymentDetails =
                     insertTransactionRecord(lendingApplication, amount, source, terminalOrderId);
+
+            BankDetailsDto merchantBankDetail = loanDetailsService.getMerchantBankDetails(activeLoan.getMerchantId()); //Fetching bank details from Merchant service
 
             PaymentAsynchronousRequest paymentAsynchronousRequest = getPaymentAsynchronousRequest(
                     amount, source, terminalOrderId, lendingApplication, merchantBankDetail, lald, new Date(), orderId, foreClosure);

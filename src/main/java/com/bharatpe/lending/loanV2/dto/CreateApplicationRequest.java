@@ -23,4 +23,5 @@ public class CreateApplicationRequest {
     private String ip;
     private EligibleLoanDTO eligibleLoanDTO;
     private EligibleLoanUpdateRequestDTO eligibleLoanUpdateRequestDTO;
+    private Boolean skipShopDetails;
 }
