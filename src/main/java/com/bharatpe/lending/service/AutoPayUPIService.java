@@ -167,6 +167,9 @@ public class AutoPayUPIService {
     @Value("${secondary.auto.pay.upi.mandate.rollout.percent:0}")
     private int secondaryAutoPayUpiMandateRolloutPercent ;
 
+    @Value("${consecutive.error.check.whitelisted.lenders:}")
+    private List<String> consecutiveErrorCheckWhitelistedLenders;
+
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
 
@@ -880,6 +883,14 @@ public class AutoPayUPIService {
             }
             log.info("Checking consecutive errors for merchantId: {}", merchantId);
 
+            // Get lender for merchantId and check whitelist
+            String lender = getLenderForMerchant(merchantId);
+            if (lender == null || !consecutiveErrorCheckWhitelistedLenders.contains(lender)) {
+                log.info("Lender {} is not whitelisted for consecutive error check for merchantId: {}, returning false", lender, merchantId);
+                return false;
+            }
+            log.info("Lender {} is whitelisted for consecutive error check for merchantId: {}", lender, merchantId);
+
             String mode = "AUTOPAYUPI";
             Date now = new Date();
             Date todayStart = getStartOfDay(0);
@@ -922,6 +933,20 @@ public class AutoPayUPIService {
         calendar.set(Calendar.MILLISECOND, 0);
         calendar.add(Calendar.DAY_OF_MONTH, -daysAgo);
         return calendar.getTime();
+    }
+
+    private String getLenderForMerchant(Long merchantId) {
+        try {
+            LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList(LoanStatus.ACTIVE.name()));
+            if (ObjectUtils.isEmpty(lendingPaymentSchedule)) {
+                log.info("No active loan found for merchant id {} while fetching lender", merchantId);
+                return null;
+            }
+            return lendingPaymentSchedule.getNbfc();
+        } catch (Exception e) {
+            log.error("Error while fetching lender for merchantId: {}", merchantId, e);
+            return null;
+        }
     }
 
     public AutoPayRequiredDto isUPIAutoPayRequired(BasicDetailsDto merchant) {
