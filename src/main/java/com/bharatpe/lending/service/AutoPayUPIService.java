@@ -170,6 +170,9 @@ public class AutoPayUPIService {
     @Value("${consecutive.error.check.whitelisted.lenders:}")
     private List<String> consecutiveErrorCheckWhitelistedLenders;
 
+    @Value("${consecutive.error.check.day.offset:1}")
+    private int consecutiveErrorCheckDayOffset;
+
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
 
@@ -892,11 +895,12 @@ public class AutoPayUPIService {
             log.info("Lender {} is whitelisted for consecutive error check for merchantId: {}", lender, merchantId);
 
             String mode = "AUTOPAYUPI";
-            Date now = new Date();
-            Date todayStart = getStartOfDay(0);
-            List<String> errors = lendingPullPaymentDaoSlave.findDistinctErrorsForDate(merchantId, mode, todayStart, now);
+            Date errorCheckDayStart = getStartOfDay(consecutiveErrorCheckDayOffset);
+            Date errorCheckDayEnd = consecutiveErrorCheckDayOffset == 0 ? new Date() : getStartOfDay(consecutiveErrorCheckDayOffset - 1);
+            log.info("Checking errors for merchantId: {} with day offset: {} (from {} to {})", merchantId, consecutiveErrorCheckDayOffset, errorCheckDayStart, errorCheckDayEnd);
+            List<String> errors = lendingPullPaymentDaoSlave.findDistinctErrorsForDate(merchantId, mode, errorCheckDayStart, errorCheckDayEnd);
             if (errors == null || errors.isEmpty()) {
-                log.info("No error found today for merchantId: {}", merchantId);
+                log.info("No error found for merchantId: {} (from {} to {})", merchantId, errorCheckDayStart, errorCheckDayEnd);
                 return false;
             }
             log.info("Found {} unique error description(s) for merchantId: {}", errors.size(), merchantId);
@@ -907,10 +911,10 @@ public class AutoPayUPIService {
                     continue;
                 }
                 int requiredDays = autoPayUPIErrorConfig.getConsecutiveDaysForError(error_description);
-                Date startDate = getStartOfDay(requiredDays - 1);
-                log.info("Checking error '{}' for merchantId: {} from {} to {}", error_description, merchantId, startDate, now);
+                Date startDate = getStartOfDay(consecutiveErrorCheckDayOffset + requiredDays - 1);
+                log.info("Checking error '{}' for merchantId: {} from {} to {}", error_description, merchantId, startDate, errorCheckDayEnd);
                 // Count distinct dates where this error occurred in the date range
-                Long dayCount = lendingPullPaymentDaoSlave.countDistinctDaysForError(merchantId, error_description, startDate, now);
+                Long dayCount = lendingPullPaymentDaoSlave.countDistinctDaysForError(merchantId, error_description, startDate, errorCheckDayEnd);
                 // If number of distinct dates equals requiredDays, it means the error came for all consecutive days
                 if (dayCount != null && dayCount == requiredDays) {
                     log.info("Found consecutive error for merchantId: {}, error: {}, days: {}", merchantId, error_description, requiredDays);
