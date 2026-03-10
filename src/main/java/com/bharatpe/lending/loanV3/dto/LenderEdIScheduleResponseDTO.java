@@ -20,6 +20,9 @@ public class LenderEdIScheduleResponseDTO {
     Double totalRepaymentExpected;
     Double netDisbursalAmount;
     Date loanMaturityDate;
+    Double newEdiAmount;
+    Integer graceStartInstallmentNumber;
+    Integer graceEndInstallmentNumber;
 
     @Data
     @Builder
@@ -28,6 +31,7 @@ public class LenderEdIScheduleResponseDTO {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class RepaymentSchedule {
         Date dueDate;
+        int installmentNumber;
         Double principal;
         Double interest;
         Double openingBalance;

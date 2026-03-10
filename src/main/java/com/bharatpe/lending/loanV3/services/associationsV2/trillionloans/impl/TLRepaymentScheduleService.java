@@ -86,4 +86,69 @@ public class TLRepaymentScheduleService {
         }
         throw new RuntimeException("Exception in parsing due date of TrillionLoans repaymentSchedule");
     }
+
+    public LenderEdIScheduleResponseDTO invokeRpsGenerateForRestructure(Long applicationId) {
+        Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
+        if (!lendingApplicationOptional.isPresent()) {
+            log.error("TrillionLoans: Lending application not present for application id: {}", applicationId);
+            return null;
+        }
+        NBFCRequestDTO nbfcRequestDto = NBFCRequestDTO.builder()
+                .productName("LENDING")
+                .lender(Lender.TRILLIONLOANS.name())
+                .applicationId(applicationId)
+                .payload(TLRpsRequestDto.builder()
+                        .loanId(lendingApplicationOptional.get().getNbfcId())
+                        .build())
+                .build();
+        try {
+            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.RPS);
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                TLRpsResponseDto response = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLRpsResponseDto.class);
+                return getLenderEdiScheduleLoanRestructure(response);
+            }
+        } catch (Exception e) {
+            log.error("exception occurred while parsing response data of TrillionLoans repayment schedule for {} {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    private LenderEdIScheduleResponseDTO getLenderEdiScheduleLoanRestructure(TLRpsResponseDto repaymentScheduleResponse) {
+        if(!ObjectUtils.isEmpty(repaymentScheduleResponse) && !ObjectUtils.isEmpty(repaymentScheduleResponse.getRepaymentSchedule()) && !ObjectUtils.isEmpty(repaymentScheduleResponse.getRepaymentSchedule().getPeriods())) {
+            List<LenderEdIScheduleResponseDTO.RepaymentSchedule> ediSchedules = new ArrayList<>();
+            int graceStartInstallmentNumber = 0;
+            int graceEndInstallmentNumber = 0;
+            double newEdiAmount = 0;
+            Date maturityDate = getDateFromArray(repaymentScheduleResponse.getRepaymentSchedule().getPeriods().get(repaymentScheduleResponse.getRepaymentSchedule().getPeriods().size()-1).getDueDate());
+            for (int arr_i = 1; arr_i < repaymentScheduleResponse.getRepaymentSchedule().getPeriods().size(); arr_i++) {
+                TLRpsResponseDto.Period period = repaymentScheduleResponse.getRepaymentSchedule().getPeriods().get(arr_i);
+                int periodEdiAmount = ObjectUtils.isEmpty(period.getTotalInstallmentAmountForPeriod()) ? 0 : period.getTotalInstallmentAmountForPeriod().intValue();
+                ediSchedules.add(LenderEdIScheduleResponseDTO.RepaymentSchedule.builder()
+                        .installmentNumber(arr_i)
+                        .dueDate(getDateFromArray(period.getDueDate()))
+                        .openingBalance(period.getPrincipalLoanBalanceOutstanding())
+                        .principal(ObjectUtils.isEmpty(period.getPrincipalOriginalDue()) ? 0 : period.getPrincipalOriginalDue())
+                        .interest(ObjectUtils.isEmpty(period.getInterestOriginalDue()) ? 0 : period.getInterestOriginalDue())
+                        .totalEdi(periodEdiAmount)
+                        .build()
+                );
+                if (graceStartInstallmentNumber == 0 && periodEdiAmount == 0) {
+                    graceStartInstallmentNumber = arr_i;
+                }
+                if (graceStartInstallmentNumber != 0 && periodEdiAmount != 0 && graceEndInstallmentNumber == 0) {
+                    graceEndInstallmentNumber = arr_i - 1;
+                    newEdiAmount = periodEdiAmount;
+                }
+            }
+            return LenderEdIScheduleResponseDTO.builder().
+                    repaymentSchedule(ediSchedules).
+                    totalInterestPayable(repaymentScheduleResponse.getRepaymentSchedule().getTotalInterestCharged())
+                    .loanMaturityDate(maturityDate)
+                    .newEdiAmount(newEdiAmount)
+                    .graceStartInstallmentNumber(graceStartInstallmentNumber)
+                    .graceEndInstallmentNumber(graceEndInstallmentNumber)
+                    .build();
+        }
+        return null;
+    }
 }

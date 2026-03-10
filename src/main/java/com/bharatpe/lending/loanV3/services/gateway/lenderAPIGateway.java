@@ -135,6 +135,12 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.dedupe.check.api:api/v3/lender/dedupe-check}")
     private String dedupeCheckUrl;
 
+    @Value("${nbfc.restructure.status.api:api/v3/lender/restructure-status}")
+    String restructureStatusUrl;
+
+    @Value("${nbfc.restructure.approve.api:api/v3/lender/restructure-approve}")
+    String restructureApproveUrl;
+
     @Autowired
     UgroConfig ugroConfig;
 
@@ -249,6 +255,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl + insuranceDocUrl;
             case "DEDUPE_CHECK":
                 return nbfcBaseUrl + dedupeCheckUrl;
+            case "RESTRUCTURE_STATUS":
+                return nbfcBaseUrl + restructureStatusUrl;
+            case "RESTRUCTURE_APPROVE":
+                return nbfcBaseUrl + restructureApproveUrl;
             default:
                 return null;
         }
