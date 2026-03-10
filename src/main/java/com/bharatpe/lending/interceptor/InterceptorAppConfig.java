@@ -44,6 +44,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/push_lead_response", "/lms/v1/**",
 				"/ai/**",
 				"/lending/csPanel/**",
+                "/collection/loan-restructure/**",
 				"/lending/enach/status-callback",
 				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
 				"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",
@@ -66,7 +67,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication", "/lms/v1/**",
-		"/lending/enach/status-callback",
+		"/lending/enach/status-callback", "/collection/loan-restructure/**",
 		"/support/showBulkContacts","/lending/liquiloan/approveLoan", "/lending/liquiloan/postPayoutStatusUpdate", "/lending/credit_line/application_status_update",
 				"/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/lending/active_loans", "/lending/offers", "/lending/derog_application",
 				"/fos/**","/lending/fos/**", "/lending/adhaar_mask","/lending/allow_bankaccount_change", "/lending/edi_schedule", "/lending/edi_schedule/v2",
