@@ -440,10 +440,10 @@ public class LoanRestructureServiceImpl {
         }
 
         if ("Penalty Fee".equals(ledger.getDescription())) {
-            penalCharges.setDuePenalty(Math.min(0, penalCharges.getDuePenalty() - amountToBeWaived));
+            penalCharges.setDuePenalty(Math.max(0, penalCharges.getDuePenalty() - amountToBeWaived));
         }
         if ("Nach Bounce".equals(ledger.getDescription())) {
-            penalCharges.setDueNachBounce(Math.min(0, penalCharges.getDueNachBounce() - amountToBeWaived));
+            penalCharges.setDueNachBounce(Math.max(0, penalCharges.getDueNachBounce() - amountToBeWaived));
         }
         penalChargesDao.save(penalCharges);
 
@@ -536,6 +536,8 @@ public class LoanRestructureServiceImpl {
 
         if (lendingCollectionExcess != null) {
             double updatedExcessAmount = (lendingCollectionExcess.getAmount() != null ? lendingCollectionExcess.getAmount() : 0) + excessAmount;
+            double deductedAmount = lendingCollectionExcess.getDeductedAmount() != null ? lendingCollectionExcess.getDeductedAmount() : 0;
+            lendingCollectionExcess.setExcessNachCreditAmount(deductedAmount + updatedExcessAmount);
             lendingCollectionExcess.setAmount(updatedExcessAmount);
             lendingCollectionExcess.setStatus("ACTIVE");
             lendingCollectionExcessDao.save(lendingCollectionExcess);
@@ -545,7 +547,7 @@ public class LoanRestructureServiceImpl {
             LendingCollectionExcess newExcessEntry = new LendingCollectionExcess();
             newExcessEntry.setLoanId(ledger.getLendingPaymentSchedule().getId());
             newExcessEntry.setMerchantId(ledger.getMerchantId());
-            newExcessEntry.setExcessNachCreditAmount(ledger.getAmount());
+            newExcessEntry.setExcessNachCreditAmount(excessAmount);
             newExcessEntry.setAmount(excessAmount);
             newExcessEntry.setTerminalOrderId(ledger.getTerminalOrderId());
 
@@ -553,6 +555,7 @@ public class LoanRestructureServiceImpl {
             newExcessEntry.setCreditDate(ledger.getDate());
             newExcessEntry.setTransferType(ledger.getTransferType());
             newExcessEntry.setDeductedAmount(0D);
+            newExcessEntry.setMode(ledger.getAdjustmentMode());
             newExcessEntry.setSource("LOAN_RESTRUCTURING");
             newExcessEntry.setStatus("ACTIVE");
             lendingCollectionExcessDao.save(newExcessEntry);
