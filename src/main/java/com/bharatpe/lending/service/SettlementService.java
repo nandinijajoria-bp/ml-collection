@@ -283,6 +283,8 @@ public class SettlementService {
                 .lastOverDueAmount(lendingPaymentSchedule.getLastOverDueAmount())
                 .isSettlementInitiated(lendingPaymentSchedule.getSettlementInitiated())
                 .settlementDate(lendingPaymentSchedule.getSettlementDate())
+                .isNpa(lendingPaymentSchedule.getNpa())
+                .lmsSource(lendingPaymentSchedule.getLmsSource())
                 .build();
 
         lendingPaymentScheduleSnapDao.save(lpsSnap);
@@ -413,6 +415,8 @@ public class SettlementService {
         lendingPaymentSchedule.setSettleAllPrinciple(lpsSnap.getSettleAllPrinciple());
         lendingPaymentSchedule.setWriteoffFor(lpsSnap.getWriteoffFor());
         lendingPaymentSchedule.setLastOverDueAmount(lpsSnap.getLastOverDueAmount());
+        lendingPaymentSchedule.setNpa(lpsSnap.getIsNpa());
+        lendingPaymentSchedule.setLmsSource(lpsSnap.getLmsSource());
 //        For reversal cases these: reset these fields
         lendingPaymentSchedule.setSettlementInitiated(false);
         lendingPaymentSchedule.setSettlementStatus(SCHEME1.name());
