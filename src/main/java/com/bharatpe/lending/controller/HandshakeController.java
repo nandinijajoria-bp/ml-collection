@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
  
 
 @RestController
-@RequestMapping("ml-collection/handshake/")
+@RequestMapping("lending/handshake/*")
 public class HandshakeController {
  
 	
