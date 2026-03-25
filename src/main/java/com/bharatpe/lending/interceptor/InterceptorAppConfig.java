@@ -46,7 +46,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/csPanel/**",
                 "/collection/loan-restructure/**",
 				"/lending/enach/status-callback",
-				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
+				"/lending/handshake/**","/ml-collection/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
 				"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",
 				"/partner/details", "/lending/active_loans", "/lending/offers","/lending/allow_bankaccount_change", "/lending/derog_application","/lending" +
 				"/fos/**","/fos/**", "/lending/adhaar_mask", "/lending/edi_schedule", "/lending/edi_schedule/v2", "/support/loan","/support/lenderchange",
