@@ -62,7 +62,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/merchant/eligibility","/support/loan-flag-status","/swagger-ui/**", "/lending/check-delete-eligible", "/lending/v3/invokeStage", "/lending/payment/details/v2", "/lending/homepage/cards", "/milestone/rte-eligibility-check",
 						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel", "/lending/v3/retryStage", "/vkyc/callback","/lending/payment/receipt","/lending/payment/pdpd/shift",
 						"/lending/payment/autopay/present", "/lending/payment/autopay/migrate", "/lending/payment/lien/add", "/lending/payment/lien/remove", "/lending/payment/nach/present","/lending/evictCache/due_amount",
-						"/lending/payment/dpd/notify/add", "/lending/payment/dpd/notify/remove",
+						"/lending/payment/dpd/notify/add", "/lending/payment/dpd/notify/remove", "/lending/payment/redirect/callback", "/lending/payment/redirect/callback/v2",
 						"/milestone/rte-loan-eligibility-check","/data/**","/lending/v3/insurance/doc","/lending/qr-status/webhook", "/Lending/post-risk-process");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
@@ -100,6 +100,6 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 		registry.addInterceptor(paymentLinkInterceptor).addPathPatterns("/lending/payment_link/**");
 
 		registry.addInterceptor(dataHmacInterceptor)
-				.addPathPatterns("/data/**","/lending/qr-status/webhook");
+				.addPathPatterns("/data/**","/lending/qr-status/webhook","/lending/payment/redirect/callback", "/lending/payment/redirect/callback/v2");
     }
 }

@@ -61,6 +61,18 @@ public class PaymentController {
         return new ResponseEntity<>(paymentService.handlePgCallback(requestDTO), HttpStatus.OK);
     }
 
+    //for nach
+    @RequestMapping(value="/redirect/callback", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
+    public ResponseEntity<String> redirectCallback(@RequestBody PaymentCallbackRequestDTO requestDTO) {
+        return new ResponseEntity<>(paymentService.handleCallback(requestDTO), HttpStatus.OK);
+    }
+
+    //normal txn
+    @RequestMapping(value="/redirect/callback/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
+    public ResponseEntity<String> redirectCallbackV2(@RequestBody PgPaymentCallbackDTO requestDTO) {
+        return new ResponseEntity<>(paymentService.handlePgCallback(requestDTO), HttpStatus.OK);
+    }
+
     //cancel loan
     @RequestMapping(value="/loan/cancel", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
     public ResponseEntity<String> cancel(@RequestBody LoanCancelDTO loanCancelDTO) throws Exception {
