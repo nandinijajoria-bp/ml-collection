@@ -84,4 +84,17 @@ public class PaymentConstants {
         put("TAT_EXCEEDED", true);
         put("API_ERROR", true);
     }};
+
+    public static final Integer TL_DEFAULT_PAYMENT_TYPE_ID = 1021;
+    public static final Map<String, Integer> tlPaymentTypeIdMap = new HashMap<String, Integer>(){{
+        put("SETTLEMENT", 1009);
+        put("FP", 1009);
+        put("BHARATPE_NACH", 1018);
+        put("NACH", 1018);
+        put("NB", 1013);
+        put("DC", 1017);
+        put("UPI", 1014);
+        put("UPI_AUTOPAY", 1019);
+        put("DIRECT_TRANSFER", 1020);
+    }};
 }

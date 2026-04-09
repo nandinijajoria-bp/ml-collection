@@ -100,7 +100,7 @@ import static com.bharatpe.lending.constant.CommonConstants.OK;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
 import static com.bharatpe.lending.constant.LendingConstants.AUTO_PAY_SETTLEMENT;
 import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
-import static com.bharatpe.lending.constant.PaymentConstants.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
+import static com.bharatpe.lending.constant.PaymentConstants.*;
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 @Service
@@ -201,6 +201,9 @@ public class PaymentService {
     boolean pgEmiCallbackEnable;
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Value("${trillionloans.receipt.posting.payment.id.rollout.percent:1}")
+    int receiptPostingPaymentIdRolloutPercent;
 
     ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
@@ -2585,6 +2588,11 @@ public class PaymentService {
             }
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Integer paymentTypeId = 1;
+            if (lendingLedger.getLendingPaymentSchedule() != null
+                    && easyLoanUtil.percentScaleUp(lendingLedger.getLendingPaymentSchedule().getId(), receiptPostingPaymentIdRolloutPercent)) {
+                paymentTypeId = tlPaymentTypeIdMap.getOrDefault(lendingLedger.getAdjustmentMode(), TL_DEFAULT_PAYMENT_TYPE_ID);
+            }
             TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.TRILLIONLOANS.name())
@@ -2595,7 +2603,7 @@ public class PaymentService {
                             .preClosureReasonId(192)
                             .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
                             .transactionDate(lendingLedger.getDate())
-                            .paymentTypeId(1)
+                            .paymentTypeId(paymentTypeId)
                             .interestWaiverAmount(0.0)
                             .receiptNumber(txnId)
                             .chargeDiscountDetails(new ArrayList<>())

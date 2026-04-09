@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
@@ -53,6 +54,9 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.*;
 
+import static com.bharatpe.lending.constant.PaymentConstants.TL_DEFAULT_PAYMENT_TYPE_ID;
+import static com.bharatpe.lending.constant.PaymentConstants.tlPaymentTypeIdMap;
+
 @Service
 @Slf4j
 public class LoanClosurePostingServiceImpl implements LoanClosurePostingService {
@@ -87,6 +91,12 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Value("${trillionloans.receipt.posting.payment.id.rollout.percent:1}")
+    int receiptPostingPaymentIdRolloutPercent;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     @Lazy
     @Autowired
@@ -432,6 +442,11 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
+            Integer paymentTypeId = 1;
+            if (lendingLedger.getLendingPaymentSchedule() != null
+                    && easyLoanUtil.percentScaleUp(lendingLedger.getLendingPaymentSchedule().getId(), receiptPostingPaymentIdRolloutPercent)) {
+                paymentTypeId = tlPaymentTypeIdMap.getOrDefault(lendingLedger.getAdjustmentMode(), TL_DEFAULT_PAYMENT_TYPE_ID);
+            }
             TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.TRILLIONLOANS.name())
@@ -442,7 +457,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                             .preClosureReasonId(192)
                             .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
                             .transactionDate(txnDate)
-                            .paymentTypeId(1)
+                            .paymentTypeId(paymentTypeId)
                             .interestWaiverAmount(0.0)
                             .receiptNumber(txnId)
                             .chargeDiscountDetails(new ArrayList<>())
