@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
+import com.bharatpe.lending.common.service.TlReceiptHelpers;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -53,9 +54,6 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.*;
-
-import static com.bharatpe.lending.constant.PaymentConstants.TL_DEFAULT_PAYMENT_TYPE_ID;
-import static com.bharatpe.lending.constant.PaymentConstants.tlPaymentTypeIdMap;
 
 @Service
 @Slf4j
@@ -144,6 +142,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     OxyzoConfig oxyzoConfig;
+
+    @Autowired
+    private TlReceiptHelpers tlReceiptHelpers;
 
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger, Long orderId) {
@@ -445,7 +446,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             Integer paymentTypeId = 1;
             if (lendingLedger.getLendingPaymentSchedule() != null
                     && easyLoanUtil.percentScaleUp(lendingLedger.getLendingPaymentSchedule().getId(), receiptPostingPaymentIdRolloutPercent)) {
-                paymentTypeId = tlPaymentTypeIdMap.getOrDefault(lendingLedger.getAdjustmentMode(), TL_DEFAULT_PAYMENT_TYPE_ID);
+                paymentTypeId = tlReceiptHelpers.getPaymentTypeId(lendingLedger.getAdjustmentMode());
             }
             TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
                     .applicationId(applicationId)

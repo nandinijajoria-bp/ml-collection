@@ -394,6 +394,9 @@ public class PaymentService {
     @Autowired
     PostDisbursalNotificationDao postDisbursalNotificationDao;
 
+    @Autowired
+    private TlReceiptHelpers tlReceiptHelpers;
+
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
@@ -2591,7 +2594,7 @@ public class PaymentService {
             Integer paymentTypeId = 1;
             if (lendingLedger.getLendingPaymentSchedule() != null
                     && easyLoanUtil.percentScaleUp(lendingLedger.getLendingPaymentSchedule().getId(), receiptPostingPaymentIdRolloutPercent)) {
-                paymentTypeId = tlPaymentTypeIdMap.getOrDefault(lendingLedger.getAdjustmentMode(), TL_DEFAULT_PAYMENT_TYPE_ID);
+                paymentTypeId = tlReceiptHelpers.getPaymentTypeId(lendingLedger.getAdjustmentMode());
             }
             TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
                     .applicationId(applicationId)
