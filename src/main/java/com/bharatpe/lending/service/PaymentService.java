@@ -1165,8 +1165,13 @@ public class PaymentService {
                 }
                 logger.info("status of order saved in DB: {} for orderId: {}", order.getOrderId(), order.getStatus());
                 if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
-                    logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchantId(), request.getOrderId());
-                    return "OK";
+                    logger.info("Payment for merchant id {} and order id {} is already processed and current status:{}", order.getMerchantId(), request.getOrderId(), order.getStatus());
+                    if (checkIfItsFailedOrder(order)) { // allow for re processing
+                        order.setStatus("PENDING");
+                        loanPaymentOrderDao.save(order);
+                    } else {
+                        return "OK";
+                    }
                 }
 
                 int lockTxn = loanPaymentOrderDao.updateStatusForPendingTxn(CreditConstants.PaymentStatus.CALLBACK_RECEIVED.name(), order.getId());
@@ -1374,6 +1379,11 @@ public class PaymentService {
         }
         return lendingLedger;
 
+    }
+
+    public boolean checkIfItsFailedOrder(LoanPaymentOrder order) {
+        return  order != null
+                && Arrays.asList("FAILED", "FAILURE", "CANCELLED").contains(order.getStatus());
     }
 
     private Date getCurrenntDate() {
