@@ -297,6 +297,9 @@ public class LoanUtil {
 	@Value("${payment.bank.change.flow.applicable:false}")
 	boolean isPaymentBankChangeFlowApplicable;
 
+	@Autowired
+	PenalChargeDataDao penalChargeDataDao;
+
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 	List<Long> derogMerchants = new ArrayList();
@@ -3605,22 +3608,20 @@ public class LoanUtil {
 
 	public Double calculatePiramalPenalty(LendingPaymentSchedule activeLoan) {
 		try {
-			List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(2, true, activeLoan.getNbfc());
-			if (penaltyFeeConfigSlaveList.isEmpty()) {
-				logger.info("No penalty fee config found for loan: {} with lender: {}", activeLoan.getId(), activeLoan.getNbfc());
-				return 0d;
+			PenalChargeData penalChargeData = penalChargeDataDao.findByLoanIdAndChargeApplied(activeLoan.getId(), false);
+
+			if (penalChargeData != null) {
+				logger.info("calculatePenaltyAmount for loanId {} charge {}", activeLoan.getId(), penalChargeData.getTotalAmount());
+				penalChargeData.setChargeApplied(true);
+				penalChargeDataDao.save(penalChargeData);
+				return penalChargeData.getTotalAmount();
 			}
-			double rate = penaltyFeeConfigSlaveList.get(0).getPenalty();
-			double penalty = (activeLoan.getOverdueAmount() * rate) / 100;
-			// AS per lender confirmation we are removing gst from penalty
-//         += penalty * 0.18;
-			penalty = Math.ceil(penalty);
-			return penalty;
-		}catch (Exception e){
+		} catch (Exception e){
 			logger.error("Exception occurred while calculating piramal penalty for loan: {} exception: {} , {}", activeLoan, Arrays.asList(e.getStackTrace()), e.getMessage());
 		}
 		return 0d;
 	}
+
 	public Date getLastPenaltyDate(LocalDate currentDate) {
 		LocalDate lastMonthEndDate;
 		if (currentDate.getMonthValue() == 3) {
