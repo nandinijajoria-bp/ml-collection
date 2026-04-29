@@ -3607,13 +3607,20 @@ public class LoanUtil {
 	}
 
 	public Double calculatePiramalPenalty(LendingPaymentSchedule activeLoan) {
+		return calculatePiramalPenalty(activeLoan, false);
+	}
+
+	public Double calculatePiramalPenalty(LendingPaymentSchedule activeLoan, boolean applyPenalty) {
 		try {
 			PenalChargeData penalChargeData = penalChargeDataDao.findByLoanIdAndChargeApplied(activeLoan.getId(), false);
 
 			if (penalChargeData != null) {
 				logger.info("calculatePenaltyAmount for loanId {} charge {}", activeLoan.getId(), penalChargeData.getTotalAmount());
-				penalChargeData.setChargeApplied(true);
-				penalChargeDataDao.save(penalChargeData);
+				if (applyPenalty) {
+					logger.info("Applying Penalty");
+					penalChargeData.setChargeApplied(true);
+					penalChargeDataDao.save(penalChargeData);
+				}
 				return penalChargeData.getTotalAmount();
 			}
 		} catch (Exception e){
