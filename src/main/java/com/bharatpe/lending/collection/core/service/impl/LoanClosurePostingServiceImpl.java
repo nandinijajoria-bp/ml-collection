@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.common.service.TlReceiptHelpers;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -145,6 +146,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     private TlReceiptHelpers tlReceiptHelpers;
+
+    @Autowired
+    DateTimeUtil dateTimeUtil;
 
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger, Long orderId) {
@@ -406,6 +410,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         Double chargeTax = 0.0;
         String postingStatus = "FAILURE";
         LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        String externalId = "TL_FC_" + orderId; // order id is not null and unique
+
         try{
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
@@ -421,7 +427,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                                 .lan(lendingApplicationLenderDetails.getLan())
                                 .amount(loanForeClosureCharges.getAmount() + loanForeClosureCharges.getTax())
                                 .chargeId("5")
-                                .dueDate(loanForeClosureCharges.getCreatedAt())
+                                .externalId(externalId)
+                                .dueDate(dateTimeUtil.getCurrentDate())
                                 .build())
                         .build();
                 logger.info("TrillionLoans: posting foreclosure charges to lender {}", trilionLoansForeclosureChargesRequestDto);
