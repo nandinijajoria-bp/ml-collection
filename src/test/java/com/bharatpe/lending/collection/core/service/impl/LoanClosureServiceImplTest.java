@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -41,6 +42,9 @@ class LoanClosureServiceImplTest {
     @InjectMocks
     private LoanClosureServiceImpl loanClosureService;
 
+    @InjectMocks
+    private NbfcLenderGateway nbfcLenderGateway;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
@@ -62,6 +66,34 @@ class LoanClosureServiceImplTest {
         verify(loanClosurePostingService, times(1)).sendForeclosureEventTrillionLoans(any(),any(),any());
         verify(sherlocLoanStatusChangeService, times(1)).pushLoanStatusChangeEventToKafka(any(),any());
     }
+
+    @Test
+    public void testSendForeclosureEventTrillionLoans_ValidOrderId() {
+        Long applicationId = 12345L;
+        LendingLedger lendingLedger = mock(LendingLedger.class);
+        Long orderId = 67890L;
+
+        loanClosurePostingService.sendForeclosureEventTrillionLoans(applicationId, lendingLedger, orderId);
+
+        String expectedExternalId = "TL_FC_" + orderId;
+        // Verify that the externalId is correctly set in the payload
+        verify(nbfcLenderGateway).invoke(contains(expectedExternalId), any(), any());
+    }
+
+    @Test
+    public void testSendForeclosureEventTrillionLoans_DuplicateOrderId() {
+        Long applicationId = 12345L;
+        LendingLedger lendingLedger = mock(LendingLedger.class);
+        Long orderId = 67890L;
+
+        loanClosurePostingService.sendForeclosureEventTrillionLoans(applicationId, lendingLedger, orderId);
+        loanClosurePostingService.sendForeclosureEventTrillionLoans(applicationId, lendingLedger, orderId);
+
+        String expectedExternalId = "TL_FC_" + orderId;
+        // Verify that the externalId remains consistent for the same orderId
+        verify(nbfcLenderGateway, times(2)).invoke(contains(expectedExternalId), any(), any());
+    }
+
 
 //    @Test
 //    void testForeClosureLoan() {

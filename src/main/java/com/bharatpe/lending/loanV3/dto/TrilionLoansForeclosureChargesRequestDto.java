@@ -32,7 +32,8 @@ public class TrilionLoansForeclosureChargesRequestDto {
         private String lan;
         private double amount;
         private String chargeId;
-        @JsonFormat(shape=JsonFormat.Shape.STRING, pattern= "dd-MM-yyyy")
+        @JsonFormat(shape=JsonFormat.Shape.STRING, pattern= "dd-MM-yyyy", timezone = "Asia/Kolkata")
         private Date dueDate;
+        private String externalId;
     }
 }
