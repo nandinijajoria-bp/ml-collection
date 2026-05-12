@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -67,6 +68,9 @@ public class LoanPaymentUtil {
 
     @Value("${extra.payment.rollout.percent:0}")
     Integer extraPaymentRolloutPercent;
+
+    @Value("#{'${extra.payment.not.eligible.lenders:}'.split(',')}")
+    Set<String> extraPaymentNotEligibleLenders;
 
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
@@ -248,11 +252,21 @@ public class LoanPaymentUtil {
         return rolloutPercentage;
     }
 
-    public boolean checkExtraPaymentRolloutPercentage(long loanId) {
-        if (extraPaymentRolloutPercent == -1) {
-            return true; // If the percent is -1, it means allows all
+    public boolean checkExtraPaymentRolloutPercentage(long loanId, String lender) {
+        try {
+            if (!CollectionUtils.isEmpty(extraPaymentNotEligibleLenders) && extraPaymentNotEligibleLenders.contains(lender)) {
+                log.info("LoanId {} lender {} is not eligible for extra payment", loanId, lender);
+                return false;
+            }
+
+            if (extraPaymentRolloutPercent == -1) {
+                return true; // If the percent is -1, it means allows all
+            }
+            return rolloutPercentage(loanId, extraPaymentRolloutPercent);
+        } catch (Exception e) {
+            log.error("Error in checking extra payment rollout percentage for loanId: {}, lender: {}, error : {} stack :{}", loanId, lender, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return false;
         }
-        return rolloutPercentage(loanId, extraPaymentRolloutPercent);
     }
 
     public boolean checkExtraPaymentAfterRolloutDate(Date loanCreationDate) {
