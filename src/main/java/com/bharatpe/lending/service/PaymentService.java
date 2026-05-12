@@ -571,7 +571,7 @@ public class PaymentService {
         // LC-2061
         double maxPayable = data.getNetPayable();
         if (loanPaymentUtil.checkExtraPaymentAfterRolloutDate(activeLoan.getCreatedAt())
-                && loanPaymentUtil.checkExtraPaymentRolloutPercentage(activeLoan.getId())) {
+                && loanPaymentUtil.checkExtraPaymentRolloutPercentage(activeLoan.getId(), activeLoan.getNbfc())) {
             logger.info("Checking extra payment allowed for loanId: {}", activeLoan.getId());
             maxPayable = calculateMaxAmount(activeLoan, maxPayable);
             logger.info("Extra payment allowed. calculated maxPayable: {} for loanId: {}", maxPayable, activeLoan.getId());
