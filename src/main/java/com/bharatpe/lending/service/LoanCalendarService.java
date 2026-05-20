@@ -53,9 +53,9 @@ public class LoanCalendarService {
 
         ZoneId zoneId = ZoneId.of("Asia/Kolkata");
         LocalDate todayLocal = LocalDate.now(zoneId);
-        LocalDate nextEdiDate = loan.getNextEdiDate().toInstant().atZone(zoneId).toLocalDate();
+        LocalDate startDate = loan.getStartDate().toInstant().atZone(zoneId).toLocalDate();
 
-        if (nextEdiDate.isAfter(todayLocal)) {
+        if (startDate.isAfter(todayLocal)) {
             return CalendarViewResponseDTO.builder()
                     .merchantId(merchantId)
                     .hasData(false)
@@ -135,19 +135,20 @@ public class LoanCalendarService {
     }
 
     private DayWiseInstallmentDTO mapToDayWiseDto(LendingCollectionSnapshot s) {
+        boolean today = s.getInstallmentDate().toInstant().atZone(ZoneId.of("Asia/Kolkata")).toLocalDate().isEqual(LocalDate.now(ZoneId.of("Asia/Kolkata")));
         return DayWiseInstallmentDTO.builder()
                 .date(s.getInstallmentDate())
                 .paidOnDate(s.getPaidOnDate())
                 .overdueSinceDt(s.getOverdueSinceDt())
                 .overdueEndDt((s.getOverdueEndDt()))
                 .scheduledEdiAmount(s.getScheduledEdiAmount())
-                .displayDueAmount(s.getDisplayDueAmount())
+                .displayDueAmount(s.getDisplayDueAmount()==0 ? s.getScheduledEdiAmount() : s.getDisplayDueAmount())
                 .paidAmount(s.getPaidAmt())
                 .appliedToThisEdi(s.getAppliedToThisEdi())
                 .remainingForThisEdi(s.getRemainingForThisEdi())
                 .excessAmt(s.getExcessAmt())
                 .settledUntilDt(s.getSettledUntilDt())
-                .status(s.getStatus())
+                .status(today ? "DUE" : s.getStatus())
                 .previousAmtDue(s.getPreviousAmtDue())
                 .dpd(s.getDpd())
                 .isPartiallyPaid(checkPartiallyPaid(s))
