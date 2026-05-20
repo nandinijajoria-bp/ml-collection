@@ -1885,6 +1885,7 @@ public class LiquiloansService {
                 currentSchedule.setLendingPaymentSchedule(paymentSchedule);
                 currentSchedule.setMerchantStoreId(storeId);
                 ediSchedules.add(currentSchedule);
+
                 totalInterestPayable += currentSchedule.getInterest();
             }
             lendingEDIScheduleDao.saveAll(ediSchedules);

@@ -32,6 +32,7 @@ import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.LendingCollectionSnapshotService;
 import com.bharatpe.lending.service.NachBounceChargesService;
 import com.bharatpe.lending.service.SettlementService;
 import com.bharatpe.lending.util.LoanUtil;
@@ -168,6 +169,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     @Autowired
     LoanPaymentUtil loanPaymentUtil;
+
+    @Autowired
+    LendingCollectionSnapshotService lendingCollectionSnapshotService;
 
     @Override
     @Transactional
@@ -328,6 +332,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingCollectionExcess.setSource(PAYMENT_EXCESS_SOURCE);
         lendingCollectionExcessDao.save(lendingCollectionExcess);
         log.info("created Excess balance Collection credit entry of amount:{} for merchant:{}", amount, loan.getMerchantId());
+        if (amount > 0 && loanUtil.isNewScreenEnabledLoanId(loan.getId())) {
+            lendingCollectionSnapshotService.updateTodayWithExcess(loan.getId(), amount);
+        }
         // As we already inform user when NACH excess was created from bank
         // As per product - do not send it for other source
         //if (loanPaymentUtil.excessCollectionCommunicationSmsRequired(payment.getSource())) sendExcessNachCollectionSMS(loan.getMerchantId(), loan.getId());

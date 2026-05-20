@@ -7,6 +7,10 @@ import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.dao.LendingEDIScheduleLendingCommonDao;
 import com.bharatpe.lending.common.entity.LendingEDIScheduleLendingCommon;
+import com.bharatpe.lending.common.entity.LendingCollectionSnapshot;
+import com.bharatpe.lending.common.dao.LendingCollectionSnapshotDao;
+import com.bharatpe.lending.service.LendingCollectionSnapshotService;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,9 +19,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
@@ -40,6 +47,15 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
 
     @Autowired
     AdjustChargesServiceImpl adjustChargesServiceImpl;
+
+    @Autowired
+    LendingCollectionSnapshotService lendingCollectionSnapshotService;
+
+    @Autowired
+    LendingCollectionSnapshotDao lendingCollectionSnapshotDao;
+
+    @Autowired
+    LoanUtil loanUtil;
 
     private static final Set<String> NPA_EDI_BY_EDI_PI_LENDER_LIST = new HashSet<>(Arrays.asList(CREDITSAISON.name()));
 
@@ -337,13 +353,19 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             log.info("remainingAmountToSettle : {} for loanId : {} and scheduleId : {}", balance, loanId, schedule.getId());
             PaymentCalculation interestAdjusted = settleEdiScheduleInterest(loanId, schedule, balance);
             balance = interestAdjusted.getBalance();
+            double interestUsed = interestAdjusted.getUsed();
             paidInterest += interestAdjusted.getUsed();
 
+            double principleUsed = 0;
             if (balance > 0) { //Adjust principal
                 PaymentCalculation principleAdjusted = settleEdiSchedulePrinciple(loanId, schedule, balance);
                 balance = principleAdjusted.getBalance();
+                principleUsed = principleAdjusted.getUsed();
                 paidPrinciple += principleAdjusted.getUsed();
             }
+
+            double totalSettledForThisRow = interestUsed + principleUsed;
+            updateSnapshotForSettleEdiByEdi(loanId, schedule, totalSettledForThisRow);
 
             if (balance <= 0.0) {
                 break;
@@ -362,8 +384,28 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
 
     }
 
+    private void updateSnapshotForSettleEdiByEdi(Long loanId, LendingEDIScheduleLendingCommon schedule, double totalSettledForThisRow) {
+        try {
+            ZoneId istZone = ZoneId.of("Asia/Kolkata");
+            Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
+            if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+                if (totalSettledForThisRow > 0) {
+                    LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), totalSettledForThisRow, todayIST);
+
+                    if (modifiedRow != null) {
+                        lendingCollectionSnapshotDao.save(modifiedRow);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception while updating snapshot for loanId : {} and scheduleId : {} - {} {}", loanId, schedule.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
     private PaymentCalculation settleAllPrincipleFirstThenAllInterest(Long loanId, List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, double amount) {
         log.info("settling all principle first for loanId : {}", loanId);
+        // Map to track combined (P + I) for each schedule to sync with Snapshot
+        Map<Long, Double> scheduleSettlementMap = new HashMap<>();
         double paidPrinciple = 0;
         double paidInterest = 0;
         double balance = amount;
@@ -371,7 +413,11 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         for (LendingEDIScheduleLendingCommon schedule : unpaidSchedulesForALoan) {
             PaymentCalculation principleAdjusted = settleEdiSchedulePrinciple(loanId, schedule, balance);
             balance = principleAdjusted.getBalance();
+            double principleUsed = principleAdjusted.getUsed();
             paidPrinciple += principleAdjusted.getUsed();
+            if (principleUsed > 0) {
+                scheduleSettlementMap.put(schedule.getId(), principleUsed);
+            }
             if (balance <= 0.0) {
                 break;
             }
@@ -382,12 +428,19 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             for (LendingEDIScheduleLendingCommon schedule : unpaidSchedulesForALoan) {
                 PaymentCalculation interestAdjusted = settleEdiScheduleInterest(loanId, schedule, balance);
                 balance = interestAdjusted.getBalance();
+                double interestUsed = interestAdjusted.getUsed();
                 paidInterest += interestAdjusted.getUsed();
+                if (interestUsed > 0) {
+                    scheduleSettlementMap.put(schedule.getId(), scheduleSettlementMap.getOrDefault(schedule.getId(), 0.0) + interestUsed);
+                }
                 if (balance <= 0.0) {
                     break;
                 }
             }
         }
+
+        // sync the accumulated totals for each schedule to the Snapshot table
+        updateSnapshotSettleAllPrincipleFirstThenAllInterest(loanId, unpaidSchedulesForALoan, scheduleSettlementMap);
 
         lendingEDIScheduleLendingCommonDao.saveAll(unpaidSchedulesForALoan);
         log.info("settleAllPrincipleFirstThenAllInterest: paidPrinciple : {}, paidInterest : {}, remainingAmountToSettle : {} for loanId : {}", paidPrinciple, paidInterest, balance, loanId);
@@ -398,6 +451,27 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .interestSettled(paidInterest)
                 .principleSettled(paidPrinciple)
                 .build();
+    }
+
+    private void updateSnapshotSettleAllPrincipleFirstThenAllInterest(Long loanId, List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, Map<Long, Double> scheduleSettlementMap) {
+        try {
+            ZoneId istZone = ZoneId.of("Asia/Kolkata");
+            Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
+            for (LendingEDIScheduleLendingCommon schedule : unpaidSchedulesForALoan) {
+                Double totalSettledForThisRow = scheduleSettlementMap.get(schedule.getId());
+                if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+                    if (totalSettledForThisRow != null && totalSettledForThisRow > 0) {
+                        LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), totalSettledForThisRow, todayIST);
+
+                        if (modifiedRow != null) {
+                            lendingCollectionSnapshotDao.save(modifiedRow);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception while updating snapshot for loanId : {} - {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
     }
 
     private PaymentCalculation settleEdiByEdiPrincipleThenInterest(Long loanId, List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, double amount) {
@@ -410,13 +484,19 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             log.info("remainingAmountToSettle : {} for loanId : {} and scheduleId : {}", balance, loanId, schedule.getId());
             PaymentCalculation principleAdjusted = settleEdiSchedulePrinciple(loanId, schedule, balance);
             balance = principleAdjusted.getBalance();
+            double principleUsed = principleAdjusted.getUsed();
             paidPrinciple += principleAdjusted.getUsed();
 
+            double interestUsed = 0;
             if (balance > 0) {
                 PaymentCalculation interestAdjusted = settleEdiScheduleInterest(loanId, schedule, balance);
                 balance = interestAdjusted.getBalance();
+                interestUsed = interestAdjusted.getUsed();
                 paidInterest += interestAdjusted.getUsed();
             }
+
+            double totalSettledForThisRow = principleUsed + interestUsed;
+            updateSnapshotSettleEdiByEdiPrincipleThenInterest(loanId, schedule, totalSettledForThisRow);
 
             if (balance <= 0.0) {
                 break;
@@ -434,6 +514,24 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .build();
     }
 
+    private void updateSnapshotSettleEdiByEdiPrincipleThenInterest(Long loanId, LendingEDIScheduleLendingCommon schedule, double totalSettledForThisRow) {
+        try {
+            ZoneId istZone = ZoneId.of("Asia/Kolkata");
+            Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
+            if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+                if (totalSettledForThisRow > 0) {
+                    LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), totalSettledForThisRow, todayIST);
+
+                    if (modifiedRow != null) {
+                        lendingCollectionSnapshotDao.save(modifiedRow);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception while updating snapshot for loanId : {} and scheduleId : {} - {} {}", loanId, schedule.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
     private PaymentCalculation settleAllPrinciple(Long loanId, List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, double amount) {
         log.info("settling all principle for loanId : {}", loanId);
         double paidPrinciple = 0;
@@ -443,7 +541,12 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         for (LendingEDIScheduleLendingCommon schedule : unpaidSchedulesForALoan) {
             PaymentCalculation principleAdjusted = settleEdiSchedulePrinciple(loanId, schedule, balance);
             balance = principleAdjusted.getBalance();
+            double principleUsed = principleAdjusted.getUsed();
             paidPrinciple += principleAdjusted.getUsed();
+
+            // Sync to Snapshot for this specific schedule
+            updateSnapshotSettleAllPrinciple(loanId, schedule, principleUsed);
+
             if (balance <= 0.0) {
                 break;
             }
@@ -458,6 +561,25 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .interestSettled(paidInterest)
                 .principleSettled(paidPrinciple)
                 .build();
+    }
+
+    private void updateSnapshotSettleAllPrinciple(Long loanId, LendingEDIScheduleLendingCommon schedule, double principleUsed) {
+        try {
+            List<LendingCollectionSnapshot> snapshotsToUpdate = new ArrayList<>();
+            ZoneId istZone = ZoneId.of("Asia/Kolkata");
+            Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
+            if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+                if (principleUsed > 0) {
+                    LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), principleUsed, todayIST);
+
+                    if (modifiedRow != null) {
+                        lendingCollectionSnapshotDao.save(modifiedRow);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception while updating snapshot for loanId : {} and scheduleId : {} - {} {}", loanId, schedule.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
     }
 
     private PaymentCalculation settleEdiScheduleInterest(Long loanId, LendingEDIScheduleLendingCommon schedule, double balance) {
@@ -504,5 +626,4 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .principleSettled(principalAdjusted)
                 .build();
     }
-
 }
