@@ -503,6 +503,9 @@ public class LoanUtil {
 	@Value("${max.mandate.rollout.percent:0}")
 	Integer maxMandateAmountRolloutPercent;
 
+    @Value("#{'${new.screen.enabled.loan.ids:0}'.split(',')}")
+    List<Long> newScreenEnabledLoanIds;
+
 	@PostConstruct
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
@@ -4301,5 +4304,12 @@ public class LoanUtil {
 		target.setIrr(source.getIrr());
 		return target;
 	}
+
+    public boolean isNewScreenEnabledLoanId(Long loanId) {
+        if (loanId == null || ObjectUtils.isEmpty(newScreenEnabledLoanIds)) {
+            return false;
+        }
+        return newScreenEnabledLoanIds.contains(loanId);
+    }
 }
 
