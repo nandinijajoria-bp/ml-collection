@@ -332,7 +332,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingCollectionExcess.setSource(PAYMENT_EXCESS_SOURCE);
         lendingCollectionExcessDao.save(lendingCollectionExcess);
         log.info("created Excess balance Collection credit entry of amount:{} for merchant:{}", amount, loan.getMerchantId());
-        if (amount > 0 && loanUtil.isNewScreenEnabledLoanId(loan.getId())) {
+        if (amount > 0 && loanPaymentUtil.isNewScreenEnabledLoanId(loan.getId())) {
             lendingCollectionSnapshotService.updateTodayWithExcess(loan.getId(), amount);
         }
         // As we already inform user when NACH excess was created from bank

@@ -72,6 +72,15 @@ public class LoanPaymentUtil {
     @Value("#{'${extra.payment.not.eligible.lenders:}'.split(',')}")
     Set<String> extraPaymentNotEligibleLenders;
 
+    @Value("#{'${new.screen.enabled.loan.ids:0}'.split(',')}")
+    List<Long> newScreenEnabledLoanIds;
+
+    @Value("${new.screen.rollout.percent:0}")
+    Integer newScreenRolloutPercent;
+
+    @Value("${new.screen.rollout.loanId.min:9999999}")
+    long minLoanIdThreshold;
+
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
 
@@ -281,5 +290,13 @@ public class LoanPaymentUtil {
 
     private Date getExtraPaymentDateFromProperty() {
         return DateTimeUtil.parseDate(extraPaymentRolloutDate, "yyyy-MM-dd HH:mm:ss");
+    }
+
+    public boolean isNewScreenEnabledLoanId(Long loanId) {
+        if (newScreenEnabledLoanIds.contains(loanId)) {
+            return true;
+        }
+
+        return loanId >= minLoanIdThreshold && rolloutPercentage(loanId, newScreenRolloutPercent);
     }
 }

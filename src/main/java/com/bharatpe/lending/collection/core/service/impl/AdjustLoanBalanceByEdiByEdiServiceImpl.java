@@ -10,7 +10,6 @@ import com.bharatpe.lending.common.entity.LendingEDIScheduleLendingCommon;
 import com.bharatpe.lending.common.entity.LendingCollectionSnapshot;
 import com.bharatpe.lending.common.dao.LendingCollectionSnapshotDao;
 import com.bharatpe.lending.service.LendingCollectionSnapshotService;
-import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,7 +54,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     LendingCollectionSnapshotDao lendingCollectionSnapshotDao;
 
     @Autowired
-    LoanUtil loanUtil;
+    LoanPaymentUtil loanPaymentUtil;
 
     private static final Set<String> NPA_EDI_BY_EDI_PI_LENDER_LIST = new HashSet<>(Arrays.asList(CREDITSAISON.name()));
 
@@ -388,7 +387,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         try {
             ZoneId istZone = ZoneId.of("Asia/Kolkata");
             Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
-            if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+            if(loanPaymentUtil.isNewScreenEnabledLoanId(loanId)) {
                 if (totalSettledForThisRow > 0) {
                     LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), totalSettledForThisRow, todayIST);
 
@@ -459,7 +458,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
             for (LendingEDIScheduleLendingCommon schedule : unpaidSchedulesForALoan) {
                 Double totalSettledForThisRow = scheduleSettlementMap.get(schedule.getId());
-                if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+                if(loanPaymentUtil.isNewScreenEnabledLoanId(loanId)) {
                     if (totalSettledForThisRow != null && totalSettledForThisRow > 0) {
                         LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), totalSettledForThisRow, todayIST);
 
@@ -518,7 +517,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         try {
             ZoneId istZone = ZoneId.of("Asia/Kolkata");
             Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
-            if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+            if(loanPaymentUtil.isNewScreenEnabledLoanId(loanId)) {
                 if (totalSettledForThisRow > 0) {
                     LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), totalSettledForThisRow, todayIST);
 
@@ -568,7 +567,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             List<LendingCollectionSnapshot> snapshotsToUpdate = new ArrayList<>();
             ZoneId istZone = ZoneId.of("Asia/Kolkata");
             Date todayIST = java.sql.Date.valueOf(LocalDate.now(istZone));
-            if(loanUtil.isNewScreenEnabledLoanId(loanId)) {
+            if(loanPaymentUtil.isNewScreenEnabledLoanId(loanId)) {
                 if (principleUsed > 0) {
                     LendingCollectionSnapshot modifiedRow = lendingCollectionSnapshotService.updateSnapshotRowObject(loanId, schedule.getDate(), principleUsed, todayIST);
 

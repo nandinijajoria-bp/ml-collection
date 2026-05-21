@@ -28,7 +28,7 @@ public class LendingCollectionSnapshotService {
 
             int excessVal = (int) Math.round(excessAmount);
             int totalExcess = excessVal;
-            int amountAddedToTodaysPaidAmt = 0;
+            updateTodaysPaidAmountBySettledAmount(loanId, excessVal, todayLocal);
 
             List<LendingCollectionSnapshot> unsettledRows = lendingCollectionSnapshotDao.findUnsettledInstallmentsTillDate(loanId, todayDate);
             for (LendingCollectionSnapshot unsettledRow : unsettledRows) {
@@ -37,10 +37,6 @@ public class LendingCollectionSnapshotService {
                 }
                 int remainingForRow = Optional.ofNullable(unsettledRow.getRemainingForThisEdi()).orElse(0);
                 int amountToSettle = Math.min(totalExcess, remainingForRow);
-                LocalDate installmentDate = new java.sql.Date(unsettledRow.getInstallmentDate().getTime()).toLocalDate();
-                if (installmentDate.isEqual(todayLocal) && remainingForRow - amountToSettle > 0) {
-                    amountAddedToTodaysPaidAmt += amountToSettle;
-                }
                 updateSnapshotRowObject(loanId, unsettledRow.getInstallmentDate(), (double) amountToSettle, todayDate);
                 totalExcess -= amountToSettle;
             }
@@ -50,7 +46,6 @@ public class LendingCollectionSnapshotService {
 
             totalExcess = Optional.ofNullable(todaysRow.getExcessAmt()).orElse(0) + totalExcess;
             todaysRow.setExcessAmt(totalExcess);
-            todaysRow.setPaidAmt(Optional.ofNullable(todaysRow.getPaidAmt()).orElse(0) + excessVal);
             todaysRow.setShowExcessMessage(Optional.ofNullable(todaysRow.getExcessAmt()).orElse(0) > 0);
 
             Integer scheduledEdi = lendingCollectionSnapshotDao.findScheduledEdiAmountByLoanId(loanId);
@@ -214,7 +209,6 @@ public class LendingCollectionSnapshotService {
                         // Add today's current debt to that backlog
                         // This gives the merchant the "Total needed to be current"
                         row.setDisplayDueAmount(totalPastDues + newRem);
-                        row.setPaidAmt(Optional.ofNullable(row.getPaidAmt()).orElse(0) + amountToApply);
                     } else {
                         // If today's EDI is cleared, switch to receipt mode
                         row.setDisplayDueAmount(scheduledEdi);
@@ -232,12 +226,28 @@ public class LendingCollectionSnapshotService {
                 }
 
                 row.setStatus(determineStatus(row));
+                updateTodaysPaidAmountBySettledAmount(loanId, amountToApply, today);
             }
             return row;
         } catch (Exception e) {
             log.error("[SNAPSHOT-UPDATE-OBJECT] Error for loanId {}: {}", loanId, e.getMessage());
             return null;
         }
+    }
+
+    private void updateTodaysPaidAmountBySettledAmount(Long loanId, int amountToApply, LocalDate today) {
+        Date todayDate = java.sql.Date.valueOf(today);
+        LendingCollectionSnapshot todaysRow = lendingCollectionSnapshotDao.findByLoanIdAndInstallmentDate(loanId, todayDate).orElse(null);
+        if (todaysRow == null) {
+            return;
+        }
+
+        int updatedPaidAmt = Optional.ofNullable(todaysRow.getPaidAmt()).orElse(0) + amountToApply;
+        todaysRow.setPaidAmt(updatedPaidAmt);
+        if (Optional.ofNullable(todaysRow.getRemainingForThisEdi()).orElse(0) == 0) {
+            todaysRow.setDisplayDueAmount(updatedPaidAmt);
+        }
+        lendingCollectionSnapshotDao.save(todaysRow);
     }
 
     private String determineStatus(LendingCollectionSnapshot snapshot) {
