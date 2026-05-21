@@ -142,7 +142,7 @@ public class LoanCalendarService {
                 .overdueSinceDt(s.getOverdueSinceDt())
                 .overdueEndDt((s.getOverdueEndDt()))
                 .scheduledEdiAmount(s.getScheduledEdiAmount())
-                .displayDueAmount(s.getDisplayDueAmount()==0 ? s.getScheduledEdiAmount() : s.getDisplayDueAmount())
+                .displayDueAmount(s.getDisplayDueAmount() == 0 ? s.getScheduledEdiAmount() : s.getDisplayDueAmount())
                 .paidAmount(s.getPaidAmt())
                 .appliedToThisEdi(s.getAppliedToThisEdi())
                 .remainingForThisEdi(s.getRemainingForThisEdi())
