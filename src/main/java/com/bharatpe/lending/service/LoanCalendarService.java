@@ -39,6 +39,7 @@ public class LoanCalendarService {
     private static final DateTimeFormatter ATTEMPT_TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
     public CalendarViewResponseDTO getCalendarViewData(Long merchantId, Integer month, Integer year) {
+        log.info("Loan calendar: fetching view for merchantId {}, month {}, year {}", merchantId, month, year);
 
         // Fetch Active Loan
         LendingPaymentScheduleSlave loan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList(LoanStatus.ACTIVE.name()));
@@ -56,6 +57,7 @@ public class LoanCalendarService {
         LocalDate startDate = loan.getStartDate().toInstant().atZone(zoneId).toLocalDate();
 
         if (startDate.isAfter(todayLocal)) {
+            log.error("Loan calendar: loan not started yet for merchantId {}, loanId {}, startDate {}", merchantId, loan.getId(), startDate);
             return CalendarViewResponseDTO.builder()
                     .merchantId(merchantId)
                     .hasData(false)
@@ -117,6 +119,9 @@ public class LoanCalendarService {
                 .map(this::mapToDayWiseDto)
                 .collect(Collectors.toList());
 
+        log.info("Loan calendar: built view for merchantId {}, loanId {}, targetMonth {}, targetYear {}, snapshotCount {}, hasData {}",
+                merchantId, loan.getId(), targetMonth, targetYear, dayWise.size(), !dayWise.isEmpty());
+
         return CalendarViewResponseDTO.builder()
                 .merchantId(merchantId)
                 .hasData(!dayWise.isEmpty())
@@ -135,7 +140,6 @@ public class LoanCalendarService {
     }
 
     private DayWiseInstallmentDTO mapToDayWiseDto(LendingCollectionSnapshot s) {
-        boolean today = s.getInstallmentDate().toInstant().atZone(ZoneId.of("Asia/Kolkata")).toLocalDate().isEqual(LocalDate.now(ZoneId.of("Asia/Kolkata")));
         return DayWiseInstallmentDTO.builder()
                 .date(s.getInstallmentDate())
                 .paidOnDate(s.getPaidOnDate())
@@ -148,7 +152,7 @@ public class LoanCalendarService {
                 .remainingForThisEdi(s.getRemainingForThisEdi())
                 .excessAmt(s.getExcessAmt())
                 .settledUntilDt(s.getSettledUntilDt())
-                .status(today ? "DUE" : s.getStatus())
+                .status(s.getStatus())
                 .previousAmtDue(s.getPreviousAmtDue())
                 .dpd(s.getDpd())
                 .isPartiallyPaid(checkPartiallyPaid(s))
@@ -169,8 +173,10 @@ public class LoanCalendarService {
 
     // Fetches details of payments that happened on a specific date
     public LoanTransactionHistoryResponseDTO getTransactionsForDate(Long merchantId, Date date) {
+        log.info("Loan transactions: fetching for merchantId {}, date {}", merchantId, date);
+
         if (date == null) {
-            log.error("Date is null");
+            log.error("Loan transactions: date is null for merchantId {}", merchantId);
             return new LoanTransactionHistoryResponseDTO();
         }
 
@@ -195,11 +201,14 @@ public class LoanCalendarService {
                 .map(this::mapToPaymentAttempt)
                 .collect(Collectors.toList());
 
-        return LoanTransactionHistoryResponseDTO.builder()
+        LoanTransactionHistoryResponseDTO response = LoanTransactionHistoryResponseDTO.builder()
                 .date(startInclusive)
                 .totalPaid(sumTransactionAmounts(orderList))
                 .transactions(items)
                 .build();
+        log.info("Loan transactions: returning for loanId {}, merchantId {}, day {}, transactionCount {}, totalPaid {}",
+                loan.getId(), merchantId, day, items.size(), response.getTotalPaid());
+        return response;
     }
 
     private static String sumTransactionAmounts(List<LoanPaymentOrderSlave> orders) {
@@ -227,16 +236,21 @@ public class LoanCalendarService {
     }
 
     public FailedTransactionResponseDTO getFailureDetails(Long merchantId, Date date) {
+        log.info("Loan failure details: fetching for merchantId {}, date {}", merchantId, date);
+
         ZoneId zoneId = ZoneId.systemDefault();
         LocalDate day = date.toInstant().atZone(zoneId).toLocalDate();
         String failureDate = DateTimeUtil.getDateInFormat(date, "yyyy-MM-dd");
         String message="";
         LendingPaymentScheduleSlave loan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList(LoanStatus.ACTIVE.name()));
         if (loan == null) {
+            log.error("Loan failure details: no active loan for merchantId {}, failureDate {}", merchantId, failureDate);
             return new FailedTransactionResponseDTO(failureDate, message);
         }
 
         List<String> errorDescriptions = lendingPullPaymentDaoSlave.findFailedErrorDescriptionsForDate(merchantId, failureDate);
+        log.info("Loan failure details: fetched error descriptions for merchantId {}, loanId {}, failureDate {}, count {}",
+                merchantId, loan.getId(), failureDate, errorDescriptions != null ? errorDescriptions.size() : 0);
 
         boolean hasInsufficientFundsReason = false;
         boolean hasTechnicalReason = false;
@@ -275,6 +289,9 @@ public class LoanCalendarService {
                 message = message + " Instalment was settled on " + paidOnDate + ".";
             }
         }
+
+        log.info("Loan failure details: returning for merchantId {}, loanId {}, failureDate {}, insufficientFunds {}, technical {}",
+                merchantId, loan.getId(), failureDate, hasInsufficientFundsReason, hasTechnicalReason);
 
         return new FailedTransactionResponseDTO(failureDate, message);
     }

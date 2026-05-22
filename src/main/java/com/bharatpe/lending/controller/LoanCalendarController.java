@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.Date;
 
 @Slf4j
@@ -40,10 +41,10 @@ public class LoanCalendarController {
             CalendarViewResponseDTO response = loanCalendarService.getCalendarViewData(merchantId, month, year);
             return ResponseEntity.ok(new ApiResponse<>(response));
         } catch (RuntimeException e) {
-            log.error("Error fetching instalment history for merchantId: {}", merchantId, e);
+            log.error("Error fetching instalment history for merchantId: {} ,msg={}, stackTrace={}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>(false, e.getMessage()));
         } catch (Exception e) {
-            log.error("Error fetching instalment history for merchantId: {}", merchantId, e);
+            log.error("Error fetching instalment history for merchantId: {} , msg={}, stackTrcae={}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<>(false, "Error fetching instalment history: " + e.getMessage()));
         }
     }
