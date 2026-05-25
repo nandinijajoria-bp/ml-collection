@@ -220,13 +220,25 @@ public class LoanCalendarService {
     }
 
     private LoanPaymentAttemptItemDTO mapToPaymentAttempt(LoanPaymentOrderSlave o) {
+        String rawSource = o.getSource();
+        String formattedMode = "-";
+
+        if (rawSource != null) {
+            if ("UPI_AUTOPAY".equalsIgnoreCase(rawSource)) {
+                formattedMode = "UPI AutoPay";
+            } else {
+                // General Rule: Replace all underscores with a clean space
+                formattedMode = rawSource.replace("_", " ");
+            }
+        }
+
         return LoanPaymentAttemptItemDTO.builder()
                 .date(formatDateTime(o.getCreatedAt()))
                 .paymentStatus(o.getStatus())
                 .amount(o.getAmount() != null ? o.getAmount().toString() : "0")
                 .transactionId(o.getBankRefNo() != null ? o.getBankRefNo() : o.getTerminalOrderId())
                 .typeOfPayment("Instalment")
-                .modeOfPayment(o.getSource())
+                .modeOfPayment(formattedMode)
                 .build();
     }
 
@@ -273,11 +285,11 @@ public class LoanCalendarService {
         }
 
         if (hasInsufficientFundsReason && hasTechnicalReason) {
-            message = "Payment unsuccessful due to technical issue and insufficient funds in bank account.";
+            message = "Payment unsuccessful due to technical issues and insufficient funds in bank account.";
         } else if (hasInsufficientFundsReason) {
             message = "Payment unsuccessful due to insufficient funds in bank account.";
         } else {
-            message = "Payment unsuccessful due to technical issue.";
+            message = "Payment unsuccessful due to technical issues.";
         }
 
         Date installmentDate = java.sql.Date.valueOf(day);
