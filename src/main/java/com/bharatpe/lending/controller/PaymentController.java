@@ -27,6 +27,9 @@ public class PaymentController {
     @Autowired
     LendingCollectionAuditService lendingCollectionAuditService;
 
+    @Autowired
+    RefundService refundService;
+
     @RequestMapping(value="/details", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute BasicDetailsDto merchant,
                                                                        @RequestParam(required = false, defaultValue = "true") Boolean showForeClosureDetails) {
@@ -225,5 +228,11 @@ public class PaymentController {
         logger.info("removeDpdBanner DPD banner for merchant id: {}", merchantId);
         paymentService.removeAppBottomSheet(loanId, merchantId);
         return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/{merchant_id}/refund/list", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<RefundStatusResponseDTO> getRefundStatus(@PathVariable(value = "merchant_id") Long merchantId) {
+        logger.info("get Refund status for merchant id: {}", merchantId);
+        return new ResponseEntity<>(refundService.getRefundList(merchantId), HttpStatus.OK);
     }
 }

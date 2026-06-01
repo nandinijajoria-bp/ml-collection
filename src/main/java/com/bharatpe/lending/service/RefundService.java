@@ -9,7 +9,12 @@ import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingRefundAuditDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.query.entity.LendingRefundAuditSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -17,17 +22,17 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
+import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -41,6 +46,12 @@ public class RefundService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleSlaveDao;
+
+    @Autowired
+    LendingRefundAuditDaoSlave lendingRefundAuditSlaveDao;
 
     @Autowired
     LendingPayoutsHandler lendingPayoutsHandler;
@@ -229,5 +240,66 @@ public class RefundService {
         lendingLedger.setTransferType(CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
         lendingLedgerDao.save(lendingLedger);
         lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
+    }
+
+    public RefundStatusResponseDTO getRefundList(Long merchantId) {
+        logger.info("getRefundList merchantId:{}", merchantId);
+        RefundStatusResponseDTO refundStatusResponseDTO = new RefundStatusResponseDTO();
+        CompletableFuture<BankAccountDetails> bankAccountDetailsCompletableFuture = loanUtil.getAccountDetailsAsync(merchantId);
+        List<LendingPaymentScheduleSlave> loanList = lendingPaymentScheduleSlaveDao.findAllByMerchantId(merchantId);
+
+        if (CollectionUtils.isEmpty(loanList)){
+            logger.error("getRefundList merchantId:{} loanList not found", merchantId);
+            return refundStatusResponseDTO.buildEmptySuccessResponse(merchantId);
+        }
+
+        List<LendingRefundAuditSlave> refundList = lendingRefundAuditSlaveDao.findAllByMerchantId(merchantId);
+
+        if (CollectionUtils.isEmpty(refundList)){
+            logger.error("getRefundList merchantId:{} refundList not found", merchantId);
+            return refundStatusResponseDTO.buildEmptySuccessResponse(merchantId);
+        }
+
+        Map<Long, List<LendingRefundAuditSlave>> refundMap = new LinkedHashMap<>();
+        refundList.forEach(_refund-> {
+            refundMap.putIfAbsent(_refund.getLoanId(), new ArrayList<>());
+            refundMap.get(_refund.getLoanId()).add(_refund);
+        });
+
+        Map<Long, List<RefundStatusResponseDTO.RefundData>> refundDataMap = new LinkedHashMap<>();
+        for(LendingPaymentScheduleSlave _loan : loanList) {
+            refundDataMap.putIfAbsent(_loan.getId(), new ArrayList<>());
+
+            List<LendingRefundAuditSlave> refunds = refundMap.getOrDefault(_loan.getId(),  new ArrayList<>());
+            for (LendingRefundAuditSlave _refund : refunds) {
+                RefundStatusResponseDTO.RefundData refundDto = RefundStatusResponseDTO.RefundData.builder()
+                        // loan field
+                        .loanId(_loan.getId())
+                        .merchantId(_loan.getMerchantId())
+                        .loanStatus(_loan.getStatus())
+                        .lender(_loan.getNbfc())
+
+                        // refund field
+                        .refundInitiated(_refund.getRefundUtrNo() != null)
+                        .refundAmount(_refund.getRefundAmount())
+                        .orderAmount(_refund.getOrderAmount())
+                        .mode(_refund.getMode())
+                        .bankRefNo(_refund.getBankRefNo())
+                        .source(_refund.getSource())
+                        .refundUtrNo(_refund.getRefundUtrNo())
+                        .status(_refund.getStatus())
+                        .orderDate(_refund.getCreatedAt())
+                        .remarks(_refund.getRemarks())
+                        .lenderRemarks(_refund.getLenderRemarks())
+                        .transferAmount(_refund.getTransferAmount())
+                        .transferDate(_refund.getTransferDate())
+                        .terminalOrderId(_refund.getTerminalOrderId())
+                        .build();
+
+                refundDataMap.get(_loan.getId()).add(refundDto);
+            }
+        }
+        BankAccountDetails bankDetailsDto = loanUtil.fetchAccountDetailsFromFuture(merchantId, bankAccountDetailsCompletableFuture);
+        return new RefundStatusResponseDTO(merchantId, refundDataMap, bankDetailsDto);
     }
 }
