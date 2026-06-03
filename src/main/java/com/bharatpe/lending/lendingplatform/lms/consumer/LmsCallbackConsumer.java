@@ -28,7 +28,7 @@ public class LmsCallbackConsumer {
     @KafkaListener(
             topics = "${trillion.lender.receipt.posting:lc-trillion-receipt}",
             groupId = "lending-service",
-            autoStartup = "${kafka.listener.1lms.autoStartup:false}",
+            autoStartup = "${kafka.lending.collection.1lms.consumer:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeLenderReceiptPostingStatus(String message) {
         MDC.put("requestId", UUID.randomUUID().toString());
@@ -40,7 +40,7 @@ public class LmsCallbackConsumer {
     @KafkaListener(
             topics = "${kafka.consumer.lms.payment:lp-loan-payment-callback}",
             groupId = "lending-service",
-            autoStartup = "${kafka.listener.1lms.autoStartup:false}",
+            autoStartup = "${kafka.lending.collection.1lms.consumer:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeLmsPaymentPostingStatus(String message) {
         MDC.put("requestId", UUID.randomUUID().toString());
