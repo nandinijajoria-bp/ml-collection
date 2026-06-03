@@ -26,7 +26,7 @@ public class LmsLoanStatusConsumer {
     @KafkaListener(
             topics = "${kafka.consumer.lms.loan.creation:lp-loan-status-update}",
             groupId = "lending-service",
-            autoStartup = "${kafka.listener.1lms.autoStartup:false}",
+            autoStartup = "${kafka.lending.collection.1lms.consumer:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeLoanStatus(String message) {
         MDC.put(REQUEST_ID, UUID.randomUUID().toString());

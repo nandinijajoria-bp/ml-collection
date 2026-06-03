@@ -33,7 +33,7 @@ public class NBFCPayoutConsumer {
             concurrency = "${kafka.consumerGroup.nbfc.payout.status.callback.concurrency:1}",
             topics = NBFC_PAYOUT_STATUS_CALLBACK_TOPIC,
             groupId = "NBFCPAYOUT",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "${kafka.lending.collection.consumer:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void handlePaymentNotifications(@Payload String rawData, @Header(KafkaHeaders.RECEIVED_PARTITION_ID) String partition
             , @Header(KafkaHeaders.OFFSET) String offset) {
