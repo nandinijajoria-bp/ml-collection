@@ -16,6 +16,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.oxyzo.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalInsuranceService;
+import com.bharatpe.lending.loanV3.services.associationsV2.sib.SibForeclosureService;
 import com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl.*;
@@ -300,6 +301,9 @@ public class AssociationServiceUtil {
     @Autowired
     MFInsuranceService mfInsuranceService;
 
+    @Autowired
+    private SibForeclosureService sibForeclosureService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -513,6 +517,8 @@ public class AssociationServiceUtil {
                 return ugroForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "OXYZO":
                 return oxyzoForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger, orderId);
+            case "SIB":
+                return sibForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             default:
                 return null;
         }
@@ -532,6 +538,8 @@ public class AssociationServiceUtil {
                 return smfgForeclosureService.getForeclosureDetails(applicationId);
             case "UGRO":
                 return ugroForeclosureService.getForeclosureDetails(applicationId);
+            case "SIB":
+                return sibForeclosureService.getForeclosureDetails(applicationId);
             default:
                 return 0D;
         }

@@ -131,6 +131,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     String nbfcLiquiLoansForeclosureTopic;
     @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
     String nbfcPayuForeclosureTopic;
+    @Value("${nbfc.sib.foreclosure.topic:sib-loan-receipt}")
+    String nbfcSibForeclosureTopic;
 
     @Value("${nbfc.collection.service.base.url:https://api-nbfc.bharatpemoney.com/}")
     String nbfcCollectionServiceBaseUrl;
@@ -672,6 +674,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return oxyzoConfig.getForeclosureTopic();
             case "MUTHOOT":
                 return nbfcMuthootForeclosureTopic;
+            case "SIB":
+                return nbfcSibForeclosureTopic;
             default:
                 return null;
         }
