@@ -101,6 +101,7 @@ import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCES
 import static com.bharatpe.lending.constant.LendingConstants.AUTO_PAY_SETTLEMENT;
 import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
 import static com.bharatpe.lending.constant.PaymentConstants.*;
+import static com.bharatpe.lending.enums.Lender.SIB;
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 @Service
@@ -397,6 +398,8 @@ public class PaymentService {
     @Autowired
     private TlReceiptHelpers tlReceiptHelpers;
 
+    private static final Set<String> FORECLOSURE_RESTRICTED_LENDERS = new HashSet<>(Arrays.asList(SIB.name()));
+
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
@@ -547,6 +550,10 @@ public class PaymentService {
             if("PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) && !loanUtil.checkLoanCoolOffPeriod(activeLoan.getStartDate())) data.setForeclosurePenaltyFee(loanUtil.calculatePiramalPenalty(activeLoan));
             data.setPrincipalDueAmount((int) (data.getPrincipalDueAmount()+data.getForeclosurePenaltyFee()));
             data.setForeClosureAmount(data.getForeClosureAmount()+data.getForeclosurePenaltyFee());
+
+            if (FORECLOSURE_RESTRICTED_LENDERS.contains(activeLoan.getNbfc()) && netForeclosureAtLender == 0) {
+                data.setForeClosureAmount(netForeclosureAtLender);
+            }
 
         }
         Double paidPrinciple = activeLoan.getPaidPrinciple() != null
