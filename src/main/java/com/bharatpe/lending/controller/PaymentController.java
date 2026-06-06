@@ -223,7 +223,7 @@ public class PaymentController {
         return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
     }
 
-    @RequestMapping(value = "/dpd/notify/remove", method = RequestMethod.GET, produces="application/json")
+    @RequestMapping(value = "/dpd/notify/remove-stopped", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<String> removeDpdBanner(@RequestParam Long merchantId, @RequestParam Long loanId) {
         logger.info("removeDpdBanner DPD banner for merchant id: {}", merchantId);
         paymentService.removeAppBottomSheet(loanId, merchantId);
@@ -236,7 +236,7 @@ public class PaymentController {
         return new ResponseEntity<>(refundService.getRefundList(merchantId), HttpStatus.OK);
     }
 
-    @RequestMapping(value = "/collections/task", method = RequestMethod.POST, produces="application/json")
+    @RequestMapping(value = "/dpd/notify/remove", method = RequestMethod.POST, produces="application/json")
     public ResponseEntity<String> presentmentCancellation(@RequestParam Long loanId) {
         logger.info("manual presentment cancellation: {}", loanId);
         paymentService.presentmentCancellation(loanId);
