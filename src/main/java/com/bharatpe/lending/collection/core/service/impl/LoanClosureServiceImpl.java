@@ -20,15 +20,18 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
+import com.bharatpe.lending.collection.core.service.MandateCancellationService;
 import com.bharatpe.lending.service.RedisNotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import javax.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -47,6 +50,24 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     @Autowired
     LoanPaymentUtil loanPaymentUtil;
     ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
+    ExecutorService mandateCancellationExecutor = Executors.newFixedThreadPool(5);
+
+    @PreDestroy
+    public void shutdownMandateCancellationExecutor() {
+        if (mandateCancellationExecutor != null && !mandateCancellationExecutor.isShutdown()) {
+            mandateCancellationExecutor.shutdown();
+            try {
+                if (!mandateCancellationExecutor.awaitTermination(10, TimeUnit.MINUTES)) {
+                    mandateCancellationExecutor.shutdownNow();
+                    mandateCancellationExecutor.awaitTermination(1, TimeUnit.MINUTES);
+                }
+            } catch (InterruptedException e) {
+                mandateCancellationExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+                log.warn("Mandate cancellation executor shutdown interrupted", e);
+            }
+        }
+    }
 
     @Autowired
     ForeClosureAmountInfoDao foreClosureAmountInfoDao;
@@ -57,6 +78,9 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     @Autowired
     LendingCollectionAuditDao lendingCollectionAuditDao;
 
+    @Autowired
+    MandateCancellationService mandateCancellationService;
+
     @Override
     public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
         log.info("inside close loan and update lender for loanId {} orderId {} ",loan.getId(),loanClosureDTO.getOrderId());
@@ -64,6 +88,8 @@ public class LoanClosureServiceImpl implements LoanClosureService {
         updateForeclosureAmountInfoLedgerId(lendingLedger, loanClosureDTO.getOrderId(),loan.getId());
         log.info("posting closure status to lender for loanId {} and loan-details {}",loan.getId(),loan);
         postClosureStatusToLender( loan,  lendingLedger,  loanClosureDTO);
+        LendingPaymentSchedule closedLoan = loan;
+        mandateCancellationExecutor.execute(() -> mandateCancellationService.cancelPendingMandateExecutions(closedLoan));
     }
 
     private void updateForeclosureAmountInfoLedgerId(LendingLedger lendingLedger, Long orderId, Long loanId) {

@@ -7,6 +7,7 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
+import com.bharatpe.lending.collection.core.service.MandateCancellationService;
 import com.bharatpe.lending.collection.core.service.impl.LoanPaymentServiceImpl;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
@@ -149,6 +150,9 @@ public class VerifyOTPService {
 
     @Autowired
     AutoPayUPIDao autoPayUPIDao;
+
+    @Autowired
+    MandateCancellationService mandateCancellationService;
 
     @Autowired
     PostAgreementAsyncFlowService postAgreementAsyncFlowService;
@@ -437,6 +441,9 @@ public class VerifyOTPService {
             autoPayUPI.setStatus(AutoPayStatusEnum.INACTIVE);
             autoPayUPIDao.save(autoPayUPI);
             logger.info("AutoPay UPI set to INACTIVE for applicationId: {}", previousLendingApplicationOptional.get().getId());
+
+            final LendingPaymentSchedule closedParentLoan = previousLoan;
+            executorService.execute(() -> mandateCancellationService.cancelPendingMandateExecutions(closedParentLoan, "Cancelled due to topup parent loan closure"));
         }
 
         finalResponse.put("message", "successfully settled previous loan");
