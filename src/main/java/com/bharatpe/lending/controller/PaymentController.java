@@ -171,7 +171,8 @@ public class PaymentController {
     @RequestMapping(value = "/receipt", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<String> postPendingReceipt(@RequestParam Long loanId) {
         logger.info("posting pending receipt for loan id: {}", loanId);
-        lendingCollectionAuditService.sendReceiptPosting(loanId);
+        //lendingCollectionAuditService.sendReceiptPosting(loanId);
+        paymentService.presentmentCancellation(loanId);
         return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
     }
 
