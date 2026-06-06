@@ -121,6 +121,9 @@ public class APIGatewayService {
     @Value("${pg.url}")
     String PG_URL;
 
+    @Value("${nach-collection.endpoint:https://nach-collection.bharatpemoney.com}")
+    public String nachCollectionEndpoint;
+
     @Value("${pg.percent:10}")
     Integer pgPercent;
 
@@ -3173,6 +3176,85 @@ public class APIGatewayService {
             logger.error("Exception occurred while calling alt account API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return null;
+    }
+
+    public ResponseDTO<Map<String, Object>> cancelDigioPresentmentOnForeclosure(Long nachTransactionId) {
+        logger.info("Cancel Digio presentment for nachTransactionId:{}",nachTransactionId);
+
+        Map<String, Object> requestBody = new HashMap<String, Object>() {{
+            put("nachTransactionId", nachTransactionId);
+        }};
+
+        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+        try {
+            logger.info("Cancel Digio presentment request:{}", request);
+            ResponseEntity<ResponseDTO<Map<String, Object>>> responseEntity = restTemplate.exchange(
+                    nachCollectionEndpoint + LendingConstants.DIGIO_PRESENTMENT_CANCEL_URL,
+                    HttpMethod.POST,
+                    request,
+                    new ParameterizedTypeReference<ResponseDTO<Map<String, Object>>>() {}
+            );
+            logger.info("Cancel Digio presentment response:{}", responseEntity);
+            if (responseEntity.getBody() != null) {
+                return responseEntity.getBody();
+            }
+        } catch (HttpClientErrorException | HttpServerErrorException ex) {
+            logger.error("Error calling Digio presentment cancel: {}", Arrays.asList(ex.getStackTrace()));
+            return new ResponseDTO<>(false, StringUtils.hasText(ex.getResponseBodyAsString())
+                    ? ex.getResponseBodyAsString()
+                    : ex.getMessage());
+        } catch (Exception ex) {
+            logger.error("Exception calling Digio presentment cancel: {}", Arrays.asList(ex.getStackTrace()));
+            return new ResponseDTO<>(false, ex.getMessage());
+        }
+        return new ResponseDTO<>(false, "No response from nach collection");
+    }
+
+    public PgMandateExecutionResponse cancelMandateExecution(String orderId, Long merchantId, Lender lender) {
+        log.info("Cancel mandate execution for orderId:{}, merchantId:{}, lender:{}", orderId, merchantId, lender);
+        ResponseEntity<PgMandateExecutionResponse> responseEntity = null;
+        try {
+            LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(lender.name(), "ACTIVE");
+            log.info("Cancel mandate execution pgMidConfig:{} for orderId:{}", pgMidConfig, orderId);
+
+            Map<String, String> requestParams = new HashMap<>();
+            requestParams.put("orderId", orderId);
+
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getPgSecret(lender, pgMidConfig, merchantId));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getPgMid(lender, pgMidConfig, merchantId));
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
+
+            log.info("Cancel mandate execution request:{} for orderId:{}, merchantId:{}", request, orderId, merchantId);
+            try {
+                responseEntity = restTemplate.exchange(PG_URL + LendingConstants.CANCEL_MANDATE_EXECUTION_URL, HttpMethod.POST, request, PgMandateExecutionResponse.class);
+                log.info("Cancel mandate execution response:{} for orderId:{}, merchantId:{}", responseEntity, orderId, merchantId);
+            } catch (HttpClientErrorException ex) {
+                log.error("Cancel mandate execution client error for orderId:{}, merchantId:{}, response:{}", orderId, merchantId, ex.getResponseBodyAsString(), ex);
+                PgMandateExecutionResponse errorResponse = new PgMandateExecutionResponse();
+                errorResponse.setStatusCode(ex.getStatusCode().toString());
+                errorResponse.setMessage(ex.getResponseBodyAsString());
+                return errorResponse;
+            }
+        } catch (Exception ex) {
+            log.error("Cancel mandate execution error for orderId:{}, merchantId:{}", orderId, merchantId, ex);
+            PgMandateExecutionResponse errorResponse = new PgMandateExecutionResponse();
+            errorResponse.setStatusCode("500");
+            errorResponse.setMessage(ex.getMessage());
+            return errorResponse;
+        }
+        return responseEntity != null ? responseEntity.getBody() : null;
     }
 }
 
