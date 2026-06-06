@@ -63,7 +63,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel", "/lending/v3/retryStage", "/vkyc/callback","/lending/payment/receipt","/lending/payment/pdpd/shift",
 						"/lending/payment/autopay/present", "/lending/payment/autopay/migrate", "/lending/payment/lien/add", "/lending/payment/lien/remove", "/lending/payment/nach/present","/lending/evictCache/due_amount",
 						"/lending/payment/dpd/notify/add", "/lending/payment/dpd/notify/remove", "/lending/payment/redirect/callback", "/lending/payment/redirect/callback/v2",
-						"/milestone/rte-loan-eligibility-check","/data/**","/lending/v3/insurance/doc","/lending/qr-status/webhook", "/Lending/post-risk-process");
+						"/milestone/rte-loan-eligibility-check","/data/**","/lending/v3/insurance/doc","/lending/qr-status/webhook", "/Lending/post-risk-process", "/lending/payment/collections/task");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication", "/lms/v1/**",
@@ -81,7 +81,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				, "/milestone/rte-eligibility-check","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal","/lending/payment/loan/cancel","/lending/payment/receipt","/lending/payment/pdpd/shift",
 				"/lending/payment/autopay/present", "/lending/payment/autopay/migrate", "/lending/payment/nach/present", "/lending/payment/lien/add", "/lending/payment/lien/remove",
 				"/lending/payment/dpd/notify/add", "/lending/payment/dpd/notify/remove",
-				"/milestone/rte-loan-eligibility-check","/lending/v3/insurance/doc");
+				"/milestone/rte-loan-eligibility-check","/lending/v3/insurance/doc", "/lending/payment/collections/task");
 
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
 

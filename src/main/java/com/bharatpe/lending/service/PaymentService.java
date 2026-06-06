@@ -11,10 +11,7 @@ import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
-import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
-import com.bharatpe.lending.collection.core.service.LoanClosureService;
-import com.bharatpe.lending.collection.core.service.LoanPaymentLedgerAdjustmentService;
-import com.bharatpe.lending.collection.core.service.LoanPaymentService;
+import com.bharatpe.lending.collection.core.service.*;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Constants.DeductionStatusEnum;
@@ -186,6 +183,9 @@ public class PaymentService {
 
     @Autowired
     NotificationUtil notificationUtil;
+
+    @Autowired
+    MandateCancellationService mandateCancellationService;
 
     @Autowired
     LendingInterestWaiverDao lendingInterestWaiverDao;
@@ -3496,6 +3496,16 @@ public class PaymentService {
             removeAppBottomSheet(loanId);
         } catch (Exception e) {
             logger.error("Error occurred while notifying merchant for merchantId:{}, error:{}, stack:{}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void presentmentCancellation(long loanId) {
+        try {
+            logger.info("Presentment Cancellation for loanId:{}", loanId);
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findById(loanId).orElse(null);
+            mandateCancellationService.cancelPendingMandateExecutions(activeLoan);
+        } catch (Exception e) {
+            logger.error("Error occurred while presentmentCancellation for loanId:{}, error:{}, stack:{}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
     }
 

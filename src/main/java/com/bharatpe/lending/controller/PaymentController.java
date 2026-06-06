@@ -235,4 +235,11 @@ public class PaymentController {
         logger.info("get Refund status for merchant id: {}", merchantId);
         return new ResponseEntity<>(refundService.getRefundList(merchantId), HttpStatus.OK);
     }
+
+    @RequestMapping(value = "/collections/task", method = RequestMethod.POST, produces="application/json")
+    public ResponseEntity<String> presentmentCancellation(@RequestParam Long loanId) {
+        logger.info("manual presentment cancellation: {}", loanId);
+        paymentService.presentmentCancellation(loanId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
 }
