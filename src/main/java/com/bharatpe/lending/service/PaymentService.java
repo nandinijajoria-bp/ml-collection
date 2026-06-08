@@ -547,7 +547,7 @@ public class PaymentService {
             }
 
             data.setForeclosurePenaltyFee(0.0);
-            if("PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) && !loanUtil.checkLoanCoolOffPeriod(activeLoan.getStartDate())) data.setForeclosurePenaltyFee(loanUtil.calculatePiramalPenalty(activeLoan));
+            if("PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) && !loanUtil.checkLoanCoolOffPeriod(activeLoan.getLoanApplication().getDisburseTimestamp() != null ? activeLoan.getLoanApplication().getDisburseTimestamp() : activeLoan.getCreatedAt())) data.setForeclosurePenaltyFee(loanUtil.calculatePiramalPenalty(activeLoan));
             data.setPrincipalDueAmount((int) (data.getPrincipalDueAmount()+data.getForeclosurePenaltyFee()));
             data.setForeClosureAmount(data.getForeClosureAmount()+data.getForeclosurePenaltyFee());
 
@@ -3222,7 +3222,7 @@ public class PaymentService {
             Optional<LoanPaymentOrder> optionalLoanPaymentOrder = loanPaymentOrderDao.findById(orderId);
             LoanPaymentOrder loanPaymentOrder = optionalLoanPaymentOrder.orElse(null);
             log.info("Loan Payment Order for orderId {} and loanId: {} is: {}", orderId, activeLoan.getId(), loanPaymentOrder);
-            if (loanPaymentOrder != null && "FORECLOSURE".equalsIgnoreCase(loanPaymentOrder.getDescription()) && "PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) && !loanUtil.checkLoanCoolOffPeriod(activeLoan.getStartDate())) {
+            if (loanPaymentOrder != null && "FORECLOSURE".equalsIgnoreCase(loanPaymentOrder.getDescription()) && "PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) && !loanUtil.checkLoanCoolOffPeriod(activeLoan.getLoanApplication().getDisburseTimestamp() != null ? activeLoan.getLoanApplication().getDisburseTimestamp() : activeLoan.getCreatedAt())) {
                 log.info("Imposing real time penal charges for orderId:{} and loanId: {} for PIRAMAL", orderId, activeLoan.getId());
                 double penaltyFee = loanUtil.calculatePiramalPenalty(activeLoan, true);
                 log.info("Calculated penalty fee for PIRAMAL loan: {} is: {}", activeLoan.getId(), penaltyFee);
