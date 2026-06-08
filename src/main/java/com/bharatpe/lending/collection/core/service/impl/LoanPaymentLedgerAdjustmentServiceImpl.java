@@ -36,6 +36,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 
+import static com.bharatpe.lending.collection.core.constant.RepaymentConstants.POST_ADJUSTMENT_PAYIN_RECEIPT_POSTING_LENDER;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.PaymentConstants.UPI_AUTOPAY_EXCESS_CREDIT_MODE;
 import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
@@ -131,9 +132,36 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     @Override
     public void updateCollectionAuditAndOrder(LendingLedger lendingLedger, LoanPaymentOrder order) {
         log.info("inside update audit for ledger {} and order {}",lendingLedger,order);
+        if (Objects.nonNull(lendingLedger) && POST_ADJUSTMENT_PAYIN_RECEIPT_POSTING_LENDER.contains(lendingLedger.getLendingPaymentSchedule().getNbfc())) {
+            log.info("Loan with nbfc {} is eligible for post adjustment payin receipt posting for ledgerId: {}", lendingLedger.getLendingPaymentSchedule().getNbfc(), lendingLedger.getId());
+            updatePayinLendingCollectionAuditWithAdjustment(lendingLedger);
+        }
         if (Objects.nonNull(lendingLedger))lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
         if (Objects.nonNull(order)) markOrderSuccess(order);
     }
+
+    private void updatePayinLendingCollectionAuditWithAdjustment(LendingLedger lendingLedger) {
+        try {
+            log.info("Updating PAYIN LendingCollectionAudit with adjustment for ledgerId: {}, loanId: {}, terminalOrderId: {}", lendingLedger.getId(), lendingLedger.getLendingPaymentSchedule().getId(), lendingLedger.getTerminalOrderId());
+            LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLoanIdAndTerminalOrderIdAndStatus(lendingLedger.getLendingPaymentSchedule().getId(), lendingLedger.getTerminalOrderId(), "PENDING");
+            if (ObjectUtils.isEmpty(lendingCollectionAudit)) {
+                log.info("No PENDING LendingCollectionAudit found for PAYIN record for loan: {} and terminalOrderId: {}", lendingLedger.getLendingPaymentSchedule().getId(), lendingLedger.getTerminalOrderId());
+                return;
+            }
+            log.info("LendingCollectionAudit fetched for PAYIN record for loan: {}: {}", lendingLedger.getLendingPaymentSchedule().getId(), lendingCollectionAudit);
+
+            lendingCollectionAudit.setPenalty(lendingLedger.getPenalty());
+            lendingCollectionAudit.setPrinciple(lendingLedger.getPrinciple());
+            lendingCollectionAudit.setInterest(lendingLedger.getInterest());
+            lendingCollectionAudit.setOtherCharges(lendingLedger.getOtherCharges());
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            log.info("LendingCollectionAudit updated for PAYIN record for loan: {}: {}", lendingLedger.getLendingPaymentSchedule().getId(), lendingCollectionAudit);
+        }
+        catch (Exception e) {
+            log.error("Exception while updating PAYIN LendingCollectionAudit with adjustment for ledgerId: {}, loanId: {}, terminalOrderId: {}, Exception: {} Stack: {}", lendingLedger.getId(), lendingLedger.getLendingPaymentSchedule().getId(), lendingLedger.getTerminalOrderId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
     @Override
     public LendingLedger createLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjusted, String description, String source, String transferType, String terminalOrderId) {
         if(Objects.isNull(paymentAdjusted)) return null;

@@ -3177,7 +3177,7 @@ public class LoanUtil {
 
 	public boolean checkLoanCoolOffPeriod(Date createdAt) {
 		double	durationInDays = calculateDurationInDays(createdAt);
-		if(durationInDays < COOL_OFF_PERIOD_DAYS) return true;
+		if(durationInDays <= COOL_OFF_PERIOD_DAYS) return true;
 		return false;
 	}
 
