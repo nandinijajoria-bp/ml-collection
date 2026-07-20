@@ -1,11 +1,3 @@
 # ml-collection
 
-<!-- test: Confluence doc sync E2E - 20 Jul 2026 -->
-
-Technical documentation for the ml-collection service.
-sdfghjklzsdfxgchjvbknl
-
-ṿcbvnbjnm,l
-fsFDzgxhcjvkbl;
-
-dckckjc,hcjckhcvkcc,nvkh
+<!-- E2E retest after Confluence page restore - 20 Jul 2026 -->
