@@ -1,0 +1,12 @@
+name: Confluence doc sync
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  notify:
+    uses: nandinijajoria-bp/confluence-doc-automation/.github/workflows/confluence-sync-notify.yml@main
+    secrets:
+      CURSOR_WEBHOOK_URL: ${{ secrets.CURSOR_WEBHOOK_URL }}
+      CURSOR_WEBHOOK_API_KEY: ${{ secrets.CURSOR_WEBHOOK_API_KEY }}
