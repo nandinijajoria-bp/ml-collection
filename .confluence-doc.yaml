@@ -6,28 +6,32 @@ confluence:
 
 pages:
   live:
-    page_id: "1588658182"
+    page_id: "1588658182"   # ml-collection live page
 
 sections:
   - id: overview
     description: ml-collection service overview and ownership
+    heading: "Service overview (auto-generated)"
     sources:
       - README.md
 
   - id: api-reference
     description: REST controllers and API endpoints
+    heading: "API endpoints (auto-generated)"
     sources:
       - "**/controller/**"
       - "**/api/**"
 
   - id: database-schema
     description: JPA entities and database schema
+    heading: "Modules (auto-generated)"
     sources:
       - "**/entity/**"
       - "**/repository/**"
 
   - id: dependencies
     description: External clients, Kafka, and config
+    heading: "External integrations (auto-generated)"
     sources:
       - "**/config/**"
       - "**/client/**"
