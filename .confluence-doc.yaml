@@ -4,39 +4,31 @@ confluence:
   cloud_id: ba1ba2dc-057b-4957-b046-c07e1ece67da
   space_key: MLKB
 
-page:
-  page_id: "1588658182"
+pages:
+  live:
+    page_id: "1588658182"
 
 sections:
   - id: overview
-    description: ml-collection service overview from README
+    description: ml-collection service overview and ownership
     sources:
       - README.md
-      - "**/README.md"
 
   - id: api-reference
     description: REST controllers and API endpoints
     sources:
       - "**/controller/**"
-      - "**/controllers/**"
       - "**/api/**"
-      - docs/api.md
 
   - id: database-schema
-    description: JPA entities, repositories, and migrations
+    description: JPA entities and database schema
     sources:
       - "**/entity/**"
-      - "**/entities/**"
       - "**/repository/**"
-      - "**/migration/**"
-      - "**/migrations/**"
 
   - id: dependencies
-    description: External clients, Kafka, and configuration
+    description: External clients, Kafka, and config
     sources:
       - "**/config/**"
       - "**/client/**"
-      - "**/clients/**"
       - "**/kafka/**"
-      - "**/application*.yml"
-      - "**/application*.properties"
